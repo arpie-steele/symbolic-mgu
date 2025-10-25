@@ -1,0 +1,62 @@
+[package]
+edition = "2018"
+rust-version = "1.77.0"
+name = "symbolic-mgu"
+version = "0.1.0"
+authors = ["Richard Penner <richardpenner@gmail.com>"]
+build = "build.rs"
+exclude = [
+    ".cargo/config.toml",
+    ".claude/",
+    ".github/",
+    "pmproofs_history/",
+    "src/bin/",
+    "src/example/",
+    "TODO.md",
+]
+autobins = true
+autoexamples = true
+autotests = true
+autobenches = true
+description = "Symbolic logic unification using Most General Unifiers (MGU). Implements Meredith's condensed detachment for automated theorem proving."
+readme = "README.md"
+keywords = [
+    "logic",
+    "unification",
+    "theorem-proving",
+    "mgu",
+    "condensed-detachment",
+]
+categories = [
+    "mathematics",
+    "science",
+    "algorithms",
+]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/arpie-steele/symbolic-mgu"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = []
+f128 = []
+f16 = []
+serde = ["dep:serde", "dep:serde_json"]
+
+[lib]
+name = "symbolic_mgu"
+path = "src/lib.rs"
+
+[dependencies]
+itertools = "0.14"
+serde = { version = "1.0.228", features = ["derive"], optional = true }
+serde_json = { version = "1.0.145", optional = true }
+either = "1.15"
+proc-macro2 = "1.0"
+thiserror = "2.0"
+
+[build-dependencies]
+version_check = "0.9"
+
+[package.metadata.spellcheck]
+config = ".cargo/spellcheck.toml"
