@@ -37,9 +37,10 @@ For the formal mathematical specification, see src/FormalSpec.md.
 
 ## Optional Features
 
+- `bigint`: Support for testing logic for more than just 7 Boolean variables
 - `serde`: JSON serialization support (stable Rust)
-- `f16`, `f128`: Extended floating point types (nightly Rust only)
 
 Build with features:
-    cargo build --features serde
-    cargo +nightly build --features f16,f128
+
+    cargo build --features bigint,serde
+

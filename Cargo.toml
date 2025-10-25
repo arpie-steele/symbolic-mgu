@@ -2,7 +2,7 @@
 edition = "2018"
 rust-version = "1.77.0"
 name = "symbolic-mgu"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 authors = ["Richard Penner <richardpenner@gmail.com>"]
 build = "build.rs"
 exclude = [
@@ -39,9 +39,8 @@ repository = "https://github.com/arpie-steele/symbolic-mgu"
 
 [features]
 default = []
-f128 = []
-f16 = []
 serde = ["dep:serde", "dep:serde_json"]
+bigint = ["dep:num-bigint"]
 
 [lib]
 name = "symbolic_mgu"
@@ -54,6 +53,8 @@ serde_json = { version = "1.0.145", optional = true }
 either = "1.15"
 proc-macro2 = "1.0"
 thiserror = "2.0"
+num-bigint = { version = "0.4", optional = true }
+num-traits = "0.2.19"
 
 [build-dependencies]
 version_check = "0.9"

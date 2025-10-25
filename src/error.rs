@@ -109,7 +109,7 @@ pub enum MguError {
 /// The basic type of the error.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum MguErrorType {
-    /// Metavariable could not be created.=
+    /// Metavariable could not be created.
     UnknownMetavariable,
 
     /// Type mismatch
@@ -359,7 +359,7 @@ impl MguError {
         }
     }
 
-    /// Get the unwanted found type if this is a `TypeMismatch` or `TypeUnassignable` intance.
+    /// Get the unwanted found type if this is a `TypeMismatch` or `TypeUnassignable` instance.
     pub fn get_unwanted_found_type(&self) -> Option<Type> {
         match self {
             MguError::TypeMismatch(value, _) | MguError::TypeUnassignable(value, _) => Some(*value),
@@ -367,7 +367,7 @@ impl MguError {
         }
     }
 
-    /// Get the type of the receiver if this is a `TypeMismatch`, `TypeUnassignable` or `IndexOutOfRange` intance.
+    /// Get the type of the receiver if this is a `TypeMismatch`, `TypeUnassignable` or `IndexOutOfRange` instance.
     pub fn get_receiver_type(&self) -> Option<Type> {
         match self {
             MguError::TypeMismatch(_, value)
@@ -377,7 +377,7 @@ impl MguError {
         }
     }
 
-    /// Get the unwanted found `usize` if this is a `SlotsMismatch` intance.
+    /// Get the unwanted found `usize` if this is a `SlotsMismatch` instance.
     pub fn get_unwanted_found_usize(&self) -> Option<usize> {
         match self {
             MguError::SlotsMismatch(value, _) => Some(*value),
@@ -385,7 +385,7 @@ impl MguError {
         }
     }
 
-    /// Get the type of the receiver if is this is a `SlotsMismatch` intance.
+    /// Get the type of the receiver if is this is a `SlotsMismatch` instance.
     pub fn get_expected_usize(&self) -> Option<usize> {
         match self {
             MguError::SlotsMismatch(_, value) => Some(*value),

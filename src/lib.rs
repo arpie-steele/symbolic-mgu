@@ -10,8 +10,6 @@
 //!
 #![cfg_attr(doc, doc = include_str!("Hyperlinks.md"))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![cfg_attr(all(nightly, feature = "f128"), feature(f128))]
-#![cfg_attr(all(nightly, feature = "f16"), feature(f16))]
 #![allow(unknown_lints)]
 #![warn(
     missing_docs,
@@ -76,6 +74,7 @@ pub use distinct::DistinctnessGraph;
 // pub use distinct::simple_graph::check_clique;
 // pub use distinct::simple_graph::check_decomposition;
 pub use error::MguError;
+pub use error::MguErrorType;
 // pub use metavariable::InfallibleMetavariable;
 pub use metavariable::Metavariable;
 // pub use metavariable::enums::AsciiMetaVar;
