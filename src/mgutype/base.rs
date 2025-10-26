@@ -1,4 +1,5 @@
-//! Introduce the enum [`Type`] and the associated rules for assignment of a [`Term`] to replace a [`Metavariable`].
+//! Introduce the enum [`Type`] and the associated rules for
+//! assignment of a [`Term`] to replace a [`Metavariable`].
 //!
 //! [`Term`]: `crate::Term`
 //! [`Metavariable`]: `crate::Metavariable`
@@ -7,8 +8,8 @@ use crate::{byte_try_from_signed, byte_try_from_unsigned, MguError};
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
-/// The type of a [`Metavariable`], [`Node`], or [`Term`]. Said [`Type`] is a [`Boolean`],
-/// [`Setvar`], or [`Class`].
+/// The type of a [`Metavariable`], [`Node`], or [`Term`]. Said
+/// [`Type`] is a [`Boolean`], [`Setvar`], or [`Class`].
 ///
 /// # Formal Statement
 ///
@@ -18,32 +19,39 @@ use std::convert::{TryFrom, TryInto};
 /// * [`Class`] (denoted ℂ)
 ///
 /// There is a sub-type relation defined:
-/// * Every element of 𝕊 is also valid wherever an element of ℂ is expected
-///   (but not vice versa).
+/// * Every element of 𝕊 is also valid wherever an element of ℂ is
+///   expected (but not vice versa).
 ///
 /// # Questions and Answers
 ///
-/// > Can a [`Type`] simultaneously be a [`Boolean`], a [`Setvar`], and a [`Class`]?
-/// > Or are these mutually exclusive categories?
+/// > Can a [`Type`] simultaneously be a [`Boolean`], a [`Setvar`],
+/// > and a [`Class`]?  Or are these mutually exclusive categories?
 ///
-/// A [`Type`] is exactly one of a [`Boolean`], a [`Setvar`], or a [`Class`].
+/// A [`Type`] is exactly one of a [`Boolean`], a [`Setvar`], or a
+/// [`Class`].
 ///
-/// > Are "set" and "class" defined formally anywhere else in your system?
-/// > (Are you using set/class in the sense of ZFC/NBG? Or more like informal groupings?)
+/// > Are "set" and "class" defined formally anywhere else in your
+/// > system?  (Are you using set/class in the sense of ZFC/NBG?
+/// > Or more like informal groupings?)
 ///
-/// A "set" is meant to represent a set as is ZFC, NBG, or first order logic.
-/// A [`Setvar`] is set-valued in universal and existential quantifiers and class-builder
-/// expressions, but can only be substituted with [`Metavariables`] since no [`Node`] has
-/// the [`Type`] of [`Setvar`].
-/// A [`Class`] is meant to represent a collection of sets. Thus "Exists" is a
-/// [`Boolean`]-valued node which has two slots, the first of which is a [`Setvar`],
-/// and the second is a [`Boolean`], while "Equals" is a [`Boolean`]-valued node
-/// which has two slots of type [`Class`].
-/// A special rule allows a [`Setvar`] [`Metavariable`] to be substituted for a
-/// [`Class`] [`Metavariable`], but not the reverse. If Greek letters are used for
-/// [`Metavariables`] representing [`Booleans`], lowercase Latin letters should be
-/// used for [`Setvars`] and uppercase Latin letters for [`Classes`], as per
-/// [Metamath] conventions.
+/// A "set" is meant to represent a set as is ZFC, NBG, or first
+/// order logic.  A [`Setvar`] is set-valued in universal and
+/// existential quantifiers and class-builder expressions, but can
+/// only be substituted with [`Metavariables`] since no [`Node`]
+/// has the [`Type`] of [`Setvar`].
+///
+/// A [`Class`] is meant to represent a collection of sets. Thus
+/// "Exists" is a [`Boolean`]-valued node which has two slots, the
+/// first of which is a [`Setvar`], and the second is a [`Boolean`],
+/// while "Equals" is a [`Boolean`]-valued node which has two slots
+/// of type [`Class`].
+///
+/// A special rule allows a [`Setvar`] [`Metavariable`] to be
+/// substituted for a [`Class`] [`Metavariable`], but not the
+/// reverse.  If Greek letters are used for [`Metavariables`]
+/// representing [`Booleans`], lowercase Latin letters should be
+/// used for [`Setvars`] and uppercase Latin letters for [`Classes`],
+/// as per [Metamath] conventions.
 ///
 /// # Example
 ///
@@ -73,55 +81,70 @@ use std::convert::{TryFrom, TryInto};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Type {
-    /// The type for a metavariable or tree which conceptually is boolean-valued.
+    /// The type for a metavariable or tree which conceptually is
+    /// Boolean-valued.
     Boolean,
 
     /// The type for a metavariable which conceptually is set-valued.
     ///
-    /// Introduced in first-order logic, this is the type of the variable in
-    /// Universal Quantification and Existential Quantification, since we can't
-    /// sensibly talk about quantification over all propositions or classes.
+    /// Introduced in first-order logic, this is the type of the
+    /// variable in Universal Quantification and Existential
+    /// Quantification, since we can't sensibly talk about
+    /// quantification over all propositions or classes.
     ///
-    /// Thus, there are no trees of type `Setvar` except for bare [`Metavariables`].
+    /// Thus, there are no trees of type `Setvar` except for bare
+    /// [`Metavariables`].
     ///
     /// [`Metavariables`]: `crate::Metavariable`
     Setvar,
 
-    /// The type for a metavariable or tree which conceptually is class-valued.
+    /// The type for a metavariable or tree which conceptually is
+    /// class-valued.
     Class,
 }
 
 /// Denotes Boolean.
 const BLACKBOARD_B: &str = "\u{1d539}";
+
 /// Denotes Boolean.
 ///
 /// Abbreviation for Well-formed formula.
 const BLACKBOARD_W: &str = "\u{1d551}";
+
 /// Denotes `Setvar`.
 const BLACKBOARD_S: &str = "\u{1d54a}";
+
 /// Denotes Class.
 const BLACKBOARD_C: &str = "\u{2102}";
 
 /// Denotes Boolean.
 const UC_BOOLEAN1: &str = "BOOLEAN";
+
 /// Denotes Boolean.
 ///
 /// Abbreviation for Well-formed formula.
 const UC_BOOLEAN2: &str = "WFF";
+
 /// Denotes Boolean.
 const UC_BOOLEAN3: &str = "B";
+
 /// Denotes Boolean.
 ///
 /// Abbreviation for Well-formed formula.
 const UC_BOOLEAN4: &str = "W";
+
 /// Denotes `Setvar`.
 const UC_SETVAR1: &str = "SETVAR";
+
 /// Denotes `Setvar`.
 const UC_SETVAR2: &str = "SET";
+
 /// Denotes `Setvar`.
 const UC_SETVAR3: &str = "S";
+
 /// Denotes Class.
 const UC_CLASS1: &str = "CLASS";
+
 /// Denotes Class.
 const UC_CLASS2: &str = "C";
 
@@ -247,25 +270,31 @@ impl Type {
     /// Implement matching test between [`Metavariables`] and trees.
     ///
     /// There is a sub-type relation defined:
-    /// * Every element of 𝕊 is also valid wherever an element of ℂ is expected
-    ///   (but not vice versa).
+    /// * Every element of 𝕊 is also valid wherever an element of
+    ///   ℂ is expected (but not vice versa).
     ///
     /// # Questions and Answers
     ///
-    /// > You allow [`Setvar`] [`Metavariables`] to substitute for [`Class`] [`Metavariables`].
-    /// > Suppose A and B are [`Class`] [`Metavariables`] with an common edge in the DISTINCTNESS
-    /// > graph. If both are substituted with the same [`Setvar`] [`Metavariable`] x, is that
-    /// > an error - even though x is a [`Setvar`]?
+    /// > You allow [`Setvar`] [`Metavariables`] to substitute for
+    /// > [`Class`] [`Metavariables`].  Suppose A and B are [`Class`]
+    /// > [`Metavariables`] with an common edge in the DISTINCTNESS
+    /// > graph.  If both are substituted with the same [`Setvar`]
+    /// > [`Metavariable`] x, is that an error - even though x is
+    /// > a [`Setvar`]?
     ///
     /// Yes.
     ///
-    /// > Should TYPE-lowering substitution from [`Setvar`] to [`Class`] carry any implicit renaming
-    /// > or cloning semantics to prevent invalid shared structure?
+    /// > Should TYPE-lowering substitution from [`Setvar`] to
+    /// > [`Class`] carry any implicit renaming or cloning semantics
+    /// > to prevent invalid shared structure?
     ///
-    /// No, because every [`Setvar`] actually is identical to a [`Class`]. So [`Class`] [`Metavariable`] A
-    /// can be safely replaced with [`Setvar`] [`Metavariable`] x everywhere. While even a [`Class`] expression which
-    /// is guaranteed to be set-valued in actuality, like "iota(y,P)" cannot be safely
-    /// substituted for x in expressions like "Exists(x, ...)".
+    /// No, because every [`Setvar`] actually is identical to a
+    /// [`Class`]. So [`Class`] [`Metavariable`] A can be safely
+    /// replaced with [`Setvar`] [`Metavariable`] x everywhere.
+    /// While even a [`Class`] expression which is guaranteed to
+    /// be set-valued in actuality, like "iota(y,P)" cannot be
+    /// safely substituted for x in expressions like
+    /// "Exists(x, ...)".
     ///
     /// [`Metavariable`]: `crate::Metavariable`
     /// [`Metavariables`]: `crate::Metavariable`

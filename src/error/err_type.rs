@@ -39,10 +39,12 @@ pub enum MguErrorType {
     /// Distinctness constraint violation.
     DistinctnessViolation,
 
-    /// Substitution contains cycles (variable maps to term containing itself).
+    /// Substitution contains cycles (variable maps to term containing
+    /// itself).
     SubstitutionCycle,
 
-    /// Clique validation error: elements must be in strictly ascending order.
+    /// Clique validation error: elements must be in strictly
+    /// ascending order.
     CliqueOrderingError,
 
     /// Clique validation error: must have at least two elements.

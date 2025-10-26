@@ -2,7 +2,8 @@
 
 /// Check that the single type supplied is a primitive type.
 ///
-/// Throws a compile-time error if utilized with something other than a primitive type.
+/// Throws a compile-time error if utilized with something other
+/// than a primitive type.
 ///
 /// # Examples
 ///
@@ -40,9 +41,11 @@ macro_rules! enforce_primitive_type {
     };
 }
 
-/// Check that the single type supplied is a legal integer larger than a byte.
+/// Check that the single type supplied is a legal integer larger
+/// than a byte.
 ///
-/// Throws a compile-time error if utilized with a [`bool`], [`i8`], [`u8`], [`f32`], or [`f64`].
+/// Throws a compile-time error if utilized with a [`bool`], [`i8`],
+/// [`u8`], [`f32`], or [`f64`].
 ///
 /// # Examples
 ///
@@ -53,7 +56,9 @@ macro_rules! enforce_primitive_type {
 ///
 /// ```
 /// use symbolic_mgu::{enforce_bigger_than_byte, enforce_primitive_type};
-/// enforce_bigger_than_byte!(i16); // expands to debug_assert!(i16::MAX as usize > u8::MAX as usize);
+/// // next line expands to:
+/// //      debug_assert!(i16::MAX as usize > u8::MAX as usize);
+/// enforce_bigger_than_byte!(i16);
 /// ```
 #[macro_export]
 macro_rules! enforce_bigger_than_byte {
@@ -84,16 +89,18 @@ macro_rules! enforce_bigger_than_byte {
     };
 }
 
-/// Implements fallible conversions (`TryFrom`) from signed integer types
-/// larger than 8 bits into a target enum or new type represented by `u8`.
+/// Implements fallible conversions (`TryFrom`) from signed integer
+/// types larger than 8 bits into a target enum or new type represented
+/// by `u8`.
 ///
-/// This macro is typically used when you have an enum (or wrapper type)
-/// backed by a `u8`, and you want to allow safe conversion from wider
-/// signed integer types (e.g. `i16`, `i32`, `i64`) with bounds checking.
+/// This macro is typically used when you have an enum (or wrapper
+/// type) backed by a `u8`, and you want to allow safe conversion
+/// from wider signed integer types (e.g. `i16`, `i32`, `i64`) with
+/// bounds checking.
 ///
-/// If the input value is within the valid `u8` range (`0..=255`), the
-/// conversion will succeed or fail as if it were first converted to `u8`. Otherwise, it fails with
-/// [`MguError::SignedValueOutOfRange`].
+/// If the input value is within the valid `u8` range (`0..=255`),
+/// the conversion will succeed or fail as if it were first converted
+/// to `u8`. Otherwise, it fails with [`MguError::SignedValueOutOfRange`].
 ///
 /// # Syntax
 ///
@@ -101,9 +108,10 @@ macro_rules! enforce_bigger_than_byte {
 /// byte_try_from_signed!(DestinationType: SourceType1, SourceType2, ...);
 /// ```
 ///
-/// - `DestinationType`: The `u8`-backed type to implement `TryFrom` for.
-/// - `SourceTypeN`: One or more signed integer types larger than 8 bits
-///   (e.g. `i16`, `i32`, `i64`, `isize`).
+/// - `DestinationType`: The `u8`-backed type to implement `TryFrom`
+///   for.
+/// - `SourceTypeN`: One or more signed integer types larger than
+///   8 bits (e.g. `i16`, `i32`, `i64`, `isize`).
 ///
 /// # Example
 ///
@@ -167,13 +175,20 @@ macro_rules! byte_try_from_signed {
                 #[doc = ""]
                 #[doc = "# Errors"]
                 #[doc = ""]
-                #[doc = "Returns [`MguError::SignedValueOutOfRange`] if the input value is negative or greater than `u8::MAX`."]
+		#[doc = "Returns [`MguError::SignedValueOutOfRange`]"]
+		#[doc = "if the input value is negative or greater"]
+                #[doc = "than `u8::MAX`."]
                 fn try_from(value: $source) -> Result<Self, Self::Error> {
                       $crate::enforce_bigger_than_byte!($source);
                     if 0 <= value && value <= u8::MAX as $source {
                         (value as u8).try_into()
                     } else {
-                        Err(MguError::SignedValueOutOfRange(value as i128, stringify!($destination), 0, u8::MAX as u32))
+			Err(MguError::SignedValueOutOfRange(
+                            value as i128,
+                            stringify!($destination),
+                            0,
+                            u8::MAX as u32,
+                        ))
                     }
                 }
             }
@@ -181,15 +196,18 @@ macro_rules! byte_try_from_signed {
     };
 }
 
-/// Implements fallible conversions (`TryFrom`) from unsigned integer types
-/// larger than 8 bits into a target enum or new type represented by `u8`.
+/// Implements fallible conversions (`TryFrom`) from unsigned integer
+/// types larger than 8 bits into a target enum or new type represented
+/// by `u8`.
 ///
-/// This macro is typically used when you have an enum (or wrapper type)
-/// backed by a `u8`, and you want to allow safe conversion from wider
-/// signed integer types (e.g. `u16`, `u32`, `u64`) with bounds checking.
+/// This macro is typically used when you have an enum (or wrapper
+/// type) backed by a `u8`, and you want to allow safe conversion
+/// from wider signed integer types (e.g. `u16`, `u32`, `u64`) with
+/// bounds checking.
 ///
-/// If the input value is within the valid `u8` range (`0..=255`), the
-/// conversion will succeed or fail as if it were first converted to `u8`. Otherwise, it fails with
+/// If the input value is within the valid `u8` range (`0..=255`),
+/// the conversion will succeed or fail as if it were first converted
+/// to `u8`. Otherwise, it fails with
 /// [`MguError::UnsignedValueOutOfRange`].
 ///
 /// # Syntax
@@ -260,13 +278,19 @@ macro_rules! byte_try_from_unsigned {
                 #[doc = ""]
                 #[doc = "# Errors"]
                 #[doc = ""]
-                #[doc = "Returns [`MguError::SignedValueOutOfRange`] if the input value is greater than `u8::MAX`."]
+		#[doc = "Returns [`MguError::SignedValueOutOfRange`]"]
+		#[doc = "if the input value is greater than `u8::MAX`."]
                 fn try_from(value: $source) -> Result<Self, Self::Error> {
                     $crate::enforce_bigger_than_byte!($source);
                     if value <= u8::MAX as $source {
                         (value as u8).try_into()
                     } else {
-                        Err(MguError::UnsignedValueOutOfRange(value as u128, stringify!($destination), 0, u8::MAX as u32))
+                        Err(MguError::UnsignedValueOutOfRange(
+                            value as u128,
+                            stringify!($destination),
+                            0,
+                            u8::MAX as u32
+                        ))
                     }
                 }
             }
@@ -305,12 +329,13 @@ macro_rules! last_ident {
     };
 }
 
-/// Generates a wrapper method that delegates its call to an inner field.
+/// Generates a wrapper method that delegates its call to an inner
+/// field.
 ///
 /// This macro reduces boilerplate when forwarding methods through
-/// layers of wrapper structs. It supports both `&self` and `&mut self`
-/// receivers, arbitrary visibility (`pub`, `pub(crate)`, or none), and
-/// optional doc comments and attributes.
+/// layers of wrapper structs. It supports both `&self` and
+/// `&mut self` receivers, arbitrary visibility (`pub`, `pub(crate)`,
+/// or none), and optional doc comments and attributes.
 ///
 /// # Syntax
 ///
@@ -328,7 +353,8 @@ macro_rules! last_ident {
 /// - `&$($self:ident)+`: Either `&self` or `&mut self`.
 /// - `$arg : $typ`: Zero or more method parameters.
 /// - `$(-> $ret:ty)?`: Optional return type.
-/// - `$($field:tt).+`: The field path to which the call is delegated. Both named and numbered structures may be navigated.
+/// - `$($field:tt).+`: The field path to which the call is delegated.
+///   Both named and numbered structures may be navigated.
 ///
 /// # Examples
 ///

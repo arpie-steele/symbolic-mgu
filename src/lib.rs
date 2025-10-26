@@ -1,4 +1,5 @@
-//! A library to explore the *most general unifier* of mathematical formulas.
+//! A library to explore the *most general unifier* of mathematical
+//! formulas.
 //!
 #![cfg_attr(doc, doc = include_str!("Epigram.md"))]
 //!

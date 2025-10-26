@@ -3,7 +3,8 @@
 use crate::{DistinctnessGraph, Metavariable, MguError, Term, Type};
 use std::collections::HashSet;
 
-/// The primary object representing an axiom, inference rule, or statement of a theorem.
+/// The primary object representing an axiom, inference rule, or
+/// statement of a theorem.
 #[derive(Debug, Default, Clone)]
 #[cfg_attr(
     feature = "serde",
@@ -17,11 +18,17 @@ where
     T: Term,
     V: Metavariable,
 {
-    /// The assertion is a sentence which holds true when the hypotheses are met.
+    /// The assertion is a sentence which holds true when the
+    /// hypotheses are met.
     pub(crate) assertion: T,
-    /// The optional hypotheses control when the assertion is known to be true.
+
+    /// The optional hypotheses control when the assertion is known
+    /// to be true.
     pub(crate) hypotheses: Vec<T>,
-    /// The distinctness graph controls what variable substitutions are illegal, typically because they threaten self-reference in impermissible ways.
+
+    /// The distinctness graph controls what variable substitutions
+    /// are illegal, typically because they threaten self-reference
+    /// in impermissible ways.
     pub(crate) distinctness_graph: DistinctnessGraph<V>,
 }
 
@@ -34,7 +41,8 @@ where
     ///
     /// # Errors
     ///
-    /// Returns an error if the assertion or any hypothesis is not a valid sentence (`Type::Boolean`).
+    /// Returns an error if the assertion or any hypothesis is not
+    /// a valid sentence (`Type::Boolean`).
     pub fn new(
         assertion: T,
         hypotheses: Vec<T>,
@@ -62,7 +70,8 @@ where
         })
     }
 
-    /// Create a simple axiom (Statement with no hypotheses and empty distinctness graph).
+    /// Create a simple axiom (Statement with no hypotheses and
+    /// empty distinctness graph).
     ///
     /// A simple axiom is a statement with:
     /// - An assertion (the axiom itself)

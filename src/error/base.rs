@@ -7,14 +7,16 @@ use thiserror::Error;
 ///
 /// # Questions and Answers
 ///
-/// > If a unification fails in CONTRACT or APPLY, the caller handles the error.
-/// > Do you define failure types (e.g. “distinctness conflict”, “type mismatch”,
-/// > “no MGU”) separately, or just use a binary success/failure signal?
-/// > Could fine-grained error types improve diagnostics or debugging?
+/// > If a unification fails in CONTRACT or APPLY, the caller handles
+/// > the error.  Do you define failure types (e.g. “distinctness
+/// > conflict”, “type mismatch”, “no MGU”) separately, or just use
+/// > a binary success/failure signal?  Could fine-grained error
+/// > types improve diagnostics or debugging?
 ///
-/// If we write this in Rust, we will definitely want fine-grained error types
-/// for debugging, as we are completely dependent on user choice of which STATEMENTS
-/// to supply as axioms to determine the legality of CONTRACT and APPLY.
+/// If we write this in Rust, we will definitely want fine-grained
+/// error types for debugging, as we are completely dependent on
+/// user choice of which STATEMENTS to supply as axioms to determine
+/// the legality of CONTRACT and APPLY.
 #[derive(Error, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum MguError {
     /// Metavariable could not be created.

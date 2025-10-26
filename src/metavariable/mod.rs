@@ -1,4 +1,5 @@
-//! Introduce the [`Metavariable`] trait which has ready-made short and wide implementations.
+//! Introduce the [`Metavariable`] trait which has ready-made short
+//! and wide toy implementations.
 
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
