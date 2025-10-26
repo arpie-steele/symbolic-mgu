@@ -2,7 +2,7 @@
 edition = "2018"
 rust-version = "1.77.0"
 name = "symbolic-mgu"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 authors = ["Richard Penner <richardpenner@gmail.com>"]
 build = "build.rs"
 exclude = [
@@ -10,6 +10,7 @@ exclude = [
     ".claude/",
     ".github/",
     "pmproofs_history/",
+    "pre-commit-script.sh",
     "src/bin/",
     "src/example/",
     "TODO.md",
