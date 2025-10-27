@@ -1,7 +1,7 @@
 //! Define the Statement type.
 
 use crate::{DistinctnessGraph, Metavariable, MguError, Term, Type};
-use std::collections::HashSet;
+use std::{collections::HashSet, marker::PhantomData};
 
 /// The primary object representing an axiom, inference rule, or
 /// statement of a theorem.
@@ -13,11 +13,17 @@ use std::collections::HashSet;
         bound = "T: serde::Serialize + serde::de::DeserializeOwned, V: serde::Serialize + serde::de::DeserializeOwned"
     )
 )]
-pub struct Statement<T, V>
+pub struct Statement<Ty, T, V>
 where
+    Ty: Type,
     T: Term,
     V: Metavariable,
 {
+    /// This entry is literally not used.
+    ///
+    /// It functions to remind Rust that this object is tied to a certain Type.
+    _not_used: PhantomData<Ty>,
+
     /// The assertion is a sentence which holds true when the
     /// hypotheses are met.
     pub(crate) assertion: T,
@@ -32,30 +38,35 @@ where
     pub(crate) distinctness_graph: DistinctnessGraph<V>,
 }
 
-impl<T, V> Statement<T, V>
+impl<Ty, T, V> Statement<Ty, T, V>
 where
-    T: Term,
-    V: Metavariable,
+    Ty: Type,
+    T: Term<Type = Ty, Metavariable = V>,
+    V: Metavariable<Type = Ty>,
 {
     /// Create a new Statement from components.
     ///
     /// # Errors
     ///
     /// Returns an error if the assertion or any hypothesis is not
-    /// a valid sentence (`Type::Boolean`).
+    /// a valid sentence (where the type is Boolean).
     pub fn new(
         assertion: T,
         hypotheses: Vec<T>,
         distinctness_graph: DistinctnessGraph<V>,
     ) -> Result<Self, MguError> {
         // Validate that assertion is a sentence (Boolean type)
-        if !assertion.is_valid_sentence() {
-            return Err(MguError::TypeMismatch(assertion.get_type(), Type::Boolean));
+        if !assertion.is_valid_sentence()? {
+            return Err(MguError::from_found_and_expected_types(
+                true,
+                &(assertion.get_type()?),
+                &(Ty::try_boolean()?),
+            ));
         }
 
         // Validate that all hypotheses are sentences
         for (i, hyp) in hypotheses.iter().enumerate() {
-            if !hyp.is_valid_sentence() {
+            if !hyp.is_valid_sentence()? {
                 return Err(MguError::UnificationFailure(format!(
                     "Hypothesis {i} is not a valid sentence (type {:?})",
                     hyp.get_type()
@@ -64,6 +75,7 @@ where
         }
 
         Ok(Self {
+            _not_used: PhantomData,
             assertion,
             hypotheses,
             distinctness_graph,
@@ -114,17 +126,20 @@ where
     }
 
     /// Collect all metavariables used in this statement.
-    pub fn collect_metavariables(&self) -> HashSet<V> {
+    ///
+    /// # Errors
+    /// - TODO.
+    pub fn collect_metavariables(&self) -> Result<HashSet<V>, MguError> {
         let mut vars = HashSet::new();
 
         // Collect from assertion
-        self.assertion.collect_metavariables(&mut vars);
+        self.assertion.collect_metavariables(&mut vars)?;
 
         // Collect from all hypotheses
         for hyp in &self.hypotheses {
-            hyp.collect_metavariables(&mut vars);
+            hyp.collect_metavariables(&mut vars)?;
         }
 
-        vars
+        Ok(vars)
     }
 }

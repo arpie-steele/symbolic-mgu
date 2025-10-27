@@ -7,3 +7,4 @@
 
 pub(crate) mod base;
 pub(crate) mod enums;
+pub(crate) mod factory;

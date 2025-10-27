@@ -1,6 +1,10 @@
 //! Common error handling via enum.
 
-use crate::{MguErrorType, Type};
+use crate::{MguErrorType, Type, TypeCore};
+use std::hash::Hash;
+use std::mem::discriminant;
+use std::ptr::addr_eq;
+use std::rc::Rc;
 use thiserror::Error;
 
 /// The common error type of the entire crate.
@@ -17,7 +21,7 @@ use thiserror::Error;
 /// error types for debugging, as we are completely dependent on
 /// user choice of which STATEMENTS to supply as axioms to determine
 /// the legality of CONTRACT and APPLY.
-#[derive(Error, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Error, Clone, Debug)]
 pub enum MguError {
     /// Metavariable could not be created.
     #[error("Unknown Metavariable of type {0}: {1}.")]
@@ -25,7 +29,7 @@ pub enum MguError {
 
     /// Type mismatch
     #[error("Type mismatch. {0} was not the expected {1}.")]
-    TypeMismatch(Type, Type), // found_type, expected_type
+    TypeMismatch(Rc<Box<dyn TypeCore>>, Rc<Box<dyn TypeCore>>), // found_type, expected_type
 
     /// Slots mismatch.
     #[error("Slots mismatch. {0} children supplied to a node with {1} slots.")]
@@ -33,11 +37,11 @@ pub enum MguError {
 
     /// Type mismatch
     #[error("Type mismatch. A tree of type {0} cannot be assigned to a slot of type {1}.")]
-    TypeUnassignable(Type, Type), // tree_type, slot_or_var_type
+    TypeUnassignable(Rc<Box<dyn TypeCore>>, Rc<Box<dyn TypeCore>>), // tree_type, slot_or_var_type
 
     /// Indexed item could not be found.
     #[error("For type {0:?}, index {1} >= available options {2}.")]
-    IndexOutOfRange(Type, usize, usize), // the_type, index, n_options
+    IndexOutOfRange(Rc<Box<dyn TypeCore>>, usize, usize), // the_type, index, n_options
 
     /// Indexed item could not be found.
     #[error("Index {0} >= available options {1}.")]
@@ -118,15 +122,27 @@ impl MguError {
     }
 
     /// Constructor.
-    pub fn from_found_and_expected_types(
+    pub fn from_found_and_expected_types<T: Type>(
         found_type_is_tree: bool,
-        found: Type,
-        receiver: Type,
+        found: &T,
+        receiver: &T,
     ) -> MguError {
         if found_type_is_tree {
-            MguError::TypeUnassignable(found, receiver)
+            if addr_eq(found, receiver) {
+                let box0 = Rc::new(found.to_boxed());
+                MguError::TypeUnassignable(box0.clone(), box0.clone())
+            } else {
+                let box1 = Rc::new(found.to_boxed());
+                let box2 = Rc::new(found.to_boxed());
+                MguError::TypeUnassignable(box1, box2)
+            }
+        } else if addr_eq(found, receiver) {
+            let box0 = Rc::new(found.to_boxed());
+            MguError::TypeMismatch(box0.clone(), box0.clone())
         } else {
-            MguError::TypeMismatch(found, receiver)
+            let box1 = Rc::new(found.to_boxed());
+            let box2 = Rc::new(found.to_boxed());
+            MguError::TypeMismatch(box1, box2)
         }
     }
 
@@ -140,13 +156,14 @@ impl MguError {
     }
 
     /// Constructor.
-    pub fn from_index_and_len<U, V>(for_type: Option<Type>, index: U, length: V) -> MguError
+    pub fn from_index_and_len<T, U, V>(for_type: Option<T>, index: U, length: V) -> MguError
     where
+        T: Type,
         U: Into<usize>,
         V: Into<usize>,
     {
         if let Some(the_type) = for_type {
-            MguError::IndexOutOfRange(the_type, index.into(), length.into())
+            MguError::IndexOutOfRange(Rc::new(the_type.to_boxed()), index.into(), length.into())
         } else {
             MguError::ChildIndexOutOfRange(index.into(), length.into())
         }
@@ -292,19 +309,21 @@ impl MguError {
     }
 
     /// Get the unwanted found type if this is a `TypeMismatch` or `TypeUnassignable` instance.
-    pub fn get_unwanted_found_type(&self) -> Option<Type> {
+    pub fn get_unwanted_found_type(&self) -> Option<Rc<Box<dyn TypeCore>>> {
         match self {
-            MguError::TypeMismatch(value, _) | MguError::TypeUnassignable(value, _) => Some(*value),
+            MguError::TypeMismatch(value, _) | MguError::TypeUnassignable(value, _) => {
+                Some(value.clone())
+            }
             _ => None,
         }
     }
 
     /// Get the type of the receiver if this is a `TypeMismatch`, `TypeUnassignable` or `IndexOutOfRange` instance.
-    pub fn get_receiver_type(&self) -> Option<Type> {
+    pub fn get_receiver_type(&self) -> Option<Rc<Box<dyn TypeCore>>> {
         match self {
             MguError::TypeMismatch(_, value)
             | MguError::TypeUnassignable(_, value)
-            | MguError::IndexOutOfRange(value, _, _) => Some(*value),
+            | MguError::IndexOutOfRange(value, _, _) => Some(value.clone()),
             _ => None,
         }
     }
@@ -414,6 +433,139 @@ impl MguError {
     }
 }
 
+impl PartialEq for MguError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::UnknownMetavariable(l0, l1), Self::UnknownMetavariable(r0, r1)) => {
+                l0 == r0 && l1 == r1
+            }
+            (Self::TypeMismatch(l0, l1), Self::TypeMismatch(r0, r1)) => {
+                if Rc::ptr_eq(l0, r0) && Rc::ptr_eq(l1, r1) {
+                    return true;
+                }
+                l0.to_string() == r0.to_string() && l1.to_string() == r1.to_string()
+            }
+            (Self::SlotsMismatch(l0, l1), Self::SlotsMismatch(r0, r1)) => l0 == r0 && l1 == r1,
+            (Self::TypeUnassignable(l0, l1), Self::TypeUnassignable(r0, r1)) => {
+                if Rc::ptr_eq(l0, r0) && Rc::ptr_eq(l1, r1) {
+                    return true;
+                }
+                l0.to_string() == r0.to_string() && l1.to_string() == r1.to_string()
+            }
+            (Self::IndexOutOfRange(l0, l1, l2), Self::IndexOutOfRange(r0, r1, r2)) => {
+                if Rc::ptr_eq(l0, r0) && l1 == r1 && l2 == r2 {
+                    return true;
+                }
+                l0.to_string() == r0.to_string() && l1 == r1 && l2 == r2
+            }
+            (Self::ChildIndexOutOfRange(l0, l1), Self::ChildIndexOutOfRange(r0, r1)) => {
+                l0 == r0 && l1 == r1
+            }
+            (
+                Self::SignedValueOutOfRange(l0, l1, l2, l3),
+                Self::SignedValueOutOfRange(r0, r1, r2, r3),
+            ) => l0 == r0 && l1 == r1 && l2 == r2 && l3 == r3,
+            (
+                Self::UnsignedValueOutOfRange(l0, l1, l2, l3),
+                Self::UnsignedValueOutOfRange(r0, r1, r2, r3),
+            ) => l0 == r0 && l1 == r1 && l2 == r2 && l3 == r3,
+            (Self::UnsignedValueUnsupported(l0, l1), Self::UnsignedValueUnsupported(r0, r1)) => {
+                l0 == r0 && l1 == r1
+            }
+            (Self::PairValidationFailure(l0, l1), Self::PairValidationFailure(r0, r1)) => {
+                l0 == r0 && l1 == r1
+            }
+            (Self::UnificationFailure(l0), Self::UnificationFailure(r0)) => l0 == r0,
+            (Self::DistinctnessViolation(l0), Self::DistinctnessViolation(r0)) => l0 == r0,
+            (Self::SubstitutionCycle(l0), Self::SubstitutionCycle(r0)) => l0 == r0,
+            (Self::AllocationError(l0), Self::AllocationError(r0)) => l0 == r0,
+            (Self::NumericConversionError(l0), Self::NumericConversionError(r0)) => l0 == r0,
+            (Self::ColorParseError(l0), Self::ColorParseError(r0)) => l0 == r0,
+            (Self::UnknownErrorType(l0), Self::UnknownErrorType(r0)) => l0 == r0,
+            (Self::UnknownErrorTypeMessage(l0, l1), Self::UnknownErrorTypeMessage(r0, r1)) => {
+                l0 == r0 && l1 == r1
+            }
+            (Self::UnknownError(l0), Self::UnknownError(r0)) => l0 == r0,
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
+}
+
+impl Eq for MguError {}
+
+impl Hash for MguError {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        discriminant(self).hash(state);
+        match self {
+            MguError::UnknownMetavariable(a, b) => {
+                (*a).hash(state);
+                b.hash(state);
+            }
+            MguError::TypeMismatch(type_core0, type_core1) => {
+                Rc::as_ptr(&(type_core0.clone())).hash(state);
+                Rc::as_ptr(&(type_core1.clone())).hash(state);
+            }
+            MguError::SlotsMismatch(a, b) => {
+                a.hash(state);
+                b.hash(state);
+            }
+            MguError::TypeUnassignable(type_core0, type_core1) => {
+                Rc::as_ptr(&(type_core0.clone())).hash(state);
+                Rc::as_ptr(&(type_core1.clone())).hash(state);
+            }
+            MguError::IndexOutOfRange(type_core, a, b) => {
+                Rc::as_ptr(&(type_core.clone())).hash(state);
+                a.hash(state);
+                b.hash(state);
+            }
+            MguError::ChildIndexOutOfRange(a, b) => {
+                a.hash(state);
+                b.hash(state);
+            }
+            MguError::SignedValueOutOfRange(a, b, c, d) => {
+                a.hash(state);
+                (*b).hash(state);
+                c.hash(state);
+                d.hash(state);
+            }
+            MguError::UnsignedValueOutOfRange(a, b, c, d) => {
+                a.hash(state);
+                (*b).hash(state);
+                c.hash(state);
+                d.hash(state);
+            }
+            MguError::UnsignedValueUnsupported(a, b) => {
+                a.hash(state);
+                (*b).hash(state);
+            }
+            MguError::PairValidationFailure(a, b) => {
+                a.hash(state);
+                b.hash(state);
+            }
+            MguError::UnificationFailure(msg)
+            | MguError::DistinctnessViolation(msg)
+            | MguError::SubstitutionCycle(msg)
+            | MguError::AllocationError(msg)
+            | MguError::NumericConversionError(msg)
+            | MguError::ColorParseError(msg) => {
+                msg.hash(state);
+            }
+            MguError::CliqueOrderingError
+            | MguError::CliqueMinimumSizeError
+            | MguError::DecompositionValidationError => {}
+            MguError::UnknownErrorType(mgu_error_type) => {
+                mgu_error_type.hash(state);
+            }
+            MguError::UnknownErrorTypeMessage(mgu_error_type, _) => {
+                mgu_error_type.hash(state);
+            }
+            MguError::UnknownError(code) => {
+                code.hash(state);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -438,9 +590,9 @@ mod tests {
         assert_eq!(x1.get_maximum_allowed(), None);
         assert_eq!(x1.get_minimum_allowed(), None);
         assert_eq!(x1.get_payload_error_type(), None);
-        assert_eq!(x1.get_receiver_type(), None);
+        assert!(x1.get_receiver_type().is_none());
         assert_eq!(x1.get_type_name(), None);
-        assert_eq!(x1.get_unwanted_found_type(), None);
+        assert!(x1.get_unwanted_found_type().is_none());
         assert_eq!(x1.get_unwanted_found_usize(), None);
         assert_eq!(x1.get_unwanted_index(), None);
         assert_eq!(x1.get_unwanted_value_signed(), None);

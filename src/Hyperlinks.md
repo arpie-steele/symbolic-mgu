@@ -1,10 +1,10 @@
-[`Boolean`]: `crate::Type::Boolean`
-[`Class`]: `crate::Type::Class`
+[`Boolean`]: `crate::SimpleType::Boolean`
+[`Class`]: `crate::SimpleType::Class`
 [`Metavariable`]: `crate::Metavariable`
 [`Metavariables`]: `crate::Metavariable`
 [`Node`]: `crate::Node`
 [`Nodes`]: `crate::Node`
-[`Setvar`]: `crate::Type::Setvar`
+[`Setvar`]: `crate::SimpleType::Setvar`
 [DISTINCTNESS graph]: `crate::DistinctnessGraph`
 [DISTINCTNESS graphs]: `crate::DistinctnessGraph`
 [NODEs]: `crate::Node`

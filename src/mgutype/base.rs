@@ -1,19 +1,19 @@
-//! Introduce the enum [`Type`] and the associated rules for
+//! Introduce the enum [`SimpleType`] and the associated rules for
 //! assignment of a [`Term`] to replace a [`Metavariable`].
 //!
 //! [`Term`]: `crate::Term`
 //! [`Metavariable`]: `crate::Metavariable`
 
-use crate::{byte_try_from_signed, byte_try_from_unsigned, MguError};
+use crate::{byte_try_from_signed, byte_try_from_unsigned, MguError, Type, TypeCore};
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
 /// The type of a [`Metavariable`], [`Node`], or [`Term`]. Said
-/// [`Type`] is a [`Boolean`], [`Setvar`], or [`Class`].
+/// [`SimpleType`] is a [`Boolean`], [`Setvar`], or [`Class`].
 ///
 /// # Formal Statement
 ///
-/// A [`Type`] is one of three disjoint identifiers:
+/// A [`SimpleType`] is one of three disjoint identifiers:
 /// * [`Boolean`] (denoted 𝔹)
 /// * [`Setvar`] (denoted 𝕊)
 /// * [`Class`] (denoted ℂ)
@@ -56,9 +56,9 @@ use std::convert::{TryFrom, TryInto};
 /// # Example
 ///
 /// ```
-/// use symbolic_mgu::Type;
+/// use symbolic_mgu::SimpleType;
 ///
-/// let (B, S, C) = (Type::Boolean, Type::Setvar, Type::Class);
+/// let (B, S, C) = (SimpleType::Boolean, SimpleType::Setvar, SimpleType::Class);
 /// assert!(B.may_assign_tree_to_this_var(&B));
 /// assert!(S.may_assign_tree_to_this_var(&S));
 /// assert!(C.may_assign_tree_to_this_var(&C));
@@ -71,16 +71,16 @@ use std::convert::{TryFrom, TryInto};
 /// [`Metavariables`]: `crate::Metavariable`
 /// [`Node`]: `crate::Node`
 /// [`Term`]: `crate::Term`
-/// [`Boolean`]: `Type::Boolean`
-/// [`Booleans`]: `Type::Boolean`
-/// [`Setvar`]: `Type::Setvar`
-/// [`Setvars`]: `Type::Setvar`
-/// [`Class`]: `Type::Class`
-/// [`Classes`]: `Type::Class`
+/// [`Boolean`]: `SimpleType::Boolean`
+/// [`Booleans`]: `SimpleType::Boolean`
+/// [`Setvar`]: `SimpleType::Setvar`
+/// [`Setvars`]: `SimpleType::Setvar`
+/// [`Class`]: `SimpleType::Class`
+/// [`Classes`]: `SimpleType::Class`
 /// [MetaMath]: https://us.metamath.org/index.html
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum Type {
+pub enum SimpleType {
     /// The type for a metavariable or tree which conceptually is
     /// Boolean-valued.
     Boolean,
@@ -148,9 +148,9 @@ const UC_CLASS1: &str = "CLASS";
 /// Denotes Class.
 const UC_CLASS2: &str = "C";
 
-impl Type {
-    /// An array of all values of Type.
-    pub const VALUES: [Self; 3] = [Type::Boolean, Type::Setvar, Type::Class];
+impl SimpleType {
+    /// An array of all values of `SimpleType`.
+    pub const VALUES: [Self; 3] = [SimpleType::Boolean, SimpleType::Setvar, SimpleType::Class];
 
     /// An array of all values meaningful to `uc_name_to_value()`.
     pub const UC_NAMES: [&'static str; 13] = [
@@ -169,16 +169,16 @@ impl Type {
         UC_SETVAR3,
     ];
 
-    /// Convert `Type` to presentation.
+    /// Convert `SimpleType` to presentation.
     pub fn to_order(self) -> u8 {
         match self {
-            Type::Boolean => 0,
-            Type::Setvar => 1,
-            Type::Class => 2,
+            SimpleType::Boolean => 0,
+            SimpleType::Setvar => 1,
+            SimpleType::Class => 2,
         }
     }
 
-    /// Create a hash map between uppercase strings and Type.
+    /// Create a hash map between uppercase strings and `SimpleType`.
     ///
     /// This hash can be used much like `uc_name_to_value()`.
     ///
@@ -187,7 +187,7 @@ impl Type {
     /// If a name in [`UC_NAMES`] cannot be converted by `name_to_value()`.
     ///
     /// [`UC_NAMES`]: `Self::UC_NAMES`
-    pub fn uc_name_to_value_map() -> HashMap<String, Type> {
+    pub fn uc_name_to_value_map() -> HashMap<String, SimpleType> {
         Self::UC_NAMES
             .to_vec()
             .iter()
@@ -195,25 +195,25 @@ impl Type {
             .collect()
     }
 
-    /// Convert uppercase string to Type when possible.
+    /// Convert uppercase string to `SimpleType` when possible.
     ///
     /// ```
-    /// use symbolic_mgu::Type;
-    /// assert_eq!(Type::uc_name_to_value("𝔹"), Some(Type::Boolean));
-    /// assert_eq!(Type::uc_name_to_value("𝕊"), Some(Type::Setvar));
-    /// assert_eq!(Type::uc_name_to_value("ℂ"), Some(Type::Class));
-    /// assert_eq!(Type::uc_name_to_value("BOOLEAN"), Some(Type::Boolean));
-    /// assert_eq!(Type::uc_name_to_value("SETVAR"), Some(Type::Setvar));
-    /// assert_eq!(Type::uc_name_to_value("CLASS"), Some(Type::Class));
-    /// assert_eq!(Type::uc_name_to_value("class"), None);
+    /// use symbolic_mgu::SimpleType;
+    /// assert_eq!(SimpleType::uc_name_to_value("𝔹"), Some(SimpleType::Boolean));
+    /// assert_eq!(SimpleType::uc_name_to_value("𝕊"), Some(SimpleType::Setvar));
+    /// assert_eq!(SimpleType::uc_name_to_value("ℂ"), Some(SimpleType::Class));
+    /// assert_eq!(SimpleType::uc_name_to_value("BOOLEAN"), Some(SimpleType::Boolean));
+    /// assert_eq!(SimpleType::uc_name_to_value("SETVAR"), Some(SimpleType::Setvar));
+    /// assert_eq!(SimpleType::uc_name_to_value("CLASS"), Some(SimpleType::Class));
+    /// assert_eq!(SimpleType::uc_name_to_value("class"), None);
     /// ```
-    pub fn uc_name_to_value(value: &str) -> Option<Type> {
+    pub fn uc_name_to_value(value: &str) -> Option<SimpleType> {
         match value {
             BLACKBOARD_B | BLACKBOARD_W | UC_BOOLEAN1 | UC_BOOLEAN2 | UC_BOOLEAN3 | UC_BOOLEAN4 => {
-                Some(Type::Boolean)
+                Some(SimpleType::Boolean)
             }
-            BLACKBOARD_S | UC_SETVAR1 | UC_SETVAR2 | UC_SETVAR3 => Some(Type::Setvar),
-            BLACKBOARD_C | UC_CLASS1 | UC_CLASS2 => Some(Type::Class),
+            BLACKBOARD_S | UC_SETVAR1 | UC_SETVAR2 | UC_SETVAR3 => Some(SimpleType::Setvar),
+            BLACKBOARD_C | UC_CLASS1 | UC_CLASS2 => Some(SimpleType::Class),
             _ => None,
         }
     }
@@ -223,47 +223,47 @@ impl Type {
     /// `uc_name_to_value()` is more efficient.
     ///
     /// ```
-    /// use symbolic_mgu::Type;
-    /// assert_eq!(Type::name_to_value("𝔹"), Some(Type::Boolean));
-    /// assert_eq!(Type::name_to_value("𝕊"), Some(Type::Setvar));
-    /// assert_eq!(Type::name_to_value("ℂ"), Some(Type::Class));
-    /// assert_eq!(Type::name_to_value("booLEan"), Type::name_to_value("b"));
-    /// assert_eq!(Type::name_to_value("Set"), Type::name_to_value("s"));
-    /// assert_eq!(Type::name_to_value("class"), Type::name_to_value("c"));
+    /// use symbolic_mgu::SimpleType;
+    /// assert_eq!(SimpleType::name_to_value("𝔹"), Some(SimpleType::Boolean));
+    /// assert_eq!(SimpleType::name_to_value("𝕊"), Some(SimpleType::Setvar));
+    /// assert_eq!(SimpleType::name_to_value("ℂ"), Some(SimpleType::Class));
+    /// assert_eq!(SimpleType::name_to_value("booLEan"), SimpleType::name_to_value("b"));
+    /// assert_eq!(SimpleType::name_to_value("Set"), SimpleType::name_to_value("s"));
+    /// assert_eq!(SimpleType::name_to_value("class"), SimpleType::name_to_value("c"));
     /// ```
-    pub fn name_to_value(value: &str) -> Option<Type> {
+    pub fn name_to_value(value: &str) -> Option<SimpleType> {
         Self::uc_name_to_value(value.to_uppercase().as_str())
     }
 
     /// Short-form uppercase name.
     ///
     /// ```
-    /// use symbolic_mgu::Type;
-    /// assert_eq!(Type::as_short_str(&Type::Boolean), "𝔹");
-    /// assert_eq!(Type::as_short_str(&Type::Setvar), "𝕊");
-    /// assert_eq!(Type::as_short_str(&Type::Class), "ℂ");
+    /// use symbolic_mgu::SimpleType;
+    /// assert_eq!(SimpleType::as_short_str(&SimpleType::Boolean), "𝔹");
+    /// assert_eq!(SimpleType::as_short_str(&SimpleType::Setvar), "𝕊");
+    /// assert_eq!(SimpleType::as_short_str(&SimpleType::Class), "ℂ");
     /// ```
     pub fn as_short_str(&self) -> &'static str {
         match self {
-            Type::Boolean => BLACKBOARD_B,
-            Type::Setvar => BLACKBOARD_S,
-            Type::Class => BLACKBOARD_C,
+            SimpleType::Boolean => BLACKBOARD_B,
+            SimpleType::Setvar => BLACKBOARD_S,
+            SimpleType::Class => BLACKBOARD_C,
         }
     }
 
     /// Short-form mixed-case ASCII name.
     ///
     /// ```
-    /// use symbolic_mgu::Type;
-    /// assert_eq!(Type::as_long_str(&Type::Boolean), "Boolean");
-    /// assert_eq!(Type::as_long_str(&Type::Setvar), "Setvar");
-    /// assert_eq!(Type::as_long_str(&Type::Class), "Class");
+    /// use symbolic_mgu::SimpleType;
+    /// assert_eq!(SimpleType::as_long_str(&SimpleType::Boolean), "Boolean");
+    /// assert_eq!(SimpleType::as_long_str(&SimpleType::Setvar), "Setvar");
+    /// assert_eq!(SimpleType::as_long_str(&SimpleType::Class), "Class");
     /// ```
     pub fn as_long_str(&self) -> &'static str {
         match self {
-            Type::Boolean => stringify!(Boolean),
-            Type::Setvar => stringify!(Setvar),
-            Type::Class => stringify!(Class),
+            SimpleType::Boolean => stringify!(Boolean),
+            SimpleType::Setvar => stringify!(Setvar),
+            SimpleType::Class => stringify!(Class),
         }
     }
 
@@ -300,11 +300,11 @@ impl Type {
     /// [`Metavariables`]: `crate::Metavariable`
     /// [`Node`]: `crate::Node`
     /// [`Nodes`]: `crate::Node`
-    /// [`Boolean`]: `Type::Boolean`
-    /// [`Setvar`]: `Type::Setvar`
-    /// [`Class`]: `Type::Class`
+    /// [`Boolean`]: `SimpleType::Boolean`
+    /// [`Setvar`]: `SimpleType::Setvar`
+    /// [`Class`]: `SimpleType::Class`
     pub fn may_assign_tree_to_this_var(&self, tree_type: &Self) -> bool {
-        *self == *tree_type || (*self == Type::Class && *tree_type == Type::Setvar)
+        *self == *tree_type || (*self == SimpleType::Class && *tree_type == SimpleType::Setvar)
     }
 
     /// Return associated HTML color, based on [Metamath] conventions.
@@ -316,53 +316,53 @@ impl Type {
             // La*b* (100): 32, 79, -108
             // La*b* (100, D65): 29.64, 92.53, -130.87
             // Close to Pantone "Dark Blue C", "2736 CP", "P 106-8 C"
-            Type::Boolean => "blue",
+            SimpleType::Boolean => "blue",
             // CMYK (100): 0.32, 83.54, 93.92, 0.92
             // La*b* (100): 53, 80, 67
             // La*b* (100, D65): 54.13, 76.46, 64.94
             // Close to Pantone "Bright Red C", "2347 CP", "P 57-8 C"
-            Type::Setvar => "red",
+            SimpleType::Setvar => "red",
             // CMYK (100): 36.27, 67.60, 0, 0
             // La*b* (100): 51, 75, -47
             // La*b* (100, D65): 51.14, 76.18, -62.62
             // Close to Pantone "Purple C", "Purple CP", "P 83-6 C"
-            Type::Class => "#C3C",
+            SimpleType::Class => "#C3C",
         }
     }
 }
 
-impl TryFrom<u8> for Type {
+impl TryFrom<u8> for SimpleType {
     type Error = MguError;
 
     /// Performs the conversion.
     ///
-    /// Converts ASCII display value back to [`Type`] enum value.
+    /// Converts ASCII display value back to [`SimpleType`] enum value.
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 | b'B' | b'W' | b'b' | b'w' => Ok(Type::Boolean),
-            2 | b'C' | b'c' => Ok(Type::Class),
-            1 | b'S' | b's' => Ok(Type::Setvar),
+            0 | b'B' | b'W' | b'b' | b'w' => Ok(SimpleType::Boolean),
+            2 | b'C' | b'c' => Ok(SimpleType::Class),
+            1 | b'S' | b's' => Ok(SimpleType::Setvar),
             _ => Err(MguError::UnsignedValueUnsupported(
                 value as u128,
-                stringify!(Type),
+                stringify!(SimpleType),
             )),
         }
     }
 }
 
-impl TryFrom<i8> for Type {
+impl TryFrom<i8> for SimpleType {
     type Error = MguError;
 
     /// Performs the conversion.
     ///
-    /// Converts ASCII display value back to [`Type`] enum value.
+    /// Converts ASCII display value back to [`SimpleType`] enum value.
     fn try_from(value: i8) -> Result<Self, Self::Error> {
         if 0 <= value {
             (value as u8).try_into()
         } else {
             Err(MguError::SignedValueOutOfRange(
                 value as i128,
-                stringify!(Type),
+                stringify!(SimpleType),
                 0,
                 u8::MAX as u32,
             ))
@@ -370,9 +370,41 @@ impl TryFrom<i8> for Type {
     }
 }
 
-byte_try_from_signed!(Type: i16, i32, i64, i128, isize,);
+byte_try_from_signed!(SimpleType: i16, i32, i64, i128, isize,);
 
-byte_try_from_unsigned!(Type: char, u16, u32, u64, u128, usize,);
+byte_try_from_unsigned!(SimpleType: char, u16, u32, u64, u128, usize,);
+
+impl TypeCore for SimpleType {
+    fn is_boolean(&self) -> bool {
+        *self == Self::Boolean
+    }
+
+    fn is_setvar(&self) -> bool {
+        *self == Self::Setvar
+    }
+
+    fn is_class(&self) -> bool {
+        *self == Self::Class
+    }
+}
+
+impl Type for SimpleType {
+    fn is_subtype_of(&self, other: &Self) -> bool {
+        other.may_assign_tree_to_this_var(self)
+    }
+
+    fn try_boolean() -> Result<Self, MguError> {
+        Ok(Self::Boolean)
+    }
+
+    fn try_setvar() -> Result<Self, MguError> {
+        Ok(Self::Setvar)
+    }
+
+    fn try_class() -> Result<Self, MguError> {
+        Ok(Self::Class)
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -380,71 +412,71 @@ mod tests {
 
     #[test]
     fn type_boolean() {
-        let goal_value = Type::Boolean;
+        let goal_value = SimpleType::Boolean;
         let short_name = goal_value.as_short_str();
         let long_name = goal_value.as_long_str();
-        assert!(Type::VALUES.to_vec().contains(&goal_value));
-        assert!(Type::UC_NAMES.to_vec().contains(&short_name));
-        assert!(Type::UC_NAMES
+        assert!(SimpleType::VALUES.to_vec().contains(&goal_value));
+        assert!(SimpleType::UC_NAMES.to_vec().contains(&short_name));
+        assert!(SimpleType::UC_NAMES
             .to_vec()
             .contains(&(long_name.to_uppercase().as_str())));
-        assert_eq!(Type::name_to_value(short_name), Some(goal_value));
-        assert_eq!(Type::name_to_value(long_name), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(short_name), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(long_name), Some(goal_value));
 
-        assert_eq!(Type::name_to_value(BLACKBOARD_B), Some(goal_value));
-        assert_eq!(Type::name_to_value(BLACKBOARD_W), Some(goal_value));
-        assert_eq!(Type::name_to_value(UC_BOOLEAN1), Some(goal_value));
-        assert_eq!(Type::name_to_value(UC_BOOLEAN2), Some(goal_value));
-        assert_eq!(Type::name_to_value(UC_BOOLEAN3), Some(goal_value));
-        assert_eq!(Type::name_to_value(UC_BOOLEAN4), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(BLACKBOARD_B), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(BLACKBOARD_W), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(UC_BOOLEAN1), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(UC_BOOLEAN2), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(UC_BOOLEAN3), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(UC_BOOLEAN4), Some(goal_value));
 
-        assert!(goal_value.may_assign_tree_to_this_var(&Type::Boolean));
-        assert!(!goal_value.may_assign_tree_to_this_var(&Type::Setvar));
-        assert!(!goal_value.may_assign_tree_to_this_var(&Type::Class));
+        assert!(goal_value.may_assign_tree_to_this_var(&SimpleType::Boolean));
+        assert!(!goal_value.may_assign_tree_to_this_var(&SimpleType::Setvar));
+        assert!(!goal_value.may_assign_tree_to_this_var(&SimpleType::Class));
     }
 
     #[test]
     fn type_setvar() {
-        let goal_value = Type::Setvar;
+        let goal_value = SimpleType::Setvar;
         let short_name = goal_value.as_short_str();
         let long_name = goal_value.as_long_str();
-        assert!(Type::VALUES.to_vec().contains(&goal_value));
-        assert!(Type::UC_NAMES.to_vec().contains(&short_name));
-        assert!(Type::UC_NAMES
+        assert!(SimpleType::VALUES.to_vec().contains(&goal_value));
+        assert!(SimpleType::UC_NAMES.to_vec().contains(&short_name));
+        assert!(SimpleType::UC_NAMES
             .to_vec()
             .contains(&(long_name.to_uppercase().as_str())));
-        assert_eq!(Type::name_to_value(short_name), Some(goal_value));
-        assert_eq!(Type::name_to_value(long_name), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(short_name), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(long_name), Some(goal_value));
 
-        assert_eq!(Type::name_to_value(BLACKBOARD_S), Some(goal_value));
-        assert_eq!(Type::name_to_value(UC_SETVAR1), Some(goal_value));
-        assert_eq!(Type::name_to_value(UC_SETVAR2), Some(goal_value));
-        assert_eq!(Type::name_to_value(UC_SETVAR3), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(BLACKBOARD_S), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(UC_SETVAR1), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(UC_SETVAR2), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(UC_SETVAR3), Some(goal_value));
 
-        assert!(!goal_value.may_assign_tree_to_this_var(&Type::Boolean));
-        assert!(goal_value.may_assign_tree_to_this_var(&Type::Setvar));
-        assert!(!goal_value.may_assign_tree_to_this_var(&Type::Class));
+        assert!(!goal_value.may_assign_tree_to_this_var(&SimpleType::Boolean));
+        assert!(goal_value.may_assign_tree_to_this_var(&SimpleType::Setvar));
+        assert!(!goal_value.may_assign_tree_to_this_var(&SimpleType::Class));
     }
 
     #[test]
     fn type_class() {
-        let goal_value = Type::Class;
+        let goal_value = SimpleType::Class;
         let short_name = goal_value.as_short_str();
         let long_name = goal_value.as_long_str();
-        assert!(Type::VALUES.to_vec().contains(&goal_value));
-        assert!(Type::UC_NAMES.to_vec().contains(&short_name));
-        assert!(Type::UC_NAMES
+        assert!(SimpleType::VALUES.to_vec().contains(&goal_value));
+        assert!(SimpleType::UC_NAMES.to_vec().contains(&short_name));
+        assert!(SimpleType::UC_NAMES
             .to_vec()
             .contains(&(long_name.to_uppercase().as_str())));
-        assert_eq!(Type::name_to_value(short_name), Some(goal_value));
-        assert_eq!(Type::name_to_value(long_name), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(short_name), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(long_name), Some(goal_value));
 
-        assert_eq!(Type::name_to_value(BLACKBOARD_C), Some(goal_value));
-        assert_eq!(Type::name_to_value(UC_CLASS1), Some(goal_value));
-        assert_eq!(Type::name_to_value(UC_CLASS2), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(BLACKBOARD_C), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(UC_CLASS1), Some(goal_value));
+        assert_eq!(SimpleType::name_to_value(UC_CLASS2), Some(goal_value));
 
-        assert!(!goal_value.may_assign_tree_to_this_var(&Type::Boolean));
-        assert!(goal_value.may_assign_tree_to_this_var(&Type::Setvar));
-        assert!(goal_value.may_assign_tree_to_this_var(&Type::Class));
+        assert!(!goal_value.may_assign_tree_to_this_var(&SimpleType::Boolean));
+        assert!(goal_value.may_assign_tree_to_this_var(&SimpleType::Setvar));
+        assert!(goal_value.may_assign_tree_to_this_var(&SimpleType::Class));
     }
 }

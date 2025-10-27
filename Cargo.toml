@@ -13,6 +13,7 @@ exclude = [
     "pre-commit-script.sh",
     "src/bin/",
     "src/example/",
+    "src/NodeBytesLogicTable.md",
     "TODO.md",
 ]
 autobins = true
@@ -62,3 +63,7 @@ version_check = "0.9"
 
 [package.metadata.spellcheck]
 config = ".cargo/spellcheck.toml"
+
+[package.metadata.docs.rs]
+    all-features = true
+    rustdoc-args = ["--cfg", "docsrs"]
