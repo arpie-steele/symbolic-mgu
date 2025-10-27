@@ -1,5 +1,8 @@
 # symbolic-mgu
 
+[![Crates.io Version](https://img.shields.io/crates/v/symbolic-mgu)](https://crates.io/crates/symbolic-mgu)
+[![docs.rs](https://img.shields.io/docsrs/symbolic-mgu)](https://docs.rs/symbolic-mgu/latest/symbolic_mgu/)
+
 A Rust library for symbolic logic unification using Most General Unifiers (MGU).
 
 ## Overview
