@@ -10,7 +10,7 @@
 #![cfg_attr(doc, doc = include_str!("FormalSpec.md"))]
 //!
 #![cfg_attr(doc, doc = include_str!("Hyperlinks.md"))]
-#![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(nightly, feature(doc_cfg))]
 #![allow(unknown_lints)]
 #![warn(
     missing_docs,
