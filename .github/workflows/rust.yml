@@ -50,29 +50,20 @@ jobs:
         with:
           command: clippy
           toolchain: ${{ matrix.rust }}
-          args: -- -D warnings --all-features --all-targets
+          args: --all-features --all-targets -- -D warnings
       - uses: actions-rs/cargo@v1 
         with:
           command: doc
           toolchain: ${{ matrix.rust }}
-          args:  --verbose --all-features --document-private-items
+          args: --verbose --all-features --document-private-items
       - uses: actions-rs/cargo@v1 
         with:
           command: fmt
           toolchain: ${{ matrix.rust }}
-          args:  -- --check
+          args: -- --check
       - uses: actions-rs/cargo@v1 
         with:
           command: publish
           toolchain: ${{ matrix.rust }}
-          args:  --dry-run
+          args: --dry-run
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
-
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
-        run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
