@@ -1,7 +1,9 @@
 //! Introduce the [`Metavariable`] trait which has ready-made short
 //! and wide toy implementations.
 
+pub(crate) mod enums;
 pub(crate) mod factory;
+pub(crate) mod meta_byte;
 
 use crate::{MguError, Type};
 use std::fmt::{Debug, Display};
@@ -10,7 +12,7 @@ use std::hash::Hash;
 /// Trait encapsulating behavior of the metavariable type.
 ///
 /// TODO.
-pub trait Metavariable: Sized + Display + Debug + Clone + Copy + Hash + PartialEq + Eq {
+pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq {
     /// Concrete implementation of the Type trait.
     type Type: Type;
 

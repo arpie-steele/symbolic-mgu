@@ -1,8 +1,8 @@
 //! Introduce the `TypeCore` and `Type` traits.
 
-use std::fmt::{Debug, Display};
-
 use crate::MguError;
+use std::fmt::{Debug, Display};
+use std::hash::Hash;
 
 /// Dyn-safe prototype Trait for type systems in formal logic
 pub trait TypeCore: Debug + Display {
@@ -21,7 +21,7 @@ pub trait TypeCore: Debug + Display {
 /// Different implementations can have different sub-typing rules and type hierarchies.
 /// The library provides a default implementation (Boolean, Setvar, Class) suitable for
 /// Metamath and condensed detachment, but other systems can implement custom types.
-pub trait Type: Clone + Eq + TypeCore
+pub trait Type: Clone + Eq + TypeCore + Hash
 where
     Self: 'static,
 {

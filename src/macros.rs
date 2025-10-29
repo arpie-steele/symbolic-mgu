@@ -398,7 +398,7 @@ macro_rules! dlgt0 {
 /// Helper macro for defining enums with rich, structured documentation.
 ///
 /// This macro is a one-time utility used to reduce boilerplate in the
-/// definition of [`NodeBytes`]. It generates enum variants with
+/// definition of [`NodeByte`]. It generates enum variants with
 /// automatically attached documentation, including:
 ///
 /// - A header section (`$head`) shown as doc lines.
@@ -438,7 +438,7 @@ macro_rules! dlgt0 {
 /// }
 /// ```
 ///
-/// [`NodeBytes`]: crate::NodeBytes
+/// [`NodeByte`]: crate::NodeByte
 #[macro_export]
 macro_rules! enum0 {
     (

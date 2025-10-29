@@ -401,7 +401,7 @@ NewType
 NlpRule
 NlpRule/S
 NlpRules
-NodeBytes
+NodeByte
 NodeCore
 NodeDatabase
 NodeHead
@@ -1192,6 +1192,7 @@ workspaces
 x0
 x1
 xmlns
+xᵗ
 xyY
 α
 β
@@ -1232,11 +1233,13 @@ xyY
 ¬
 𝜃
 𝑓
+𝑀
 μὴ
 τσ
 τὰ
 τῇ
 ℕ₀
+τ₁
 γὰρ
 καὶ
 οὐκ
@@ -1276,4 +1279,6 @@ xyY
 <
 =
 τᵢ
+τₖ
 µs
+𝑀ₜ

@@ -49,14 +49,15 @@ name = "symbolic_mgu"
 path = "src/lib.rs"
 
 [dependencies]
-itertools = "0.14"
-serde = { version = "1.0.228", features = ["derive"], optional = true }
-serde_json = { version = "1.0.145", optional = true }
 either = "1.15"
-proc-macro2 = "1.0"
-thiserror = "2.0"
+itertools = "0.14"
 num-bigint = { version = "0.4", optional = true }
 num-traits = "0.2.19"
+proc-macro2 = "1.0"
+serde = { version = "1.0.228", features = ["derive"], optional = true }
+serde_json = { version = "1.0.145", optional = true }
+strum = { version = "0.26", features = ["derive"] }
+thiserror = "2.0"
 
 [build-dependencies]
 version_check = "0.9"
@@ -65,5 +66,6 @@ version_check = "0.9"
 config = ".cargo/spellcheck.toml"
 
 [package.metadata.docs.rs]
-    all-features = true
-    rustdoc-args = ["--cfg", "docsrs"]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
