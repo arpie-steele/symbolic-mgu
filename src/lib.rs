@@ -50,7 +50,7 @@
 #![deny(invalid_doc_attributes)]
 
 pub mod bool_eval;
-// pub mod bool_eval_next; // Under review
+pub mod bool_eval_next;
 // pub mod color;
 pub(crate) mod distinct;
 pub(crate) mod error;
@@ -77,10 +77,10 @@ pub use distinct::DistinctnessGraph;
 pub use error::base::MguError;
 pub use error::err_type::MguErrorType;
 // pub use metavariable::InfallibleMetavariable;
+pub use metavariable::enums::AsciiMetaVar;
 pub use metavariable::factory::MetavariableFactory;
+pub use metavariable::meta_byte::MetaByte;
 pub use metavariable::Metavariable;
-// pub use metavariable::enums::AsciiMetaVar;
-// pub use metavariable::veryfinite::MetaByte;
 // pub use metavariable::wide::WideMetavariable;
 pub use mgutype::base::SimpleType;
 pub use node::base::Node;
@@ -89,7 +89,8 @@ pub use node::factory::NodeFactory;
 // pub use node::dbnode::NodeDatabase;
 // pub use node::dbnode::SimpleNodeDatabase;
 // pub use node::dbnode::register_database;
-pub use node::enums::NodeBytes;
+pub use node::node_byte::base::NodeByte;
+pub use node::node_byte::factory::NodeByteFactory;
 // pub use node::traits::CopyableNode;
 // pub use node::traits::EnumerableNode;
 // pub use node::traits::IndexableNode;
@@ -103,6 +104,7 @@ pub use mgutype::type_trait::Type;
 pub use mgutype::type_trait::TypeCore;
 pub use term::base::Term;
 pub use term::factory::TermFactory;
+pub use term::simple::EnumTerm;
 // pub use term::apply_substitution;
 // pub use term::dbterm::DbTerm;
 // pub use term::enums::EnumTerm;

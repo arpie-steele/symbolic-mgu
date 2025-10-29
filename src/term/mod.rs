@@ -4,3 +4,4 @@
 
 pub(crate) mod base;
 pub(crate) mod factory;
+pub(crate) mod simple;

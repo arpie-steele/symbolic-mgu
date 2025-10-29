@@ -1,6 +1,6 @@
 //! Define the Statement type.
 
-use crate::{DistinctnessGraph, Metavariable, MguError, Term, Type};
+use crate::{DistinctnessGraph, Metavariable, MguError, Node, Term, Type};
 use std::{collections::HashSet, marker::PhantomData};
 
 /// The primary object representing an axiom, inference rule, or
@@ -13,16 +13,17 @@ use std::{collections::HashSet, marker::PhantomData};
         bound = "T: serde::Serialize + serde::de::DeserializeOwned, V: serde::Serialize + serde::de::DeserializeOwned"
     )
 )]
-pub struct Statement<Ty, T, V>
+pub struct Statement<Ty, V, N, T>
 where
     Ty: Type,
-    T: Term,
-    V: Metavariable,
+    V: Metavariable<Type = Ty>,
+    N: Node<Type = Ty>,
+    T: Term<Ty, V, N>,
 {
     /// This entry is literally not used.
     ///
     /// It functions to remind Rust that this object is tied to a certain Type.
-    _not_used: PhantomData<Ty>,
+    _not_used: PhantomData<(Ty, N)>,
 
     /// The assertion is a sentence which holds true when the
     /// hypotheses are met.
@@ -38,11 +39,12 @@ where
     pub(crate) distinctness_graph: DistinctnessGraph<V>,
 }
 
-impl<Ty, T, V> Statement<Ty, T, V>
+impl<Ty, V, N, T> Statement<Ty, V, N, T>
 where
     Ty: Type,
-    T: Term<Type = Ty, Metavariable = V>,
     V: Metavariable<Type = Ty>,
+    N: Node<Type = Ty>,
+    T: Term<Ty, V, N>,
 {
     /// Create a new Statement from components.
     ///

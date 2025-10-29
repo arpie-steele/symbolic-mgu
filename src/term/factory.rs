@@ -1,6 +1,6 @@
 //! Factory pattern for `Term`s.
 
-use crate::{Metavariable, MguError, Node, Term, Type};
+use crate::{Metavariable, MetavariableFactory, MguError, Node, NodeFactory, Term, Type};
 use std::fmt::Debug;
 
 /// Factory for creating Term instances
@@ -9,23 +9,30 @@ use std::fmt::Debug;
 /// even though applications may provide a single object implementing all three.
 ///
 /// Implementations typically cache terms to avoid redundant construction.
-pub trait TermFactory: Debug
+pub trait TermFactory<T, Ty, V, N>: Debug
 where
-    Self::Term: Term<Type = Self::TermType>,
-    Self::TermNode: Node<Type = Self::TermType>,
-    Self::TermMetavariable: Metavariable<Type = Self::TermType>,
+    T: Term<Ty, V, N>,
+    Ty: Type,
+    V: Metavariable<Type = Ty>,
+    N: Node<Type = Ty>,
 {
     /// Concrete instance of the Type trait.
     type TermType: Type;
 
     /// Concrete instance of the Term trait.
-    type Term: Term;
+    type Term: Term<Ty, V, N>;
 
     /// Concrete instance of the Node trait.
-    type TermNode: Node;
+    type TermNode: Node<Type = Ty>;
 
     /// Concrete instance of the Metavariable trait.
-    type TermMetavariable: Metavariable;
+    type TermMetavariable: Metavariable<Type = Ty>;
+
+    /// Create new `TermFactory` from other factories.
+    fn from_factories<VF, NF>(vars: VF, nodes: NF) -> Self
+    where
+        VF: MetavariableFactory<Metavariable = V>,
+        NF: NodeFactory<Node = N>;
 
     /// Create a term from a metavariable (leaf node)
     ///

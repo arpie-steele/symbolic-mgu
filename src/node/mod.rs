@@ -6,5 +6,5 @@
 //! [`Term`]: `crate::Term`
 
 pub(crate) mod base;
-pub(crate) mod enums;
 pub(crate) mod factory;
+pub(crate) mod node_byte;

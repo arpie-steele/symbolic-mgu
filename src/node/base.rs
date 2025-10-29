@@ -5,9 +5,11 @@
 //! [`Term`]: `crate::Term`
 
 use crate::{MguError, Type};
+use std::fmt::{Debug, Display};
+use std::hash::Hash;
 
 /// TODO.
-pub trait Node {
+pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
     /// Concrete implementation of the Type trait.
     type Type: Type;
 
@@ -39,7 +41,7 @@ pub trait Node {
     ///
     /// # Errors
     /// - Typically only when this type requires a Weak reference to a factory object which has gone missing.
-    fn get_arity(&self) -> Result<usize, MguError>;
+    fn get_arity(&self) -> Result<usize, MguError>; // alias: `get_n_slots`()
 
     /// Return data about this Metavariable sufficient for a compatible factory to recreate it.
     ///
