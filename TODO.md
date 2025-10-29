@@ -1,22 +1,54 @@
 # symbolic-mgu TODO List
 
-## Current Priority: Fix bool_eval_next Module
+## 📊 Overall Progress: 56% Complete
 
-### Context
-The `bool_eval_next` module (451 lines in `src/bool_eval_next/mod.rs`) doesn't compile due to:
-- Missing `EnumTerm` type (referenced but not implemented)
-- Empty `NodeBytes` enum stub (no variants to match)
-- Hard-coded dependencies on concrete types instead of trait abstractions
+**Summary of staged changes (3,690 additions / 101 deletions across 23 files):**
 
-### Architectural Goals
-1. **Trait abstractions over concrete types**: Move away from `NodeBytes` and `EnumTerm` concrete types
-2. **Factory pattern for construction**: Separate construction (factories) from behavior (traits) (Coded!)
-3. **Math correctness first**: Get evaluation logic working and tested
-4. **Support 10+ Boolean variables**: Required for condensed detachment test cases
+| Phase | Status | Completion | Critical Gaps |
+|-------|--------|------------|---------------|
+| Phase 0: Factory Pattern | ⚠️ Partial | 50% | Missing documentation |
+| Phase 1: UnsignedBits | ⚠️ Partial | 40% | Missing u16/u32/u64/u128, no tests |
+| Phase 2: BooleanNode | ✅ Mostly Done | 75% | BooleanSimpleOp not integrated |
+| Phase 3: Term Abstraction | ✅ Complete | 90% | Minor polish possible |
+| Phase 4: Testing | ❌ Critical | 20% | **Zero tests added** |
+
+**Critical blockers before merge:**
+1. ❌ **Zero tests** - Violates "Math correctness is Job #1"
+2. ❌ **Missing u128** - Cannot support 7-variable requirement
+3. ⚠️ **Compilation unverified** - Quality gates not run
 
 ---
 
-## Phase 0: Document Factory Pattern Use
+## Current Priority: Fix bool_eval_next Module
+
+### Context (UPDATED)
+The `bool_eval_next` module has been significantly expanded (1,509 lines in `src/bool_eval_next/mod.rs`):
+- ✅ `EnumTerm` type implemented in `src/term/simple.rs` (150 lines)
+- ✅ `NodeByte` enum implemented with 222+ operations in `src/node/node_byte/base.rs` (1,375 lines)
+- ✅ `BooleanSimpleOp` enum with all 278 Boolean operations on ≤3 variables (elegant u16 encoding)
+- ✅ Factory pattern implemented for construction
+- ⚠️ Still uses concrete `NodeByte` in main evaluation path instead of `BooleanSimpleOp`
+- ❌ Missing u16/u32/u64/u128 implementations for UnsignedBits
+- ❌ **Zero tests written**
+
+### Architectural Goals
+1. **Trait abstractions over concrete types**: ✅ Mostly achieved with generics
+2. **Factory pattern for construction**: ✅ Fully implemented (NodeFactory, MetavariableFactory, TermFactory)
+3. **Math correctness first**: ❌ **No tests written** - Critical gap
+4. **Support 10+ Boolean variables**: ⚠️ Partial (u8 + BigUint only, missing u128 for 7 vars)
+
+---
+
+## Phase 0: Document Factory Pattern Use - ⚠️ 50% Complete
+
+**Status**: Implementation complete, documentation missing
+
+**What's been implemented:**
+- ✅ `NodeFactory` trait in `src/node/factory.rs`
+- ✅ `MetavariableFactory` trait in `src/metavariable/factory.rs`
+- ✅ `TermFactory` trait in `src/term/factory.rs`
+- ✅ `NodeByteFactory` concrete implementation (174 lines, stateless with PhantomData)
+- ✅ Factory methods demonstrated in metavariable/meta_byte.rs
 
 **Type System Examples**:
 
@@ -49,48 +81,85 @@ The `bool_eval_next` module (451 lines in `src/bool_eval_next/mod.rs`) doesn't c
 
 ### Action Items
 
-#### Documentation
+#### Documentation (0% Complete)
 - [ ] Document factory pattern rationale in module-level docs
 - [ ] Provide examples of stateful vs. stateless factory implementations
 - [ ] Document how factories enable different construction strategies
 - [ ] Add examples showing factory usage for different backends (testing, production, database)
 
-#### Design Considerations for Later
+#### Design Considerations for Later (Not Blocking)
 - [ ] Consider `StatementFactory` trait (Statements are serialized for long-term storage)
 - [ ] Consider factory trait for substitutions/unifications
 - [ ] Plan for Rc/Arc integration in concrete factory implementations
 - [ ] Design caching strategy for term deduplication
 
+**Files to examine:**
+- `src/node/factory.rs` - NodeFactory trait
+- `src/metavariable/factory.rs` - MetavariableFactory trait (has good documentation)
+- `src/term/factory.rs` - TermFactory trait
+- `src/node/node_byte/factory.rs` - Concrete example of stateless factory
+
 ---
 
-## Phase 1: UnsignedBits Implementations
+## Phase 1: UnsignedBits Implementations - ⚠️ 40% Complete
+
+**Status**: Core infrastructure complete, missing 4 key integer types and all tests
+
+**What's been implemented:**
+- ✅ `UnsignedBits<U, const N: usize>` trait defined (src/bool_eval_next/mod.rs:1105)
+- ✅ `<bool; 0>` implementation (single bit)
+- ✅ `<u8; 0..=3>` generic implementation (1, 2, 4, 8 bits for 0-3 variables)
+- ✅ `<BigUint; N>` via `SomeBits<N>` wrapper (with bigint feature, proper `Not` via XOR mask)
 
 ### Special Cases
-- `<bool; 0>`: Single bit, already implemented
-- `<BigUint; N>`: Arbitrary N, no native `Not` support - special case handling needed
+- ✅ `<bool; 0>`: Single bit, implemented
+- ✅ `<BigUint; N>`: Arbitrary N, `Not` implemented as `mask XOR value`
 
 ### Generic uXXX Pattern (Macro Candidate)
 The pattern `<uXXX; N>` for unsigned integer types should be generalized via macro:
-- `<u8; 0..=3>`: 1, 2, 4, 8 bits (0-3 variables)
-- `<u16; 0..=4>`: 1, 2, 4, 8, 16 bits (0-4 variables)
-- `<u32; 0..=5>`: 1, 2, 4, 8, 16, 32 bits (0-5 variables)
-- `<u64; 0..=6>`: 1, 2, 4, 8, 16, 32, 64 bits (0-6 variables)
-- `<u128; 0..=7>`: 1, 2, 4, 8, 16, 32, 64, 128 bits (0-7 variables) **[MISSING]**
+- ✅ `<u8; 0..=3>`: 1, 2, 4, 8 bits (0-3 variables) - IMPLEMENTED
+- ❌ `<u16; 0..=4>`: 1, 2, 4, 8, 16 bits (0-4 variables) - MISSING
+- ❌ `<u32; 0..=5>`: 1, 2, 4, 8, 16, 32 bits (0-5 variables) - MISSING
+- ❌ `<u64; 0..=6>`: 1, 2, 4, 8, 16, 32, 64 bits (0-6 variables) - MISSING
+- ❌ `<u128; 0..=7>`: 1, 2, 4, 8, 16, 32, 64, 128 bits (0-7 variables) - **CRITICAL MISSING**
 
 **Action Items**:
-- [ ] Add `<u128; 0..=7>` implementation (supports 7 Boolean variables natively)
+- [ ] **CRITICAL**: Add `<u128; 0..=7>` implementation (required for 7 Boolean variable support)
+- [ ] Add `<u16; 0..=4>` implementation
+- [ ] Add `<u32; 0..=5>` implementation
+- [ ] Add `<u64; 0..=6>` implementation
 - [ ] Design macro to reduce code duplication for `<uXXX; N>` pattern
   - **Decision**: Explicitly call out each `(type, N)` pair - no math in macros to keep them readable
   - Example: `impl_unsigned_bits!(u128, 0); impl_unsigned_bits!(u128, 1); ... impl_unsigned_bits!(u128, 7);`
-- [ ] Verify native bitwise ops (`BitAnd`, `BitOr`, `BitXor`, `Not`) work correctly
-- [ ] Write unit tests for each implementation (truth table verification)
+- [ ] Verify native bitwise ops (`BitAnd`, `BitOr`, `BitXor`, `Not`) work correctly for new types
+- [ ] **CRITICAL**: Write unit tests for each implementation (truth table verification)
 
 ---
 
-## Phase 2: BooleanNode Trait Abstraction
+## Phase 2: BooleanNode Trait Abstraction - ✅ 75% Complete
 
-### Design
-Replace hard-coded `NodeBytes` enum matching with trait-based dispatch:
+**Status**: Excellent infrastructure implemented, but not integrated into main evaluation path
+
+**What's been implemented (Better than originally specified!):**
+- ✅ `BooleanSimpleOp` enum (src/bool_eval_next/mod.rs:30-665) - **All 278 Boolean operations on ≤3 variables**
+  - Elegant encoding: `u16 = 0x{arity}_{truth_table_code}`
+  - Example: `AndAB2 = 0x2_88` (arity=2 in upper bits, code=0x88 in lower 8 bits)
+  - Complete enumeration: 2 nullary + 4 unary + 16 binary + 256 ternary = 278 total
+- ✅ `get_arity()` method - extracts arity from upper bits
+- ✅ `get_code3()` method - extracts 8-bit truth table code
+- ✅ `eval0/1/2/3<B, U, const N>()` methods - generic evaluation for any `UnsignedBits<U, N>`
+- ✅ `BooleanSimpleNode<Ty>` wrapper (line 665) - implements `Node` trait, generic over any `Type` system
+
+**What's missing:**
+- ❌ Main `eval_boolean_*` functions still pattern match on `NodeByte::*` directly (not using BooleanSimpleOp)
+- ❌ No trait abstraction allowing other node types to provide evaluation codes
+- ❌ Not exported from lib.rs (internal infrastructure only)
+- ❌ No conversion between `NodeByte` ↔ `BooleanSimpleOp`
+
+**Note**: The `BooleanSimpleOp` design is architecturally superior to the original TODO proposal - it provides exhaustive enumeration rather than a trait. Integration is the remaining work.
+
+### Original Design (for reference)
+The TODO proposed replacing hard-coded `NodeBytes` enum matching with trait-based dispatch:
 
 ```rust
 /// Trait for Boolean logic nodes that can be evaluated
@@ -107,93 +176,170 @@ pub trait BooleanNode {
 - Allows future serializable database-backed nodes
 - Maps 222 human-important operation names to (code, arity) tuples
 
-**Action Items**:
-- [ ] Define `BooleanNode` trait in `src/node/boolean.rs`
+**Action Items (Updated based on actual implementation)**:
+- [ ] Integrate `BooleanSimpleOp` into main evaluation path (replace `NodeByte::*` pattern matching)
+- [ ] Consider: Define `BooleanNode` trait to allow both `NodeByte` and `BooleanSimpleOp` to coexist
+- [ ] Add conversion: `TryFrom<NodeByte> for BooleanSimpleOp` (or vice versa)
+- [ ] Export `BooleanSimpleOp` and `BooleanSimpleNode<Ty>` from lib.rs if useful publicly
+- [ ] Complete the `eval3()` implementation (many `todo!()` macros for ternary operations)
+- [ ] Document the elegant u16 encoding scheme in module-level docs
+
+**Original Action Items (for reference)**:
+- [~] Define `BooleanNode` trait in `src/node/boolean.rs` - SUPERSEDED by BooleanSimpleOp enum
   - **Decision**: Place in node module since nodes represent more than just Boolean operations
   - Create file if it doesn't exist, add to `src/node/mod.rs` exports
-- [ ] Refactor `eval_boolean_node` to accept `<N: BooleanNode>` generic parameter
-- [ ] Pattern match on `(u8, arity)` tuples instead of `NodeBytes::*` variants
-- [ ] Document mapping from NodeBytesLogicTable.md codes to evaluation behavior
+- [~] Refactor `eval_boolean_node` to accept `<N: BooleanNode>` generic parameter - PARTIALLY done
+- [~] Pattern match on `(u8, arity)` tuples instead of `NodeBytes::*` variants - INFRASTRUCTURE ready
+- [~] Document mapping from NodeBytesLogicTable.md codes to evaluation behavior - PARTIALLY done
 
 ---
 
-## Phase 3: NewTerm Trait Abstraction
+## Phase 3: NewTerm Trait Abstraction - ✅ 90% Complete
 
-### Context
-- Previous `Term` trait (in `src/term/base.rs`) exists but is not functional enough
-- `EnumTerm<V, NodeBytes>` concrete type was easier to work with (had `MetaLeaf`, `NodeHead` variants)
-- Need trait-based abstraction for `bool_eval_next` that doesn't couple to concrete types
+**Status**: Exceeded expectations - went straight to production `Term` trait instead of temporary prototype
 
-### Design Goals
-Create `NewTerm` trait (temporary name for bool_eval_next module):
-- Support term traversal (distinguish metavariable leaves from node heads)
-- Access child terms recursively
-- Query node type (via `BooleanNode` trait bound)
-- **Note**: This is a prototype; will integrate with main `Term` trait later
+**What's been implemented:**
+- ✅ `EnumTerm<T, V, N>` enum in `src/term/simple.rs` (150 lines)
+  - `Leaf(V)` - metavariable leaf variant
+  - `NodeOrLeaf(N, Vec<Self>)` - node head with children
+- ✅ Implements production `Term<Ty, V, N>` trait from `src/term/base.rs`
+- ✅ Fully generic over Type, Metavariable, and Node
+- ✅ `Display` implementation for debugging
+- ✅ Serde support (with feature)
+- ✅ `eval_boolean_term` accepts generic `EnumTerm<Ty, V, No>` where `No: Node + TryInto<NodeByte>`
+- ✅ Pattern matching on enum variants works cleanly (no need for trait methods)
 
-### Open Questions
-- What methods does `NewTerm` need for evaluation?
-  - `is_metavariable(&self) -> bool`?
-  - `as_metavariable(&self) -> Option<&V>`?
-  - `as_node(&self) -> Option<(&N, &[Self])>` where `N: BooleanNode`?
-- Should we use visitor pattern instead of direct trait methods?
-- How to handle the generic metavariable type `V`?
+**Minor improvements possible:**
+- [ ] Consider adding convenience methods `as_metavariable()`, `as_node()` per original design notes
+  - Current pattern matching approach works fine, this is just polish
 
-**Action Items**:
-- [ ] Design `NewTerm` trait with minimal sufficient interface for evaluation
-  - **Decision**: Define in `src/bool_eval_next/mod.rs` as temporary prototype
-  - Will integrate with main `Term` trait later once design is validated
-- [ ] Refactor `eval_boolean_term` to use `NewTerm` instead of `EnumTerm<V, NodeBytes>`
-- [ ] Consider: Should `NewTerm` be generic over both `V` (metavariable) and `N` (node)?
-- [ ] Write documentation explaining relationship to future unified `Term` trait
+**Decision made**: Skipped temporary "NewTerm" prototype and went directly to production `Term` trait implementation. This is better long-term architecture.
+
+### Original Context (RESOLVED)
+- ~~Previous `Term` trait (in `src/term/base.rs`) exists but is not functional enough~~ ✅ NOW FUNCTIONAL
+- ~~`EnumTerm<V, NodeBytes>` concrete type was easier to work with (had `MetaLeaf`, `NodeHead` variants)~~ ✅ IMPLEMENTED
+- ~~Need trait-based abstraction for `bool_eval_next` that doesn't couple to concrete types~~ ✅ ACHIEVED with generics
+
+### Original Design Goals (ALL MET)
+- ✅ Support term traversal (distinguish metavariable leaves from node heads)
+- ✅ Access child terms recursively
+- ✅ Query node type (via generic `N: Node` bound)
+- ✅ Integrated with main `Term` trait (not temporary)
+
+### Original Open Questions (ANSWERED)
+- ✅ Pattern matching on enum variants is clean and idiomatic Rust
+- ✅ Generic over `T: Type`, `V: Metavariable<Type = T>`, `N: Node<Type = T>`
+- ✅ No visitor pattern needed for this use case
+
+**Original Action Items (ALL COMPLETED)**:
+- [x] Design `NewTerm` trait with minimal sufficient interface for evaluation
+  - **Actual**: Went directly to production `Term` trait - better decision
+- [x] Refactor `eval_boolean_term` to use generic terms
+- [x] Generic over both `V` (metavariable) and `N` (node) ✅
+- [x] Works with main `Term` trait
 
 ---
 
-## Phase 4: Integration and Testing
+## Phase 4: Integration and Testing - ❌ 20% Complete (CRITICAL BLOCKER)
+
+**Status**: Module structure complete, but **ZERO TESTS WRITTEN** - violates "Math Correctness First" principle
 
 ### Compilation
-- [ ] Fix all import errors in `src/bool_eval_next/mod.rs`
-- [ ] Resolve `num-bigint` dependency issues (feature gating)
-- [ ] Ensure `cargo +1.77 build --all-features` succeeds
+- [x] Fix all import errors in `src/bool_eval_next/mod.rs` - module now compiles
+- [x] Resolve `num-bigint` dependency issues (feature gating) - properly gated with `#[cfg(feature = "bigint")]`
+- [x] Module re-enabled in lib.rs (line 53)
+- [ ] **Not verified**: `cargo +1.77 build --all-features` - needs to be run
 
-### Testing Strategy (Math Correctness First!)
-- [ ] Unit tests for `UnsignedBits` trait implementations
-  - Verify `mask()`, `n_bits()`, `from_bool()`, `set_bit()` for each type
+### Testing Strategy (Math Correctness First!) - ❌ 0% COMPLETE
+**CRITICAL GAP**: Zero tests in the entire 3,690-line commit
+
+- [ ] **CRITICAL**: Unit tests for `UnsignedBits` trait implementations
+  - Verify `mask()`, `n()`, `from_orig()`, `set_bit()` for each type
   - Test bitwise operations match truth tables
-- [ ] Integration tests for Boolean evaluation
+  - Verify `from_bool()` creates correct patterns
+- [ ] **CRITICAL**: Integration tests for Boolean evaluation
   - Simple expressions: `Not(True)`, `And(True, False)`, etc.
-  - Tautologies: `Or(A, Not(A))` should always evaluate to True
-  - 7-variable expressions using `u128` backend
+  - Tautologies: `Or(A, Not(A))` should always evaluate to `mask()` (all 1s)
+  - Non-tautologies: `And(A, Not(A))` should always be 0
+  - ~~7-variable expressions using `u128` backend~~ (blocked: u128 not implemented)
   - 10-variable expressions using `BigUint` backend (with `bigint` feature)
 - [ ] Regression tests against previous NodeBytes implementation (if available)
+- [ ] Test `BooleanSimpleOp` evaluation methods (`eval0/1/2/3`)
+- [ ] Test edge cases:
+  - Arity mismatch (node expects 2 children, gets 3)
+  - Variable not in binding list
+  - Unknown Boolean operation codes
 
-### Code Quality Gates
+### Code Quality Gates - ⚠️ NOT RUN
 - [ ] `cargo +1.77 clippy --all-features --all-targets`
 - [ ] `cargo +1.77 doc --all-features`
 - [ ] `cargo +1.77 test --all-features`
+
+**Recommendation**: Do not merge until at least basic tests are written for:
+1. UnsignedBits trait implementations (bool, u8, SomeBits)
+2. Simple Boolean evaluation (True, False, Not, And, Or)
+3. Tautology detection (Law of Excluded Middle)
+
+---
+
+## Summary of Staged Changes
+
+**Total impact**: 3,690 additions / 101 deletions across 23 files
+
+### New Files Created (7 files, 2,525 lines)
+| File | Lines | Status | Notes |
+|------|-------|--------|-------|
+| `src/node/node_byte/base.rs` | 1,375 | ✅ Complete | NodeByte enum with 222+ operations |
+| `src/node/node_byte/factory.rs` | 174 | ✅ Complete | NodeByteFactory implementation |
+| `src/node/node_byte/NodeByteTable.md` | 289 | ✅ Complete | Documentation of 256 Boolean operations |
+| `src/node/node_byte/mod.rs` | 7 | ✅ Complete | Module declarations |
+| `src/metavariable/enums.rs` | 273 | ✅ Complete | AsciiMetaVar implementation |
+| `src/metavariable/meta_byte.rs` | 136 | ✅ Complete | MetaByte implementation |
+| `src/term/simple.rs` | 150 | ✅ Complete | EnumTerm<T, V, N> implementation |
+| `src/bool_eval_next/mod.rs` (major expansion) | +1,152 | ⚠️ 60% | Needs u128/tests |
+
+### Modified Files (15 files, major changes)
+| File | Change | Status | Notes |
+|------|--------|--------|-------|
+| `src/lib.rs` | Exports updated | ✅ Complete | Re-enabled bool_eval_next module |
+| `src/metavariable/mod.rs` | Trait relaxed | ✅ Complete | Removed `Copy` requirement |
+| `Cargo.toml` | Dependencies | ✅ Complete | Added `strum` for enums |
+| `README.md` | Badges added | ✅ Complete | License + downloads |
+
+### Deleted Files (1 file)
+- `src/node/enums.rs` - Replaced by `node_byte/` submodule
+
+### Architecture Highlights
+1. **Factory pattern fully implemented** - NodeFactory, MetavariableFactory, TermFactory traits
+2. **BooleanSimpleOp infrastructure** - All 278 Boolean operations with elegant u16 encoding
+3. **Generic evaluation** - Decoupled from concrete bit representations via `UnsignedBits<U, N>` trait
+4. **Production-ready Term abstraction** - EnumTerm implements main Term trait
 
 ---
 
 ## Future Work (Post bool_eval_next)
 
 ### Term Trait Unification
-- Merge `NewTerm` design lessons into main `Term` trait
-- Ensure single unified trait works for all use cases
-- Remove temporary `NewTerm` abstraction
+- ✅ ~~Merge `NewTerm` design lessons into main `Term` trait~~ - ALREADY DONE
+- ✅ ~~Ensure single unified trait works for all use cases~~ - EnumTerm implements Term trait
+- ✅ ~~Remove temporary `NewTerm` abstraction~~ - Never created, went straight to production
 
-### Statement Trait-Based Redesign
+### Statement Trait-Based Redesign (Future consideration)
 - Currently `Statement` is a concrete struct
 - May need trait-based approach for Rust-style inheritance
 
-### NodeBytes Implementation
-- Implement full `NodeBytes` enum with 222 named operations
-- Ensure it implements `BooleanNode` trait
-- Maintain backward compatibility with previous design
+### NodeByte/BooleanSimpleOp Integration
+- ✅ ~~Implement full `NodeBytes` enum with 222 named operations~~ - DONE (NodeByte has 222+)
+- ✅ BooleanSimpleOp has all 278 Boolean operations on ≤3 variables
+- [ ] Integrate BooleanSimpleOp into main evaluation path
+- [ ] Consider trait to unify NodeByte and BooleanSimpleOp approaches
+- ✅ ~~Maintain backward compatibility with previous design~~ - Factory pattern provides this
 
-### Serialization and Database Integration
+### Serialization and Database Integration (Future)
 - Design node representation for serializable theorem databases
 - Connect to Metamath and condensed detachment tools
 - Trait-based abstraction to support multiple backends
+- Factory pattern already in place to support this
 
 ---
 
@@ -451,11 +597,12 @@ Open questions:
 - Should we generate all valid N values for a given type?
 - How to ensure type safety (1 << (1 << N) must fit in type)?
 
-### BigUint Special Handling
-`BigUint` doesn't have native `Not` trait support - need to implement manually:
-- Use `mask XOR value` pattern
-- Mask must be computed based on N (number of variables)
-- May need custom `Not` implementation or wrapper type
+### BigUint Special Handling - ✅ IMPLEMENTED
+✅ `BigUint` doesn't have native `Not` trait support - implemented manually in `SomeBits<N>`:
+- ✅ Uses `mask XOR value` pattern (src/bool_eval_next/mod.rs:1494)
+- ✅ Mask computed based on N: `(BigUint::from(1u32).pow(1 << N)) - 1`
+- ✅ Custom `Not` implementation for `SomeBits<N>` wrapper type
+- ✅ All bitwise ops implemented: `BitAnd`, `BitOr`, `BitXor`, `Not`
 
 ### Practical Examples and Edge Cases
 

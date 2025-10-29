@@ -166,7 +166,7 @@ dependencies = [
 
 [[package]]
 name = "symbolic-mgu"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "either",
  "itertools",
