@@ -695,15 +695,18 @@ impl<Ty: Type> Node for BooleanSimpleNode<Ty> {
 
 impl BooleanSimpleOp {
     /// Get the arity of the operator.
+    #[inline]
     pub fn get_arity(&self) -> u8 {
         ((*self as u16 >> 8) & 0x3) as u8
     }
 
-    /// Get the truth table of of the operator as if it applied to 3 variables.
+    /// Get the truth table of the operator as if it applied to 3 variables.
     ///
-    /// This is compatible with the Mathematica function `BooleanFunction[code3,  {a, b, c}]`.
+    /// This is compatible with Mathematica's `BooleanFunction[code3,  {a, b, c}]`.
     ///
     /// The reduced truth table is `code_n = (code3 as u16) & ((1u16<<(1<<n))-1)` where `n` is the arity.
+    /// where `n` is the arity.
+    #[inline]
     pub fn get_code3(&self) -> u8 {
         (*self as u16 & 0xff) as u8
     }
