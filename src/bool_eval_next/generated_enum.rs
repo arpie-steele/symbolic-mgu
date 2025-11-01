@@ -287,7 +287,7 @@ pub enum BooleanSimpleOp {
     /// Expression: `!(a | (b & c))`
     #[strum(props(Expr = "!(a | (b & c))"))]
     NotOrAAndBC3 = 0x3_15,
-    /// TODO
+    /// TODO at line=664. `NotOrAndABNotXor3ABC3`
     ///
     /// Expression: `!((a & b) | (!a ^ b ^ c))`
     #[strum(props(Expr = "!((a & b) | (!a ^ b ^ c))"))]
@@ -299,17 +299,17 @@ pub enum BooleanSimpleOp {
     /// Aliases: `NotCarryABC3`
     #[strum(props(Expr = "!(a & b | a & c | b & c)"))]
     NotMajority3ABC3 = 0x3_17,
-    /// TODO
+    /// TODO at line=681. `AndBiimpABXorAC3`
     ///
     /// Expression: `(!(a ^ b) & (a ^ c))`
     #[strum(props(Expr = "(!(a ^ b) & (a ^ c))"))]
     AndBiimpABXorAC3 = 0x3_18,
-    /// TODO
+    /// TODO at line=802. `NotOrXorABAndAC3`
     ///
     /// Expression: `!((a ^ b) | (a & c))`
     #[strum(props(Expr = "!((a ^ b) | (a & c))"))]
     NotOrXorABAndAC3 = 0x3_19,
-    /// TODO
+    /// TODO at line=812. `NotOrBiimpACAndBC3`
     ///
     /// Expression: `!(!(a ^ c) | (b & c))`
     #[strum(props(Expr = "!(!(a ^ c) | (b & c))"))]
@@ -321,7 +321,7 @@ pub enum BooleanSimpleOp {
     /// Aliases: `NotMuxACB3`
     #[strum(props(Expr = "!(a & c | !a & b)"))]
     NotIfACB3 = 0x3_1b,
-    /// TODO
+    /// TODO at line=814. `NotOrBiimpBCAndAC3`
     ///
     /// Expression: `!(!(b ^ c) | (a & c))`
     #[strum(props(Expr = "!(!(b ^ c) | (a & c))"))]
@@ -333,7 +333,7 @@ pub enum BooleanSimpleOp {
     /// Aliases: `NotMuxBCA3`
     #[strum(props(Expr = "!(b & c | !b & a)"))]
     NotIfBCA3 = 0x3_1d,
-    /// TODO
+    /// TODO at line=842. `XorCOrAB3`
     ///
     /// Expression: `(c ^ (a | b))`
     #[strum(props(Expr = "(c ^ (a | b))"))]
@@ -367,17 +367,17 @@ pub enum BooleanSimpleOp {
     /// Expression: `(!b & (a | !c))`
     #[strum(props(Expr = "(!b & (a | !c))"))]
     AndNotBOrANotC3 = 0x3_23,
-    /// TODO
+    /// TODO at line=679. `AndXorABBiimpAC3`
     ///
     /// Expression: `((a ^ b) & !(a ^ c))`
     #[strum(props(Expr = "((a ^ b) & !(a ^ c))"))]
     AndXorABBiimpAC3 = 0x3_24,
-    /// TODO
+    /// TODO at line=804. `NotOrXorACAndAB3`
     ///
     /// Expression: `!((a ^ c) | (a & b))`
     #[strum(props(Expr = "!((a ^ c) | (a & b))"))]
     NotOrXorACAndAB3 = 0x3_25,
-    /// TODO
+    /// TODO at line=810. `NotOrBiimpABAndBC3`
     ///
     /// Expression: `!(!(a ^ b) | (b & c))`
     #[strum(props(Expr = "!(!(a ^ b) | (b & c))"))]
@@ -394,7 +394,7 @@ pub enum BooleanSimpleOp {
     /// Expression: `(a & (b ^ c))`
     #[strum(props(Expr = "(a & (b ^ c))"))]
     AndAXorBC3 = 0x3_28,
-    /// TODO
+    /// TODO at line=653. `NotOrAndBCXor3ABC3`
     ///
     /// Expression: `!((b & c) | (a ^ b ^ c))`
     #[strum(props(Expr = "!((b & c) | (a ^ b ^ c))"))]
@@ -409,12 +409,12 @@ pub enum BooleanSimpleOp {
     /// Expression: `!(!a & b | !a & c | b & c)`
     #[strum(props(Expr = "!(!a & b | !a & c | b & c)"))]
     NotMajority3NotABC3 = 0x3_2b,
-    /// TODO
+    /// TODO at line=708. `AndXorBCOrAB3`
     ///
     /// Expression: `((b ^ c) & (a | b))`
     #[strum(props(Expr = "((b ^ c) & (a | b))"))]
     AndXorBCOrAB3 = 0x3_2c,
-    /// TODO
+    /// TODO at line=846. `XorCOrNotAB3`
     ///
     /// Expression: `(c ^ (!a | b))`
     #[strum(props(Expr = "(c ^ (!a | b))"))]
@@ -453,7 +453,7 @@ pub enum BooleanSimpleOp {
     /// Note: Promoted from `NotB2` (arity 2).
     #[strum(props(Expr = "!b"))]
     NotB3 = 0x3_33,
-    /// TODO
+    /// TODO at line=813. `NotOrBiimpBCAndAB3`
     ///
     /// Expression: `!(!(b ^ c) | (a & b))`
     #[strum(props(Expr = "!(!(b ^ c) | (a & b))"))]
@@ -465,7 +465,7 @@ pub enum BooleanSimpleOp {
     /// Aliases: `NotMuxCBA3`
     #[strum(props(Expr = "!(c & b | !c & a)"))]
     NotIfCBA3 = 0x3_35,
-    /// TODO
+    /// TODO at line=829. `XorBOrAC3`
     ///
     /// Expression: `(b ^ (a | c))`
     #[strum(props(Expr = "(b ^ (a | c))"))]
@@ -475,12 +475,12 @@ pub enum BooleanSimpleOp {
     /// Expression: `(!(a | c) | !b)`
     #[strum(props(Expr = "(!(a | c) | !b)"))]
     ImpliesOrACNotB3 = 0x3_37,
-    /// TODO
+    /// TODO at line=709. `AndXorBCOrAC3`
     ///
     /// Expression: `((b ^ c) & (a | c))`
     #[strum(props(Expr = "((b ^ c) & (a | c))"))]
     AndXorBCOrAC3 = 0x3_38,
-    /// TODO
+    /// TODO at line=833. `XorBOrNotAC3`
     ///
     /// Expression: `(b ^ (!a | c))`
     #[strum(props(Expr = "(b ^ (!a | c))"))]
@@ -502,12 +502,12 @@ pub enum BooleanSimpleOp {
     /// Expression: `(b ^ c)`
     #[strum(props(Expr = "(b ^ c)"))]
     XorBC3 = 0x3_3c,
-    /// TODO
+    /// TODO at line=771. `NotAndBiimpBCOrAB3`
     ///
     /// Expression: `!(!(b ^ c) & (a | b))`
     #[strum(props(Expr = "!(!(b ^ c) & (a | b))"))]
     NotAndBiimpBCOrAB3 = 0x3_3d,
-    /// TODO
+    /// TODO at line=873. `OrXorCBAndNotCA3`
     ///
     /// Expression: `((c ^ b) | (!c & a))`
     #[strum(props(Expr = "((c ^ b) | (!c & a))"))]
@@ -527,12 +527,12 @@ pub enum BooleanSimpleOp {
     /// Expression: `!(a | (b ^ c))`
     #[strum(props(Expr = "!(a | (b ^ c))"))]
     NotOrAXorBC3 = 0x3_41,
-    /// TODO
+    /// TODO at line=677. `AndXorABXorAC3`
     ///
     /// Expression: `((a ^ b) & (a ^ c))`
     #[strum(props(Expr = "((a ^ b) & (a ^ c))"))]
     AndXorABXorAC3 = 0x3_42,
-    /// TODO
+    /// TODO at line=806. `NotOrXorBCAndAB3`
     ///
     /// Expression: `!((b ^ c) | (a & b))`
     #[strum(props(Expr = "!((b ^ c) | (a & b))"))]
@@ -551,7 +551,7 @@ pub enum BooleanSimpleOp {
     /// Expression: `(!a & (b | !c))`
     #[strum(props(Expr = "(!a & (b | !c))"))]
     AndNotAOrBNotC3 = 0x3_45,
-    /// TODO
+    /// TODO at line=809. `NotOrBiimpABAndAC3`
     ///
     /// Expression: `!(!(a ^ b) | (a & c))`
     #[strum(props(Expr = "!(!(a ^ b) | (a & c))"))]
@@ -568,17 +568,17 @@ pub enum BooleanSimpleOp {
     /// Expression: `(b & (a ^ c))`
     #[strum(props(Expr = "(b & (a ^ c))"))]
     AndBXorAC3 = 0x3_48,
-    /// TODO
+    /// TODO at line=652. `NotOrAndACXor3ABC3`
     ///
     /// Expression: `!((a & c) | (a ^ b ^ c))`
     #[strum(props(Expr = "!((a & c) | (a ^ b ^ c))"))]
     NotOrAndACXor3ABC3 = 0x3_49,
-    /// TODO
+    /// TODO at line=706. `AndXorACOrAB3`
     ///
     /// Expression: `((a ^ c) & (a | b))`
     #[strum(props(Expr = "((a ^ c) & (a | b))"))]
     AndXorACOrAB3 = 0x3_4a,
-    /// TODO
+    /// TODO at line=849. `BiimpCAndNotAB3`
     ///
     /// Expression: `!(c ^ (!a & b))`
     #[strum(props(Expr = "!(c ^ (!a & b))"))]
@@ -615,7 +615,7 @@ pub enum BooleanSimpleOp {
     /// Expression: `(!a & (!b | c))`
     #[strum(props(Expr = "(!a & (!b | c))"))]
     AndNotAOrNotBC3 = 0x3_51,
-    /// TODO
+    /// TODO at line=811. `NotOrBiimpACAndAB3`
     ///
     /// Expression: `!(!(a ^ c) | (a & b))`
     #[strum(props(Expr = "!(!(a ^ c) | (a & b))"))]
@@ -639,7 +639,7 @@ pub enum BooleanSimpleOp {
     /// Note: Promoted from `NotA1` (arity 1).
     #[strum(props(Expr = "!a"))]
     NotA3 = 0x3_55,
-    /// TODO
+    /// TODO at line=816. `XorAOrBC3`
     ///
     /// Expression: `(a ^ (b | c))`
     #[strum(props(Expr = "(a ^ (b | c))"))]
@@ -649,12 +649,12 @@ pub enum BooleanSimpleOp {
     /// Expression: `(!(b | c) | !a)`
     #[strum(props(Expr = "(!(b | c) | !a)"))]
     ImpliesOrBCNotA3 = 0x3_57,
-    /// TODO
+    /// TODO at line=707. `AndXorACOrBC3`
     ///
     /// Expression: `((a ^ c) & (b | c))`
     #[strum(props(Expr = "((a ^ c) & (b | c))"))]
     AndXorACOrBC3 = 0x3_58,
-    /// TODO
+    /// TODO at line=820. `XorAOrNotBC3`
     ///
     /// Expression: `(a ^ (!b | c))`
     #[strum(props(Expr = "(a ^ (!b | c))"))]
@@ -664,7 +664,7 @@ pub enum BooleanSimpleOp {
     /// Expression: `(a ^ c)`
     #[strum(props(Expr = "(a ^ c)"))]
     XorAC3 = 0x3_5a,
-    /// TODO
+    /// TODO at line=769. `NotAndBiimpACOrAB3`
     ///
     /// Expression: `!(!(a ^ c) & (a | b))`
     #[strum(props(Expr = "!(!(a ^ c) & (a | b))"))]
@@ -681,7 +681,7 @@ pub enum BooleanSimpleOp {
     /// Expression: `(!(!b | c) | !a)`
     #[strum(props(Expr = "(!(!b | c) | !a)"))]
     ImpliesImpliesBCNotA3 = 0x3_5d,
-    /// TODO
+    /// TODO at line=869. `OrXorACAndNotAB3`
     ///
     /// Expression: `((a ^ c) | (!a & b))`
     #[strum(props(Expr = "((a ^ c) | (!a & b))"))]
@@ -696,27 +696,27 @@ pub enum BooleanSimpleOp {
     /// Expression: `(c & (a ^ b))`
     #[strum(props(Expr = "(c & (a ^ b))"))]
     AndCXorAB3 = 0x3_60,
-    /// TODO
+    /// TODO at line=651. `NotOrAndABXor3ABC3`
     ///
     /// Expression: `!((a & b) | (a ^ b ^ c))`
     #[strum(props(Expr = "!((a & b) | (a ^ b ^ c))"))]
     NotOrAndABXor3ABC3 = 0x3_61,
-    /// TODO
+    /// TODO at line=704. `AndXorABOrAC3`
     ///
     /// Expression: `((a ^ b) & (a | c))`
     #[strum(props(Expr = "((a ^ b) & (a | c))"))]
     AndXorABOrAC3 = 0x3_62,
-    /// TODO
+    /// TODO at line=836. `BiimpBAndNotAC3`
     ///
     /// Expression: `!(b ^ (!a & c))`
     #[strum(props(Expr = "!(b ^ (!a & c))"))]
     BiimpBAndNotAC3 = 0x3_63,
-    /// TODO
+    /// TODO at line=705. `AndXorABOrBC3`
     ///
     /// Expression: `((a ^ b) & (b | c))`
     #[strum(props(Expr = "((a ^ b) & (b | c))"))]
     AndXorABOrBC3 = 0x364,
-    /// TODO
+    /// TODO at line=823. `BiimpAAndNotBC3`
     ///
     /// Expression: `!(a ^ (!b & c))`
     #[strum(props(Expr = "!(a ^ (!b & c))"))]
@@ -730,12 +730,12 @@ pub enum BooleanSimpleOp {
     /// Aliases: `ExclusiveOrAB2`
     #[strum(props(Expr = "(a ^ b)"))]
     XorAB3 = 0x3_66,
-    /// TODO
+    /// TODO at line=767. `NotAndBiimpABOrAC3`
     ///
     /// Expression: `!(!(a ^ b) & (a | c))`
     #[strum(props(Expr = "!(!(a ^ b) & (a | c))"))]
     NotAndBiimpABOrAC3 = 0x3_67,
-    /// TODO
+    /// TODO at line=660. `NotOrNotOrABXor3ABC3`
     ///
     /// Expression: `!(!(a | b) | (a ^ b ^ c))`
     #[strum(props(Expr = "!(!(a | b) | (a ^ b ^ c))"))]
@@ -745,36 +745,36 @@ pub enum BooleanSimpleOp {
     /// Expression: `(!a ^ b ^ c)`
     #[strum(props(Expr = "(!a ^ b ^ c)"))]
     NotXor3ABC3 = 0x3_69,
-    /// TODO
+    /// TODO at line=818. `XorAAndBC3`
     ///
     /// Expression: `(a ^ (b & c))`
     #[strum(props(Expr = "(a ^ (b & c))"))]
     XorAAndBC3 = 0x3_6a,
-    /// TODO
+    /// TODO at line=924. `OrNotXor3ABCAndANotB3`
     ///
     /// Expression: `((!a ^ b ^ c) | (a & !b))`
     #[strum(props(Expr = "((!a ^ b ^ c) | (a & !b))"))]
     OrNotXor3ABCAndANotB3 = 0x3_6b,
-    /// TODO
+    /// TODO at line=831. `XorBAndAC3`
     ///
     /// Expression: `(b ^ (a & c))`
     #[strum(props(Expr = "(b ^ (a & c))"))]
     XorBAndAC3 = 0x3_6c,
-    /// TODO
+    /// TODO at line=917. `OrNotXor3ABCAndNotAB3`
     ///
     /// Expression: `((!a ^ b ^ c) | (!a & b))`
     #[strum(props(Expr = "((!a ^ b ^ c) | (!a & b))"))]
     OrNotXor3ABCAndNotAB3 = 0x3_6d,
-    /// TODO
+    /// TODO at line=881. `OrXorABAndANotC3`
     ///
     /// Expression: `((a ^ b) | (a & !c))`
     #[strum(props(Expr = "((a ^ b) | (a & !c))"))]
     OrXorABAndANotC3 = 0x3_6e,
-    /// Biimp(a, b) implies not c.
+    /// c implies Xor(a, b).
     ///
-    /// Expression: `(!!(a ^ b) | !c)`
-    #[strum(props(Expr = "(!!(a ^ b) | !c)"))]
-    ImpliesBiimpABNotC3 = 0x3_6f,
+    /// Expression: `(!c | (a ^ b))`
+    #[strum(props(Expr = "(!c | (a ^ b))"))]
+    ImpliesCXorAB3 = 0x3_6f,
     /// NotOr(not c, And(a, b))
     ///
     /// Expression: `!(!c | (a & b))`
@@ -809,7 +809,7 @@ pub enum BooleanSimpleOp {
     /// Expression: `(!(!c | b) | !a)`
     #[strum(props(Expr = "(!(!c | b) | !a)"))]
     ImpliesImpliesCBNotA3 = 0x3_75,
-    /// TODO
+    /// TODO at line=868. `OrXorABAndNotAC3`
     ///
     /// Expression: `((a ^ b) | (!a & c))`
     #[strum(props(Expr = "((a ^ b) | (!a & c))"))]
@@ -823,37 +823,37 @@ pub enum BooleanSimpleOp {
     /// Aliases: `NandAB2`
     #[strum(props(Expr = "!(a & b)"))]
     NotAndAB3 = 0x3_77,
-    /// TODO
+    /// TODO at line=844. `XorCAndAB3`
     ///
     /// Expression: `(c ^ (a & b))`
     #[strum(props(Expr = "(c ^ (a & b))"))]
     XorCAndAB3 = 0x3_78,
-    /// TODO
+    /// TODO at line=918. `OrNotXor3ABCAndNotAC3`
     ///
     /// Expression: `((!a ^ b ^ c) | (!a & c))`
     #[strum(props(Expr = "((!a ^ b ^ c) | (!a & c))"))]
     OrNotXor3ABCAndNotAC3 = 0x3_79,
-    /// TODO
+    /// TODO at line=882. `OrXorACAndANotB3`
     ///
     /// Expression: `((a ^ c) | (a & !b))`
     #[strum(props(Expr = "((a ^ c) | (a & !b))"))]
     OrXorACAndANotB3 = 0x3_7a,
-    /// Biimp(a, c) implies not b.
+    /// b implies Xor(a, c).
     ///
-    /// Expression: `(!!(a ^ c) | !b)`
-    #[strum(props(Expr = "(!!(a ^ c) | !b)"))]
-    ImpliesBiimpACNotB3 = 0x3_7b,
-    /// TODO
+    /// Expression: `(!b | (a ^ c))`
+    #[strum(props(Expr = "(!b | (a ^ c))"))]
+    ImpliesBXorAC3 = 0x3_7b,
+    /// TODO at line=886. `OrXorCBAndCNotA3`
     ///
     /// Expression: `((c ^ b) | (c & !a))`
     #[strum(props(Expr = "((c ^ b) | (c & !a))"))]
     OrXorCBAndCNotA3 = 0x3_7c,
-    /// Biimp(b, c) implies not a.
+    /// a implies Xor(b, c).
     ///
-    /// Expression: `(!!(b ^ c) | !a)`
-    #[strum(props(Expr = "(!!(b ^ c) | !a)"))]
-    ImpliesBiimpBCNotA3 = 0x3_7d,
-    /// TODO
+    /// Expression: `(!a | (b ^ c))`
+    #[strum(props(Expr = "(!a | (b ^ c))"))]
+    ImpliesAXorBC3 = 0x3_7d,
+    /// TODO at line=678. `OrXorABXorAC3`
     ///
     /// Expression: `((a ^ b) | (a ^ c))`
     #[strum(props(Expr = "((a ^ b) | (a ^ c))"))]
@@ -868,37 +868,37 @@ pub enum BooleanSimpleOp {
     /// Expression: `(a & b & c)`
     #[strum(props(Expr = "(a & b & c)"))]
     And3ABC3 = 0x3_80,
-    /// TODO
+    /// TODO at line=683. `NotOrXorABXorAC3`
     ///
     /// Expression: `!((a ^ b) | (a ^ c))`
     #[strum(props(Expr = "!((a ^ b) | (a ^ c))"))]
     NotOrXorABXorAC3 = 0x3_81,
-    /// TODO
+    /// TODO at line=999. `AndABiimpBC3`
     ///
     /// Expression: `(a & !(b ^ c))`
     #[strum(props(Expr = "(a & !(b ^ c))"))]
     AndABiimpBC3 = 0x3_82,
-    /// TODO
+    /// TODO at line=962. `AndBiimpBCOrANotB3`
     ///
     /// Expression: `(!(b ^ c) & (a | !b))`
     #[strum(props(Expr = "(!(b ^ c) & (a | !b))"))]
     AndBiimpBCOrANotB3 = 0x3_83,
-    /// TODO
+    /// TODO at line=1000. `AndBBiimpAC3`
     ///
     /// Expression: `(b & !(a ^ c))`
     #[strum(props(Expr = "(b & !(a ^ c))"))]
     AndBBiimpAC3 = 0x3_84,
-    /// TODO
+    /// TODO at line=951. `AndBiimpACOrNotAB3`
     ///
     /// Expression: `(!(a ^ c) & (!a | b))`
     #[strum(props(Expr = "(!(a ^ c) & (!a | b))"))]
     AndBiimpACOrNotAB3 = 0x3_85,
-    /// TODO
+    /// TODO at line=668. `NotOrAndNotACNotXor3ABC3`
     ///
     /// Expression: `!((!a & c) | (!a ^ b ^ c))`
     #[strum(props(Expr = "!((!a & c) | (!a ^ b ^ c))"))]
     NotOrAndNotACNotXor3ABC3 = 0x3_86,
-    /// TODO
+    /// TODO at line=845. `BiimpCAndAB3`
     ///
     /// Expression: `!(c ^ (a & b))`
     #[strum(props(Expr = "!(c ^ (a & b))"))]
@@ -910,7 +910,7 @@ pub enum BooleanSimpleOp {
     /// Note: Promoted from `AndAB2` (arity 2).
     #[strum(props(Expr = "(a & b)"))]
     AndAB3 = 0x3_88,
-    /// TODO
+    /// TODO at line=942. `AndBiimpABOrANotC3`
     ///
     /// Expression: `(!(a ^ b) & (a | !c))`
     #[strum(props(Expr = "(!(a ^ b) & (a | !c))"))]
@@ -944,37 +944,37 @@ pub enum BooleanSimpleOp {
     /// Expression: `(a & b | a & !c | b & !c)`
     #[strum(props(Expr = "(a & b | a & !c | b & !c)"))]
     Majority3ABNotC3 = 0x3_8e,
-    /// NotAnd(a, b) implies not c.
+    /// c implies And(a, b).
     ///
-    /// Expression: `(!!(a & b) | !c)`
-    #[strum(props(Expr = "(!!(a & b) | !c)"))]
-    ImpliesNotAndABNotC3 = 0x3_8f,
-    /// TODO
+    /// Expression: `(!c | (a & b))`
+    #[strum(props(Expr = "(!c | (a & b))"))]
+    ImpliesCAndAB3 = 0x3_8f,
+    /// TODO at line=1001. `AndCBiimpAB3`
     ///
     /// Expression: `(c & !(a ^ b))`
     #[strum(props(Expr = "(c & !(a ^ b))"))]
     AndCBiimpAB3 = 0x3_90,
-    /// TODO
+    /// TODO at line=941. `AndBiimpABOrNotAC3`
     ///
     /// Expression: `(!(a ^ b) & (!a | c))`
     #[strum(props(Expr = "(!(a ^ b) & (!a | c))"))]
     AndBiimpABOrNotAC3 = 0x3_91,
-    /// TODO
+    /// TODO at line=667. `NotOrAndNotABNotXor3ABC3`
     ///
     /// Expression: `!((!a & b) | (!a ^ b ^ c))`
     #[strum(props(Expr = "!((!a & b) | (!a ^ b ^ c))"))]
     NotOrAndNotABNotXor3ABC3 = 0x3_92,
-    /// TODO
+    /// TODO at line=832. `BiimpBAndAC3`
     ///
     /// Expression: `!(b ^ (a & c))`
     #[strum(props(Expr = "!(b ^ (a & c))"))]
     BiimpBAndAC3 = 0x3_93,
-    /// TODO
+    /// TODO at line=670. `NotOrAndANotBNotXor3ABC3`
     ///
     /// Expression: `!((a & !b) | (!a ^ b ^ c))`
     #[strum(props(Expr = "!((a & !b) | (!a ^ b ^ c))"))]
     NotOrAndANotBNotXor3ABC3 = 0x3_94,
-    /// TODO
+    /// TODO at line=819. `BiimpAAndBC3`
     ///
     /// Expression: `!(a ^ (b & c))`
     #[strum(props(Expr = "!(a ^ (b & c))"))]
@@ -984,12 +984,12 @@ pub enum BooleanSimpleOp {
     /// Expression: `(a ^ b ^ c)`
     #[strum(props(Expr = "(a ^ b ^ c)"))]
     Xor3ABC3 = 0x3_96,
-    /// TODO
+    /// TODO at line=928. `OrXor3ABCNotOrAB3`
     ///
     /// Expression: `((a ^ b ^ c) | !(a | b))`
     #[strum(props(Expr = "((a ^ b ^ c) | !(a | b))"))]
     OrXor3ABCNotOrAB3 = 0x3_97,
-    /// TODO
+    /// TODO at line=711. `AndBiimpABOrAC3`
     ///
     /// Expression: `(!(a ^ b) & (a | c))`
     #[strum(props(Expr = "(!(a ^ b) & (a | c))"))]
@@ -1003,27 +1003,27 @@ pub enum BooleanSimpleOp {
     /// Aliases: `BiimpAB2`, `EqAB2`, `NotXorAB2`
     #[strum(props(Expr = "!(a ^ b)"))]
     BiimpAB3 = 0x3_99,
-    /// TODO
+    /// TODO at line=822. `XorAAndNotBC3`
     ///
     /// Expression: `(a ^ (!b & c))`
     #[strum(props(Expr = "(a ^ (!b & c))"))]
     XorAAndNotBC3 = 0x3_9a,
-    /// TODO
+    /// TODO at line=761. `NotAndXorABOrBC3`
     ///
     /// Expression: `!((a ^ b) & (b | c))`
     #[strum(props(Expr = "!((a ^ b) & (b | c))"))]
     NotAndXorABOrBC3 = 0x3_9b,
-    /// TODO
+    /// TODO at line=835. `XorBAndNotAC3`
     ///
     /// Expression: `(b ^ (!a & c))`
     #[strum(props(Expr = "(b ^ (!a & c))"))]
     XorBAndNotAC3 = 0x3_9c,
-    /// TODO
+    /// TODO at line=760. `NotAndXorABOrAC3`
     ///
     /// Expression: `!((a ^ b) & (a | c))`
     #[strum(props(Expr = "!((a ^ b) & (a | c))"))]
     NotAndXorABOrAC3 = 0x3_9d,
-    /// TODO
+    /// TODO at line=907. `OrXor3ABCAndAB3`
     ///
     /// Expression: `((a ^ b ^ c) | (a & b))`
     #[strum(props(Expr = "((a ^ b ^ c) | (a & b))"))]
@@ -1038,7 +1038,7 @@ pub enum BooleanSimpleOp {
     /// Expression: `(a & c)`
     #[strum(props(Expr = "(a & c)"))]
     AndAC3 = 0x3_a0,
-    /// TODO
+    /// TODO at line=952. `AndBiimpACOrANotB3`
     ///
     /// Expression: `(!(a ^ c) & (a | !b))`
     #[strum(props(Expr = "(!(a ^ c) & (a | !b))"))]
@@ -1055,7 +1055,7 @@ pub enum BooleanSimpleOp {
     /// Aliases: `MuxCANotB3`
     #[strum(props(Expr = "(c & a | !c & !b)"))]
     IfCANotB3 = 0x3_a3,
-    /// TODO
+    /// TODO at line=713. `AndBiimpACOrAB3`
     ///
     /// Expression: `(!(a ^ c) & (a | b))`
     #[strum(props(Expr = "(!(a ^ c) & (a | b))"))]
@@ -1065,12 +1065,12 @@ pub enum BooleanSimpleOp {
     /// Expression: `!(a ^ c)`
     #[strum(props(Expr = "!(a ^ c)"))]
     BiimpAC3 = 0x3_a5,
-    /// TODO
+    /// TODO at line=821. `BiimpAOrNotBC3`
     ///
     /// Expression: `!(a ^ (!b | c))`
     #[strum(props(Expr = "!(a ^ (!b | c))"))]
     BiimpAOrNotBC3 = 0x3_a6,
-    /// TODO
+    /// TODO at line=763. `NotAndXorACOrBC3`
     ///
     /// Expression: `!((a ^ c) & (b | c))`
     #[strum(props(Expr = "!((a ^ c) & (b | c))"))]
@@ -1080,7 +1080,7 @@ pub enum BooleanSimpleOp {
     /// Expression: `(a & (b | c))`
     #[strum(props(Expr = "(a & (b | c))"))]
     AndAOrBC3 = 0x3_a8,
-    /// TODO
+    /// TODO at line=817. `BiimpAOrBC3`
     ///
     /// Expression: `!(a ^ (b | c))`
     #[strum(props(Expr = "!(a ^ (b | c))"))]
@@ -1104,7 +1104,7 @@ pub enum BooleanSimpleOp {
     /// Aliases: `MuxCAB3`
     #[strum(props(Expr = "(c & a | !c & b)"))]
     IfCAB3 = 0x3_ac,
-    /// TODO
+    /// TODO at line=755. `OrBiimpACAndAB3`
     ///
     /// Expression: `(!(a ^ c) | (a & b))`
     #[strum(props(Expr = "(!(a ^ c) | (a & b))"))]
@@ -1136,22 +1136,22 @@ pub enum BooleanSimpleOp {
     /// Expression: `(a & !b | a & c | !b & c)`
     #[strum(props(Expr = "(a & !b | a & c | !b & c)"))]
     Majority3ANotBC3 = 0x3_b2,
-    /// NotAnd(a, c) implies not b.
+    /// b implies And(a, c).
     ///
-    /// Expression: `(!!(a & c) | !b)`
-    #[strum(props(Expr = "(!!(a & c) | !b)"))]
-    ImpliesNotAndACNotB3 = 0x3_b3,
-    /// TODO
+    /// Expression: `(!b | (a & c))`
+    #[strum(props(Expr = "(!b | (a & c))"))]
+    ImpliesBAndAC3 = 0x3_b3,
+    /// TODO at line=848. `XorCAndNotAB3`
     ///
     /// Expression: `(c ^ (!a & b))`
     #[strum(props(Expr = "(c ^ (!a & b))"))]
     XorCAndNotAB3 = 0x3_b4,
-    /// TODO
+    /// TODO at line=762. `NotAndXorACOrAB3`
     ///
     /// Expression: `!((a ^ c) & (a | b))`
     #[strum(props(Expr = "!((a ^ c) & (a | b))"))]
     NotAndXorACOrAB3 = 0x3_b5,
-    /// TODO
+    /// TODO at line=908. `OrXor3ABCAndAC3`
     ///
     /// Expression: `((a ^ b ^ c) | (a & c))`
     #[strum(props(Expr = "((a ^ b ^ c) | (a & c))"))]
@@ -1168,7 +1168,7 @@ pub enum BooleanSimpleOp {
     /// Aliases: `MuxBAC3`
     #[strum(props(Expr = "(b & a | !b & c)"))]
     IfBAC3 = 0x3_b8,
-    /// TODO
+    /// TODO at line=753. `OrBiimpABAndAC3`
     ///
     /// Expression: `(!(a ^ b) | (a & c))`
     #[strum(props(Expr = "(!(a ^ b) | (a & c))"))]
@@ -1187,21 +1187,21 @@ pub enum BooleanSimpleOp {
     /// Aliases: `OrANotB2`
     #[strum(props(Expr = "(!b | a)"))]
     ImpliesBA3 = 0x3_bb,
-    /// TODO
+    /// TODO at line=750. `OrXorBCAndAB3`
     ///
     /// Expression: `((b ^ c) | (a & b))`
     #[strum(props(Expr = "((b ^ c) | (a & b))"))]
     OrXorBCAndAB3 = 0x3_bc,
-    /// TODO
+    /// TODO at line=684. `NotAndXorABXorAC3`
     ///
     /// Expression: `!((a ^ b) & (a ^ c))`
     #[strum(props(Expr = "!((a ^ b) & (a ^ c))"))]
     NotAndXorABXorAC3 = 0x3_bd,
     /// Biimp(b, c) implies a.
     ///
-    /// Expression: `(!!(b ^ c) | a)`
-    #[strum(props(Expr = "(!!(b ^ c) | a)"))]
-    ImpliesBiimpBCA3 = 0x3_be,
+    /// Expression: `((b ^ c) | a)`
+    #[strum(props(Expr = "((b ^ c) | a)"))]
+    OrXorBCA3 = 0x3_be,
     /// False only when all of a, not b, and not c are.
     ///
     /// Expression: `!(!a & b & c)`
@@ -1212,12 +1212,12 @@ pub enum BooleanSimpleOp {
     /// Expression: `(b & c)`
     #[strum(props(Expr = "(b & c)"))]
     AndBC3 = 0x3_c0,
-    /// TODO
+    /// TODO at line=961. `AndBiimpBCOrNotAB3`
     ///
     /// Expression: `(!(b ^ c) & (!a | b))`
     #[strum(props(Expr = "(!(b ^ c) & (!a | b))"))]
     AndBiimpBCOrNotAB3 = 0x3_c1,
-    /// TODO
+    /// TODO at line=715. `AndBiimpBCOrAB3`
     ///
     /// Expression: `(!(b ^ c) & (a | b))`
     #[strum(props(Expr = "(!(b ^ c) & (a | b))"))]
@@ -1239,12 +1239,12 @@ pub enum BooleanSimpleOp {
     /// Aliases: `MuxCBNotA3`
     #[strum(props(Expr = "(c & b | !c & !a)"))]
     IfCBNotA3 = 0x3_c5,
-    /// TODO
+    /// TODO at line=834. `BiimpBOrNotAC3`
     ///
     /// Expression: `!(b ^ (!a | c))`
     #[strum(props(Expr = "!(b ^ (!a | c))"))]
     BiimpBOrNotAC3 = 0x3_c6,
-    /// TODO
+    /// TODO at line=765. `NotAndXorBCOrAC3`
     ///
     /// Expression: `!((b ^ c) & (a | c))`
     #[strum(props(Expr = "!((b ^ c) & (a | c))"))]
@@ -1254,7 +1254,7 @@ pub enum BooleanSimpleOp {
     /// Expression: `(b & (a | c))`
     #[strum(props(Expr = "(b & (a | c))"))]
     AndBOrAC3 = 0x3_c8,
-    /// TODO
+    /// TODO at line=830. `BiimpBOrAC3`
     ///
     /// Expression: `!(b ^ (a | c))`
     #[strum(props(Expr = "!(b ^ (a | c))"))]
@@ -1266,7 +1266,7 @@ pub enum BooleanSimpleOp {
     /// Aliases: `MuxCBA3`
     #[strum(props(Expr = "(c & b | !c & a)"))]
     IfCBA3 = 0x3_ca,
-    /// TODO
+    /// TODO at line=757. `OrBiimpBCAndAB3`
     ///
     /// Expression: `(!(b ^ c) | (a & b))`
     #[strum(props(Expr = "(!(b ^ c) | (a & b))"))]
@@ -1305,12 +1305,12 @@ pub enum BooleanSimpleOp {
     /// Aliases: `MuxBCNotA3`
     #[strum(props(Expr = "(b & c | !b & !a)"))]
     IfBCNotA3 = 0x3_d1,
-    /// TODO
+    /// TODO at line=847. `BiimpCOrNotAB3`
     ///
     /// Expression: `!(c ^ (!a | b))`
     #[strum(props(Expr = "!(c ^ (!a | b))"))]
     BiimpCOrNotAB3 = 0x3_d2,
-    /// TODO
+    /// TODO at line=764. `NotAndXorBCOrAB3`
     ///
     /// Expression: `!((b ^ c) & (a | b))`
     #[strum(props(Expr = "!((b ^ c) & (a | b))"))]
@@ -1320,12 +1320,12 @@ pub enum BooleanSimpleOp {
     /// Expression: `(!a & b | !a & c | b & c)`
     #[strum(props(Expr = "(!a & b | !a & c | b & c)"))]
     Majority3NotABC3 = 0x3_d4,
-    /// NotAnd(b, c) implies not a.
+    /// a implies And(b, c).
     ///
-    /// Expression: `(!!(b & c) | !a)`
-    #[strum(props(Expr = "(!!(b & c) | !a)"))]
-    ImpliesNotAndBCNotA3 = 0x3_d5,
-    /// TODO
+    /// Expression: `(!a | (b & c))`
+    #[strum(props(Expr = "(!a | (b & c))"))]
+    ImpliesAAndBC3 = 0x3_d5,
+    /// TODO at line=909. `OrXor3ABCAndBC3`
     ///
     /// Expression: `((a ^ b ^ c) | (b & c))`
     #[strum(props(Expr = "((a ^ b ^ c) | (b & c))"))]
@@ -1342,17 +1342,17 @@ pub enum BooleanSimpleOp {
     /// Aliases: `MuxABC3`
     #[strum(props(Expr = "(a & b | !a & c)"))]
     IfABC3 = 0x3_d8,
-    /// TODO
+    /// TODO at line=754. `OrBiimpABAndBC3`
     ///
     /// Expression: `(!(a ^ b) | (b & c))`
     #[strum(props(Expr = "(!(a ^ b) | (b & c))"))]
     OrBiimpABAndBC3 = 0x3_d9,
-    /// TODO
+    /// TODO at line=748. `OrXorACAndAB3`
     ///
     /// Expression: `((a ^ c) | (a & b))`
     #[strum(props(Expr = "((a ^ c) | (a & b))"))]
     OrXorACAndAB3 = 0x3_da,
-    /// TODO
+    /// TODO at line=682. `OrBiimpABXorAC3`
     ///
     /// Expression: `(!(a ^ b) | (a ^ c))`
     #[strum(props(Expr = "(!(a ^ b) | (a ^ c))"))]
@@ -1373,9 +1373,9 @@ pub enum BooleanSimpleOp {
     ImpliesAB3 = 0x3_dd,
     /// Biimp(a, c) implies b.
     ///
-    /// Expression: `(!!(a ^ c) | b)`
-    #[strum(props(Expr = "(!!(a ^ c) | b)"))]
-    ImpliesBiimpACB3 = 0x3_de,
+    /// Expression: `((a ^ c) | b)`
+    #[strum(props(Expr = "((a ^ c) | b)"))]
+    OrXorACB3 = 0x3_de,
     /// False only when all of not a, b, and not c are.
     ///
     /// Expression: `!(a & !b & c)`
@@ -1386,7 +1386,7 @@ pub enum BooleanSimpleOp {
     /// Expression: `(c & (a | b))`
     #[strum(props(Expr = "(c & (a | b))"))]
     AndCOrAB3 = 0x3_e0,
-    /// TODO
+    /// TODO at line=843. `BiimpCOrAB3`
     ///
     /// Expression: `!(c ^ (a | b))`
     #[strum(props(Expr = "!(c ^ (a | b))"))]
@@ -1398,7 +1398,7 @@ pub enum BooleanSimpleOp {
     /// Aliases: `MuxBCA3`
     #[strum(props(Expr = "(b & c | !b & a)"))]
     IfBCA3 = 0x3_e2,
-    /// TODO
+    /// TODO at line=758. `OrBiimpBCAndAC3`
     ///
     /// Expression: `(!(b ^ c) | (a & c))`
     #[strum(props(Expr = "(!(b ^ c) | (a & c))"))]
@@ -1410,17 +1410,17 @@ pub enum BooleanSimpleOp {
     /// Aliases: `MuxACB3`
     #[strum(props(Expr = "(a & c | !a & b)"))]
     IfACB3 = 0x3_e4,
-    /// TODO
+    /// TODO at line=756. `OrBiimpACAndBC3`
     ///
     /// Expression: `(!(a ^ c) | (b & c))`
     #[strum(props(Expr = "(!(a ^ c) | (b & c))"))]
     OrBiimpACAndBC3 = 0x3_e5,
-    /// TODO
+    /// TODO at line=746. `OrXorABAndAC3`
     ///
     /// Expression: `((a ^ b) | (a & c))`
     #[strum(props(Expr = "((a ^ b) | (a & c))"))]
     OrXorABAndAC3 = 0x3_e6,
-    /// TODO
+    /// TODO at line=680. `OrXorABBiimpAC3`
     ///
     /// Expression: `((a ^ b) | !(a ^ c))`
     #[strum(props(Expr = "((a ^ b) | !(a ^ c))"))]
@@ -1432,16 +1432,16 @@ pub enum BooleanSimpleOp {
     /// Aliases: `CarryABC3`
     #[strum(props(Expr = "(a & b | a & c | b & c)"))]
     Majority3ABC3 = 0x3_e8,
-    /// TODO
+    /// TODO at line=910. `OrNotXor3ABCAndAB3`
     ///
     /// Expression: `((!a ^ b ^ c) | (a & b))`
     #[strum(props(Expr = "((!a ^ b ^ c) | (a & b))"))]
     OrNotXor3ABCAndAB3 = 0x3_e9,
     /// NotAnd(b, c) implies a.
     ///
-    /// Expression: `(!!(b & c) | a)`
-    #[strum(props(Expr = "(!!(b & c) | a)"))]
-    ImpliesNotAndBCA3 = 0x3_ea,
+    /// Expression: `((b & c) | a)`
+    #[strum(props(Expr = "((b & c) | a)"))]
+    OrAndBCA3 = 0x3_ea,
     /// Xor(b, c) implies a.
     ///
     /// Expression: `(!(b ^ c) | a)`
@@ -1449,9 +1449,9 @@ pub enum BooleanSimpleOp {
     ImpliesXorBCA3 = 0x3_eb,
     /// NotAnd(a, c) implies b.
     ///
-    /// Expression: `(!!(a & c) | b)`
-    #[strum(props(Expr = "(!!(a & c) | b)"))]
-    ImpliesNotAndACB3 = 0x3_ec,
+    /// Expression: `((a & c) | b)`
+    #[strum(props(Expr = "((a & c) | b)"))]
+    OrAndACB3 = 0x3_ec,
     /// Xor(a, c) implies b.
     ///
     /// Expression: `(!(a ^ c) | b)`
@@ -1501,9 +1501,9 @@ pub enum BooleanSimpleOp {
     ImpliesAC3 = 0x3_f5,
     /// Biimp(a, b) implies c.
     ///
-    /// Expression: `(!!(a ^ b) | c)`
-    #[strum(props(Expr = "(!!(a ^ b) | c)"))]
-    ImpliesBiimpABC3 = 0x3_f6,
+    /// Expression: `((a ^ b) | c)`
+    #[strum(props(Expr = "((a ^ b) | c)"))]
+    OrXorABC3 = 0x3_f6,
     /// False only when all of not a, not b, and c are.
     ///
     /// Expression: `!(a & b & !c)`
@@ -1511,9 +1511,9 @@ pub enum BooleanSimpleOp {
     NotAnd3ABNotC3 = 0x3_f7,
     /// NotAnd(a, b) implies c.
     ///
-    /// Expression: `(!!(a & b) | c)`
-    #[strum(props(Expr = "(!!(a & b) | c)"))]
-    ImpliesNotAndABC3 = 0x3_f8,
+    /// Expression: `((a & b) | c)`
+    #[strum(props(Expr = "((a & b) | c)"))]
+    OrAndABC3 = 0x3_f8,
     /// Xor(a, b) implies c.
     ///
     /// Expression: `(!(a ^ b) | c)`
