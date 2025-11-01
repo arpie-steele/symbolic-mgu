@@ -140,6 +140,21 @@ class NameGenerator:
         self.named_at_arity[arity].add(code)
         return True
 
+    def add_computed_op(self,
+                        arity: int,
+                        pythonic_expr: str,
+                        comment: str = "",
+                        aliases: Optional[List[str]] = None,
+                        promoted_from: Optional[Tuple[int, str]] = None
+                        ) -> bool:
+        """Add an operation if not already named."""
+        ast: Expression = parse(pythonic_expr, mode="eval")
+        code = code_from_ints(ast)
+        name = name_from_strs(ast) + str(arity)
+        rust_expr = rust_from_strs(ast)
+        return self.add_op(arity, code, name, rust_expr,
+                           comment, aliases, promoted_from)
+
     def generate_all(self) -> Dict[Tuple[int, int], BooleanOp]:
         """Generate all 278 Boolean operations."""
         self._add_nullary()
@@ -151,58 +166,76 @@ class NameGenerator:
 
     def _add_nullary(self):
         """Add nullary operations (2 total)."""
-        self.add_op(0, 0x00, "False0", "false", "Constant false.")
-        self.add_op(0, 0xff, "True0", "true", "Constant true.")
+        self.add_computed_op(0, "False", "Constant false.")
+        self.add_computed_op(0, "True", "Constant true.")
 
     def _add_unary(self):
         """Add unary operations (4 total)."""
         # Basic unary
-        self.add_op(1, 0x55, "NotA1", "!a", "Logical negation.")
-        self.add_op(1, 0xaa, "IdA1", "a", "Identity function.")
+        self.add_computed_op(1, "~a",
+                             "Logical negation on first (only) variable.")
+        self.add_computed_op(1, "a",
+                             "Identity function on first (only) variable.")
 
         # Promoted from nullary
-        self.add_op(1, 0x00, "False1", "false",
-                    "Constant false. See `False0`.",
-                    promoted_from=(0, "False0"))
-        self.add_op(1, 0xff, "True1", "true",
-                    "Constant true. See `True0`.",
-                    promoted_from=(0, "True0"))
+        self.add_computed_op(1, "False", "Constant false. See `False0`.",
+                             promoted_from=(0, "False0"))
+        self.add_computed_op(1, "True", "Constant true. See `True0`.",
+                             promoted_from=(0, "True0"))
 
     def _add_binary(self):
         """Add binary operations (16 total)."""
         # Basic binary operations
-        binary_ops = [
-            (0x11, "NotOrAB2", "Nor(a, b)", "NOR", ["NorAB2"]),
-            (0x22, "NotImpliesAB2", "NotImplies(a, b)",
-             "Inhibition (A and not B)", []),
-            (0x33, "NotB2", "~b", "Negation of b. See `NotA1`.", []),
-            (0x44, "NotImpliesBA2", "NotImplies(b, a)",
-             "Inhibition (B and not A)", []),
-            (0x55, "NotA2", "~a", "Negation of a. See `NotA1`.", []),
-            (0x66, "XorAB2", "Xor(a, b)", "Exclusive OR", ["ExclusiveOrAB2"]),
-            (0x77, "NotAndAB2", "Nand(a, b)", "NAND", ["NandAB2"]),
-            (0x88, "AndAB2", "And(a, b)", "Logical AND", []),
-            (0x99, "NotXorAB2", "Biimp(a, b)",
-             "Logical equivalence (XNOR)", ["BiimpAB2", "EqAB2"]),
-            (0xaa, "IdA2", "a", "Identity on a. See `IdA1`.", []),
-            (0xbb, "ImpliesBA2", "Implies(b, a)",
-             "Reverse implication (B implies A)", ["RevImpliesAB2"]),
-            (0xcc, "IdB2", "b", "Identity on b.", []),
-            (0xdd, "ImpliesAB2", "Implies(a, b)",
-             "Material implication (A implies B)", []),
-            (0xee, "OrAB2", "Or(a, b)", "Logical OR", []),
-        ]
+        self.add_computed_op(2, "NotOr(a, b)",
+                             "NOR operator on first two variables.")
+        self.add_computed_op(2, "NotImplies(a, b)",
+                             "Not(a implies b). Inhibition, And(a, not b).",
+                             ['AndANotB2'])
+        self.add_computed_op(2, "~b",
+                             "Logical negation on second variable."
+                             " See `NotA1`.")
+        self.add_computed_op(2, "NotImplies(b, a)",
+                             "Not(b implies a). Inhibition, And(not a, b).",
+                             ['AndNotAB2'])
+        self.add_computed_op(2, "Xor(a, b)",
+                             "Logical XOR (Exclusive Or) operator"
+                             " on first two variables.",
+                             ["ExclusiveOrAB2"])
+        self.add_computed_op(2, "NotAnd(a, b)",
+                             "LogicalNAND operator on first two variables.",
+                             ["NandAB2"])
+        self.add_computed_op(2, "And(a, b)",
+                             "Logical AND operator on first two variables.")
+        self.add_computed_op(2, "Biimp(a, b)",
+                             "Logical equivalence (XNOR) operator"
+                             " on first two variables.",
+                             ["BiimpAB2", "EqAB2", "NotXorAB2"])
+        self.add_computed_op(2, "Implies(b, a)",
+                             "Reverse implication (B implies A).",
+                             ["OrANotB2"])
+        self.add_computed_op(2, "b", "Identity on second variable.")
+        self.add_computed_op(2, "Implies(a, b)",
+                             "Material implication (A implies B).",
+                             ["OrNotAB2"])
+        self.add_computed_op(2, "Or(a, b)",
+                             "Logical OR (Exclusive Or) operator"
+                             " on first two variables.")
 
-        for code, name, expr, comment, aliases in binary_ops:
-            self.add_op(2, code, name, expr, comment, aliases)
+        # Promoted from unary
 
-        # Promoted from nullary/unary
-        self.add_op(2, 0x00, "False2", "false",
-                    "Constant false. See `False0`.",
-                    promoted_from=(0, "False0"))
-        self.add_op(2, 0xff, "True2", "true",
-                    "Constant true. See `True0`.",
-                    promoted_from=(0, "True0"))
+        self.add_computed_op(2, "~a",
+                             "Logical negation on first variable.",
+                             promoted_from=(1, "NotA1"))
+        self.add_computed_op(2, "a",
+                             "Identity on first variable.",
+                             promoted_from=(1, "IdA1"))
+
+        # Promoted from nullary
+
+        self.add_computed_op(2, "False", "Constant false. See `False0`.",
+                             promoted_from=(0, "False0"))
+        self.add_computed_op(2, "True", "Constant true. See `True0`.",
+                             promoted_from=(0, "True0"))
 
     def _add_ternary(self):
         """Add ternary operations (256 total)."""
@@ -220,50 +253,174 @@ class NameGenerator:
 
     def _promote_to_ternary(self):
         """Promote nullary, unary, and binary operations to ternary."""
-        # Promote binary operations (ignore c)
-        for code in get_valid_codes(2):
-            if code in [0x00, 0xff]:  # Skip constants, handled separately
-                continue
-            # Find the binary operation name
-            binary_op = self.ops.get((2, code))
-            if binary_op and not binary_op.promoted_from:
-                # This is a "real" binary operation, promote it
-                base_name = binary_op.name[:-1]  # Remove the "2"
-                new_name = f"{base_name}3"
-                self.add_op(3, code, new_name, binary_op.expr,
-                            f"Binary operation on a and b, ignoring c."
-                            f" See `{binary_op.name}`.",
-                            promoted_from=(2, binary_op.name))
 
-        # Promote unary operations (ignore b and c)
-        for code in get_valid_codes(1):
-            if code in [0x00, 0xff]:  # Skip constants
-                continue
-            unary_op = self.ops.get((1, code))
-            if unary_op and not unary_op.promoted_from:
-                base_name = unary_op.name[:-1]  # Remove the "1"
-                new_name = f"{base_name}3"
-                self.add_op(3, code, new_name, unary_op.expr,
-                            f"Unary operation on a, ignoring b and c."
-                            f" See `{unary_op.name}`.",
-                            promoted_from=(1, unary_op.name))
+        # Promoted from binary
+        self.add_computed_op(3, "NotOr(a, b)",
+                             "NOR operator on first two variables.",
+                             promoted_from=(2, "NotOrAB2"))
+        self.add_computed_op(3, "NotImplies(a, b)",
+                             "Not(a implies b). Inhibition, And(a, not b).",
+                             ['AndANotB3'], promoted_from=(2, "NotImpliesAB2"))
+        self.add_computed_op(3, "~b",
+                             "Logical negation on second variable."
+                             " See `NotA1`.", promoted_from=(2, "NotB2"))
+        self.add_computed_op(3, "NotImplies(b, a)",
+                             "Not(b implies a). Inhibition, And(not a, b).",
+                             ['AndNotAB2'], promoted_from=(2, "NotImpliesBA2"))
+        self.add_computed_op(3, "Xor(a, b)",
+                             "Logical XOR (Exclusive Or) operator"
+                             " on first two variables.",
+                             ["ExclusiveOrAB2"], promoted_from=(2, "XorAB2"))
+        self.add_computed_op(3, "NotAnd(a, b)",
+                             "LogicalNAND operator on first two variables.",
+                             ["NandAB2"], promoted_from=(2, "NotAndAB2"))
+        self.add_computed_op(3, "And(a, b)",
+                             "Logical AND operator on first two variables.",
+                             promoted_from=(2, "AndAB2"))
+        self.add_computed_op(3, "Biimp(a, b)",
+                             "Logical equivalence (XNOR) operator"
+                             " on first two variables.",
+                             ["BiimpAB2", "EqAB2", "NotXorAB2"],
+                             promoted_from=(2, "NotXorAB2"))
+        self.add_computed_op(3, "Implies(b, a)",
+                             "Reverse implication (B implies A).",
+                             ["OrANotB2"], promoted_from=(2, "ImpliesBA2"))
+        self.add_computed_op(3, "b", "Identity on second variable.",
+                             promoted_from=(2, "IdB2"))
+        self.add_computed_op(3, "Implies(a, b)",
+                             "Material implication (A implies B).",
+                             ["OrNotAB2"], promoted_from=(2, "ImpliesAB2"))
+        self.add_computed_op(3, "Or(a, b)",
+                             "Logical OR (Exclusive Or) operator"
+                             " on first two variables.",
+                             promoted_from=(2, "OrAB2"))
 
-        # Promote nullary operations
-        self.add_op(3, 0x00, "False3", "false",
-                    "Constant false. See `False0`.",
-                    promoted_from=(0, "False0"))
-        self.add_op(3, 0xff, "True3", "true",
-                    "Constant true. See `True0`.",
-                    promoted_from=(0, "True0"))
+        # Promoted from unary
 
-        # Add operations on b and c (promoted identity/negation patterns)
-        self.add_op(3, 0xcc, "IdB3", "b", "Identity on b.")
-        self.add_op(3, 0x33, "NotB3", "!b", "Negation of b.")
-        self.add_op(3, 0xf0, "IdC3", "c", "Identity on c.")
-        self.add_op(3, 0x0f, "NotC3", "!c", "Negation of c.")
+        self.add_computed_op(3, "~a",
+                             "Logical negation on first variable.",
+                             promoted_from=(1, "NotA1"))
+        self.add_computed_op(3, "a",
+                             "Identity on first variable.",
+                             promoted_from=(1, "IdA1"))
+
+        # Promoted from nullary
+
+        self.add_computed_op(3, "False", "Constant false. See `False0`.",
+                             promoted_from=(0, "False0"))
+        self.add_computed_op(3, "True", "Constant true. See `True0`.",
+                             promoted_from=(0, "True0"))
 
     def _add_basic_ternary(self):
         """Add well-known ternary operations."""
+        # Promoted binary operators where at `c` is referenced
+        for var2 in ["c"]:
+            for (pythonic_expr, comment) in [
+                (var2, "Identity function on {var2}."),
+                (f"~{var2}", "Negation of {var2}.")
+            ]:
+                self.add_computed_op(3, pythonic_expr, comment)
+            for var1 in ["a", "b"]:
+                for (pythonic_expr, comment) in [
+                    (f"NotAnd({var1}, {var2})", f"Nand({var1}, {var2})."),
+                    (f"And({var1}, {var2})", f"And({var1}, {var2})."),
+                    (f"NotOr({var1}, {var2})", f"Nor({var1}, {var2})."),
+                    (f"Or({var1}, {var2})", f"Or({var1}, {var2})."),
+                    (f"Xor({var1}, {var2})", f"Xor({var1}, {var2})."),
+                    (f"NotXor({var1}, {var2})", f"Biimp({var1}, {var2})."),
+                    (f"NotImplies({var1}, {var2})",
+                     f"Not(Implies({var1}, {var2}))."),
+                    (f"NotImplies({var2}, {var1})",
+                     f"Not(Implies({var2}, {var1}))."),
+                    (f"Implies({var1}, {var2})", f"Implies({var1}, {var2})."),
+                    (f"Implies({var2}, {var1})", f"Implies({var2}, {var1})."),
+                ]:
+                    self.add_computed_op(3, pythonic_expr, comment)
+
+        # Ternary operators, symmetric on all three inputs
+        self.add_computed_op(3, "And3(a, b, c)", "Three-way AND operator.")
+        self.add_computed_op(3, "Or3(a, b, c)", "Three-way OR operator.")
+        self.add_computed_op(3, "Xor3(a, b, c)",
+                             "Three-way XOR operator (odd parity).")
+        self.add_computed_op(3, "Majority(a, b, c)",
+                             "Majority function (at least 2 of 3 true).",
+                             ["CarryABC3"])
+        self.add_computed_op(3, "NotAnd3(a, b, c)", "Three-way NAND operator.")
+        self.add_computed_op(3, "NotOr3(a, b, c)", "Three-way NOR operator.")
+        self.add_computed_op(3, "NotXor3(a, b, c)",
+                             "Three-way XNOR operator (even parity).")
+        self.add_computed_op(3, "NotMajority(a, b, c)",
+                             "Minority function (at least 2 of 3 false).",
+                             ["NotCarryABC3"])
+        # More Complicated Symmetry
+        self.add_computed_op(3, "b if a else c",
+                             "If a then b else c (multiplexer).", ["MuxABC3"])
+        self.add_computed_op(3, "c if a else b",
+                             "If a then c else b (multiplexer).", ["MuxACB3"])
+        self.add_computed_op(3, "a if b else c",
+                             "If b then a else c (multiplexer).", ["MuxBAC3"])
+        self.add_computed_op(3, "c if b else a",
+                             "If b then c else a (multiplexer).", ["MuxBCA3"])
+        self.add_computed_op(3, "a if c else b",
+                             "If c then a else b (multiplexer).", ["MuxCAB3"])
+        self.add_computed_op(3, "b if c else a",
+                             "If c then b else a (multiplexer).", ["MuxCBA3"])
+        self.add_computed_op(3, "~(b if a else c)",
+                             "If a then not b else not c"
+                             " (negated multiplexer).", ["NotMuxABC3"])
+        self.add_computed_op(3, "~(c if a else b)",
+                             "If a then not c else not b"
+                             " (negated multiplexer).", ["NotMuxACB3"])
+        self.add_computed_op(3, "~(a if b else c)",
+                             "If b then not a else not c"
+                             " (negated multiplexer).", ["NotMuxBAC3"])
+        self.add_computed_op(3, "~(c if b else a)",
+                             "If b then not c else not a"
+                             " (negated multiplexer).", ["NotMuxBCA3"])
+        self.add_computed_op(3, "~(a if c else b)",
+                             "If c then not a else not b"
+                             " (negated multiplexer).", ["NotMuxCAB3"])
+        self.add_computed_op(3, "~(b if c else a)",
+                             "If c then not b else not a"
+                             " (negated multiplexer).", ["NotMuxCBA3"])
+
+        self.add_computed_op(3, "~b if a else c",
+                             "If a then not b else c"
+                             " (multiplexer, negated input).", ["MuxANotBC3"])
+        self.add_computed_op(3, "~c if a else b",
+                             "If a then not c else b"
+                             " (multiplexer, negated input).", ["MuxANotCB3"])
+        self.add_computed_op(3, "~a if b else c",
+                             "If b then not a else c"
+                             " (multiplexer, negated input).", ["MuxBNotAC3"])
+        self.add_computed_op(3, "~c if b else a",
+                             "If b then not c else a"
+                             " (multiplexer, negated input).", ["MuxBNotCA3"])
+        self.add_computed_op(3, "~a if c else b",
+                             "If c then not a else b"
+                             " (multiplexer, negated input).", ["MuxCNotAB3"])
+        self.add_computed_op(3, "~b if c else a",
+                             "If c then not b else a"
+                             " (multiplexer, negated input).", ["MuxCNotBA3"])
+
+        self.add_computed_op(3, "b if a else ~c",
+                             "If a then b else not c"
+                             " (multiplexer, negated input).", ["MuxABNotC3"])
+        self.add_computed_op(3, "c if a else ~b",
+                             "If a then c else not b"
+                             " (multiplexer, negated input).", ["MuxACNotB3"])
+        self.add_computed_op(3, "a if b else ~c",
+                             "If b then a else not c"
+                             " (multiplexer, negated input).", ["MuxBANotC3"])
+        self.add_computed_op(3, "c if b else ~a",
+                             "If b then c else not a"
+                             " (multiplexer, negated input).", ["MuxBCNotA3"])
+        self.add_computed_op(3, "a if c else ~b",
+                             "If c then a else not b"
+                             " (multiplexer, negated input).", ["MuxCANotB3"])
+        self.add_computed_op(3, "b if c else ~a",
+                             "If c then b else not a"
+                             " (multiplexer, negated input).", ["MuxCBNotA3"])
 
         simples = [
             ('And3(a, b, c)', "True only when all of a, b, and c are."),
@@ -317,79 +474,524 @@ class NameGenerator:
             ('NotIf(b, c, a)', "If b then not c else not a."),
             ('NotIf(c, a, b)', "If c then not a else not b."),
             ('NotIf(c, b, a)', "If c then not b else not a."),
+
+            ('Implies(Xor(a, b), c)', "Xor(a, b) implies c."),
+            ('Implies(Or(a, b), c)', "Or(a, b) implies c."),
+            ('Implies(And(a, b), c)', "And(a, b) implies c."),
+            ('Implies(Biimp(a, b), c)', "Biimp(a, b) implies c."),
+            ('Implies(NotOr(a, b), c)', "NotOr(a, b) implies c."),
+            ('Implies(NotAnd(a, b), c)', "NotAnd(a, b) implies c."),
+
+            ('Implies(Xor(a, c), b)', "Xor(a, c) implies b."),
+            ('Implies(Or(a, c), b)', "Or(a, c) implies b."),
+            ('Implies(And(a, c), b)', "And(a, c) implies b."),
+            ('Implies(Biimp(a, c), b)', "Biimp(a, c) implies b."),
+            ('Implies(NotOr(a, c), b)', "NotOr(a, c) implies b."),
+            ('Implies(NotAnd(a, c), b)', "NotAnd(a, c) implies b."),
+
+            ('Implies(Xor(b, c), a)', "Xor(b, c) implies a."),
+            ('Implies(Or(b, c), a)', "Or(b, c) implies a."),
+            ('Implies(And(b, c), a)', "And(b, c) implies a."),
+            ('Implies(Biimp(b, c), a)', "Biimp(b, c) implies a."),
+            ('Implies(NotOr(b, c), a)', "NotOr(b, c) implies a."),
+            ('Implies(NotAnd(b, c), a)', "NotAnd(b, c) implies a."),
+
+            ('Implies(Xor(a, b), ~c)', "Xor(a, b) implies not c."),
+            ('Implies(Or(a, b), ~c)', "Or(a, b) implies not c."),
+            ('Implies(And(a, b), ~c)', "And(a, b) implies not c."),
+            ('Implies(Biimp(a, b), ~c)', "Biimp(a, b) implies not c."),
+            ('Implies(NotOr(a, b), ~c)', "NotOr(a, b) implies not c."),
+            ('Implies(NotAnd(a, b), ~c)', "NotAnd(a, b) implies not c."),
+
+            ('Implies(Xor(a, c), ~b)', "Xor(a, c) implies not b."),
+            ('Implies(Or(a, c), ~b)', "Or(a, c) implies not b."),
+            ('Implies(And(a, c), ~b)', "And(a, c) implies not b."),
+            ('Implies(Biimp(a, c), ~b)', "Biimp(a, c) implies not b."),
+            ('Implies(NotOr(a, c), ~b)', "NotOr(a, c) implies not b."),
+            ('Implies(NotAnd(a, c), ~b)', "NotAnd(a, c) implies not b."),
+
+            ('Implies(Xor(b, c), ~a)', "Xor(b, c) implies not a."),
+            ('Implies(Or(b, c), ~a)', "Or(b, c) implies not a."),
+            ('Implies(And(b, c), ~a)', "And(b, c) implies not a."),
+            ('Implies(Biimp(b, c), ~a)', "Biimp(b, c) implies not a."),
+            ('Implies(NotOr(b, c), ~a)', "NotOr(b, c) implies not a."),
+            ('Implies(NotAnd(b, c), ~a)', "NotAnd(b, c) implies not a."),
+
+            ('Implies(Implies(a, b), c)', 'Implies(Implies(a, b), c)'),
+            ('Implies(Implies(a, c), b)', 'Implies(Implies(a, c), b)'),
+            ('Implies(Implies(b, a), c)', 'Implies(Implies(b, a), c)'),
+            ('Implies(Implies(b, c), a)', 'Implies(Implies(b, c), a)'),
+            ('Implies(Implies(c, a), b)', 'Implies(Implies(c, a), b)'),
+            ('Implies(Implies(c, b), a)', 'Implies(Implies(c, b), a)'),
+
+            ('Implies(Implies(a, b), ~c)', 'Implies(Implies(a, b), not c)'),
+            ('Implies(Implies(a, c), ~b)', 'Implies(Implies(a, c), not b)'),
+            ('Implies(Implies(b, a), ~c)', 'Implies(Implies(b, a), not c)'),
+            ('Implies(Implies(b, c), ~a)', 'Implies(Implies(b, c), not a)'),
+            ('Implies(Implies(c, a), ~b)', 'Implies(Implies(c, a), not b)'),
+            ('Implies(Implies(c, b), ~a)', 'Implies(Implies(c, b), not a)'),
+
+            ('~a & (b | c)', 'And(not a, Or(b, c))'),
+            ('~b & (a | c)', 'And(not b, Or(a, c))'),
+            ('~c & (a | b)', 'And(not c, Or(a, b))'),
+            ('a & (b | c)', 'And(a, Or(b, c))'),
+            ('b & (a | c)', 'And(b, Or(a, c))'),
+            ('c & (a | b)', 'And(c, Or(a, b))'),
+
+            ('~a & (~b | c)', 'And(not a, Or(not b, c))'),
+            ('~b & (~a | c)', 'And(not b, Or(not a, c))'),
+            ('~c & (~a | b)', 'And(not c, Or(not a, b))'),
+            ('a & (~b | c)', 'And(a, Or(not b, c))'),
+            ('b & (~a | c)', 'And(b, Or(not a, c))'),
+            ('c & (~a | b)', 'And(c, Or(not a, b))'),
+
+            ('~a & (b | ~c)', 'And(not a, Or(b, not c))'),
+            ('~b & (a | ~c)', 'And(not b, Or(a, not c))'),
+            ('~c & (a | ~b)', 'And(not c, Or(a, not b))'),
+            ('a & (b | ~c)', 'And(a, Or(b, not c))'),
+            ('b & (a | ~c)', 'And(b, Or(a, not c))'),
+            ('c & (a | ~b)', 'And(c, Or(a, not b))'),
+
+            ('~a & (b ^ c)', 'And(not a, Xor(b, c))'),
+            ('~b & (a ^ c)', 'And(not b, Xor(a, c))'),
+            ('~c & (a ^ b)', 'And(not c, Xor(a, b))'),
+            ('a & (b ^ c)', 'And(a, Xor(b, c))'),
+            ('b & (a ^ c)', 'And(b, Xor(a, c))'),
+            ('c & (a ^ b)', 'And(c, Xor(a, b))'),
+
+            ('~a & (b ^ c)', 'And(not a, NotXor(b, c))'),
+            ('~b & (a ^ c)', 'And(not b, NotXor(a, c))'),
+            ('~c & (a ^ b)', 'And(not c, NotXor(a, b))'),
+            ('a & (b ^ c)', 'And(a, NotXor(b, c))'),
+            ('b & (a ^ c)', 'And(b, NotXor(a, c))'),
+            ('c & (a ^ b)', 'And(c, NotXor(a, b))'),
+            ('NotOr(a, Xor(b, c))', 'not Or(a, Xor(b, c))'),
+            ('NotOr(b, Xor(a, c))', 'not Or(a, Xor(b, c))'),
+            ('NotOr(c, Xor(a, b))', 'not Or(a, Xor(b, c))'),
+
+            ('Or(a, And(b, c))', 'Or(a, And(b, c))'),
+            ('Or(b, And(a, c))', 'Or(b, And(a, c))'),
+            ('Or(c, And(a, b))', 'Or(c, And(a, b))'),
+            ('Or(~a, And(b, c))', 'Or(not a, And(b, c))'),
+            ('Or(~b, And(a, c))', 'Or(not b, And(a, c))'),
+            ('Or(~c, And(a, b))', 'Or(not c, And(a, b))'),
+
+            ('Or(a, And(~b, c))', 'Or(a, And(not b, c))'),
+            ('Or(b, And(~a, c))', 'Or(b, And(not a, c))'),
+            ('Or(c, And(~a, b))', 'Or(c, And(not a, b))'),
+            ('Or(~a, And(~b, c))', 'Or(not a, And(not b, c))'),
+            ('Or(~b, And(~a, c))', 'Or(not b, And(not a, c))'),
+            ('Or(~c, And(~a, b))', 'Or(not c, And(not a, b))'),
+
+            ('Or(a, And(b, ~c))', 'Or(a, And(b, not c))'),
+            ('Or(b, And(a, ~c))', 'Or(b, And(a, not c))'),
+            ('Or(c, And(a, ~b))', 'Or(c, And(a, not b))'),
+            ('Or(~a, And(b, ~c))', 'Or(not a, And(b, not c))'),
+            ('Or(~b, And(a, ~c))', 'Or(not b, And(a, not c))'),
+            ('Or(~c, And(a, ~b))', 'Or(not c, And(a, not b))'),
+
+            ('NotOr(a, And(b, c))', 'NotOr(a, And(b, c))'),
+            ('NotOr(b, And(a, c))', 'NotOr(b, And(a, c))'),
+            ('NotOr(c, And(a, b))', 'NotOr(c, And(a, b))'),
+            ('NotOr(~a, And(b, c))', 'NotOr(not a, And(b, c))'),
+            ('NotOr(~b, And(a, c))', 'NotOr(not b, And(a, c))'),
+            ('NotOr(~c, And(a, b))', 'NotOr(not c, And(a, b))'),
+
+            ('NotOr(a, And(~b, c))', 'NotOr(a, And(not b, c))'),
+            ('NotOr(b, And(~a, c))', 'NotOr(b, And(not a, c))'),
+            ('NotOr(c, And(~a, b))', 'NotOr(c, And(not a, b))'),
+            ('NotOr(~a, And(~b, c))', 'NotOr(not a, And(not b, c))'),
+            ('NotOr(~b, And(~a, c))', 'NotOr(not b, And(not a, c))'),
+            ('NotOr(~c, And(~a, b))', 'NotOr(not c, And(not a, b))'),
+
+            ('NotOr(a, And(b, ~c))', 'NotOr(a, And(b, not c))'),
+            ('NotOr(b, And(a, ~c))', 'NotOr(b, And(a, not c))'),
+            ('NotOr(c, And(a, ~b))', 'NotOr(c, And(a, not b))'),
+            ('NotOr(~a, And(b, ~c))', 'NotOr(not a, And(b, not c))'),
+            ('NotOr(~b, And(a, ~c))', 'NotOr(not b, And(a, not c))'),
+            ('NotOr(~c, And(a, ~b))', 'NotOr(not c, And(a, not b))'),
+
+            ('Majority(a, b, c)',
+             'Majority function (true when least 2 of a, b, c are true)'),
+            ('NotMajority(a, b, c)',
+             'Minority function (true when least 2 of a, b, c are false)'),
+            ('Majority(~a, b, c)',
+             'Majority function (true when least 2 of not a, b, c are true)'),
+            ('NotMajority(~a, b, c)',
+             'Minority function (true when least 2 of not a, b, c are false)'),
+            ('Majority(a, ~b, c)',
+             'Majority function (true when least 2 of a, not b, c are true)'),
+            ('NotMajority(a, ~b, c)',
+             'Minority function (true when least 2 of a, not b, c are false)'),
+            ('Majority(a, b, ~c)',
+             'Majority function (true when least 2 of a, b, not c are true)'),
+            ('NotMajority(a, b, ~c)',
+             'Minority function (true when least 2 of a, b, not c are false)'),
+
+            ('NotOr(a & b, Xor3(a, b, c))', 'TODO'),
+            ('NotOr(a & c, Xor3(a, b, c))', 'TODO'),
+            ('NotOr(b & c, Xor3(a, b, c))', 'TODO'),
+            ('NotOr(~a & b, Xor3(a, b, c))', 'TODO'),
+            ('NotOr(~a & c, Xor3(a, b, c))', 'TODO'),
+            ('NotOr(~b & c, Xor3(a, b, c))', 'TODO'),
+            ('NotOr(a & ~b, Xor3(a, b, c))', 'TODO'),
+            ('NotOr(a & ~c, Xor3(a, b, c))', 'TODO'),
+            ('NotOr(b & ~c, Xor3(a, b, c))', 'TODO'),
+            ('NotOr(NotOr(a, b), Xor3(a, b, c))', 'TODO'),
+            ('NotOr(NotOr(a, b), Xor3(a, b, c))', 'TODO'),
+            ('NotOr(NotOr(a, b), Xor3(a, b, c))', 'TODO'),
+
+            ('NotOr(a & b, NotXor3(a, b, c))', 'TODO'),
+            ('NotOr(a & c, NotXor3(a, b, c))', 'TODO'),
+            ('NotOr(b & c, NotXor3(a, b, c))', 'TODO'),
+            ('NotOr(~a & b, NotXor3(a, b, c))', 'TODO'),
+            ('NotOr(~a & c, NotXor3(a, b, c))', 'TODO'),
+            ('NotOr(~b & c, NotXor3(a, b, c))', 'TODO'),
+            ('NotOr(a & ~b, NotXor3(a, b, c))', 'TODO'),
+            ('NotOr(a & ~c, NotXor3(a, b, c))', 'TODO'),
+            ('NotOr(b & ~c, NotXor3(a, b, c))', 'TODO'),
+            ('NotOr(NotOr(a, b), NotXor3(a, b, c))', 'TODO'),
+            ('NotOr(NotOr(a, b), NotXor3(a, b, c))', 'TODO'),
+            ('NotOr(NotOr(a, b), NotXor3(a, b, c))', 'TODO'),
+
+            ('Xor(a, b) & Xor(a, c)', 'TODO'),
+            ('Xor(a, b) | Xor(a, c)', 'TODO'),
+            ('Xor(a, b) & NotXor(a, c)', 'TODO'),
+            ('Xor(a, b) | NotXor(a, c)', 'TODO'),
+            ('NotXor(a, b) & Xor(a, c)', 'TODO'),
+            ('NotXor(a, b) | Xor(a, c)', 'TODO'),
+            ('NotOr(Xor(a, b), Xor(a, c))', 'TODO'),
+            ('NotAnd(Xor(a, b), Xor(a, c))', 'TODO'),
+
+            ('Xor(b, a) & Xor(b, c)', 'TODO'),
+            ('Xor(b, a) | Xor(b, c)', 'TODO'),
+            ('Xor(b, a) & NotXor(b, c)', 'TODO'),
+            ('Xor(b, a) | NotXor(b, c)', 'TODO'),
+            ('NotXor(b, a) & Xor(b, c)', 'TODO'),
+            ('NotXor(b, a) | Xor(b, c)', 'TODO'),
+            ('NotOr(Xor(b, a), Xor(b, c))', 'TODO'),
+            ('NotAnd(Xor(b, a), Xor(b, c))', 'TODO'),
+
+            ('Xor(c, b) & Xor(c, a)', 'TODO'),
+            ('Xor(c, b) | Xor(c, a)', 'TODO'),
+            ('Xor(c, b) & NotXor(c, a)', 'TODO'),
+            ('Xor(c, b) | NotXor(c, a)', 'TODO'),
+            ('NotXor(c, b) & Xor(c, a)', 'TODO'),
+            ('NotXor(c, b) | Xor(c, a)', 'TODO'),
+            ('NotOr(Xor(c, b), Xor(c, a))', 'TODO'),
+            ('NotAnd(Xor(c, b), Xor(c, a))', 'TODO'),
+
+            ('And(Xor(a, b), Or(a, c))', 'TODO'),
+            ('And(Xor(a, b), Or(b, c))', 'TODO'),
+            ('And(Xor(a, c), Or(a, b))', 'TODO'),
+            ('And(Xor(a, c), Or(b, c))', 'TODO'),
+            ('And(Xor(b, c), Or(a, b))', 'TODO'),
+            ('And(Xor(b, c), Or(a, c))', 'TODO'),
+
+            ('And(NotXor(a, b), Or(a, c))', 'TODO'),
+            ('And(NotXor(a, b), Or(b, c))', 'TODO'),
+            ('And(NotXor(a, c), Or(a, b))', 'TODO'),
+            ('And(NotXor(a, c), Or(b, c))', 'TODO'),
+            ('And(NotXor(b, c), Or(a, b))', 'TODO'),
+            ('And(NotXor(b, c), Or(a, c))', 'TODO'),
+
+            ('And(Xor(a, b), And(a, c))', 'TODO'),
+            ('And(Xor(a, b), And(b, c))', 'TODO'),
+            ('And(Xor(a, c), And(a, b))', 'TODO'),
+            ('And(Xor(a, c), And(b, c))', 'TODO'),
+            ('And(Xor(b, c), And(a, b))', 'TODO'),
+            ('And(Xor(b, c), And(a, c))', 'TODO'),
+
+            ('And(NotXor(a, b), And(a, c))', 'TODO'),
+            ('And(NotXor(a, b), And(b, c))', 'TODO'),
+            ('And(NotXor(a, c), And(a, b))', 'TODO'),
+            ('And(NotXor(a, c), And(b, c))', 'TODO'),
+            ('And(NotXor(b, c), And(a, b))', 'TODO'),
+            ('And(NotXor(b, c), And(a, c))', 'TODO'),
+
+            ('Or(Xor(a, b), Or(a, c))', 'TODO'),
+            ('Or(Xor(a, b), Or(b, c))', 'TODO'),
+            ('Or(Xor(a, c), Or(a, b))', 'TODO'),
+            ('Or(Xor(a, c), Or(b, c))', 'TODO'),
+            ('Or(Xor(b, c), Or(a, b))', 'TODO'),
+            ('Or(Xor(b, c), Or(a, c))', 'TODO'),
+
+            ('Or(NotXor(a, b), Or(a, c))', 'TODO'),
+            ('Or(NotXor(a, b), Or(b, c))', 'TODO'),
+            ('Or(NotXor(a, c), Or(a, b))', 'TODO'),
+            ('Or(NotXor(a, c), Or(b, c))', 'TODO'),
+            ('Or(NotXor(b, c), Or(a, b))', 'TODO'),
+            ('Or(NotXor(b, c), Or(a, c))', 'TODO'),
+
+            ('Or(Xor(a, b), And(a, c))', 'TODO'),
+            ('Or(Xor(a, b), And(b, c))', 'TODO'),
+            ('Or(Xor(a, c), And(a, b))', 'TODO'),
+            ('Or(Xor(a, c), And(b, c))', 'TODO'),
+            ('Or(Xor(b, c), And(a, b))', 'TODO'),
+            ('Or(Xor(b, c), And(a, c))', 'TODO'),
+
+            ('Or(NotXor(a, b), And(a, c))', 'TODO'),
+            ('Or(NotXor(a, b), And(b, c))', 'TODO'),
+            ('Or(NotXor(a, c), And(a, b))', 'TODO'),
+            ('Or(NotXor(a, c), And(b, c))', 'TODO'),
+            ('Or(NotXor(b, c), And(a, b))', 'TODO'),
+            ('Or(NotXor(b, c), And(a, c))', 'TODO'),
+
+            ('NotAnd(Xor(a, b), Or(a, c))', 'TODO'),
+            ('NotAnd(Xor(a, b), Or(b, c))', 'TODO'),
+            ('NotAnd(Xor(a, c), Or(a, b))', 'TODO'),
+            ('NotAnd(Xor(a, c), Or(b, c))', 'TODO'),
+            ('NotAnd(Xor(b, c), Or(a, b))', 'TODO'),
+            ('NotAnd(Xor(b, c), Or(a, c))', 'TODO'),
+
+            ('NotAnd(NotXor(a, b), Or(a, c))', 'TODO'),
+            ('NotAnd(NotXor(a, b), Or(b, c))', 'TODO'),
+            ('NotAnd(NotXor(a, c), Or(a, b))', 'TODO'),
+            ('NotAnd(NotXor(a, c), Or(b, c))', 'TODO'),
+            ('NotAnd(NotXor(b, c), Or(a, b))', 'TODO'),
+            ('NotAnd(NotXor(b, c), Or(a, c))', 'TODO'),
+
+            ('NotAnd(Xor(a, b), And(a, c))', 'TODO'),
+            ('NotAnd(Xor(a, b), And(b, c))', 'TODO'),
+            ('NotAnd(Xor(a, c), And(a, b))', 'TODO'),
+            ('NotAnd(Xor(a, c), And(b, c))', 'TODO'),
+            ('NotAnd(Xor(b, c), And(a, b))', 'TODO'),
+            ('NotAnd(Xor(b, c), And(a, c))', 'TODO'),
+
+            ('NotAnd(NotXor(a, b), And(a, c))', 'TODO'),
+            ('NotAnd(NotXor(a, b), And(b, c))', 'TODO'),
+            ('NotAnd(NotXor(a, c), And(a, b))', 'TODO'),
+            ('NotAnd(NotXor(a, c), And(b, c))', 'TODO'),
+            ('NotAnd(NotXor(b, c), And(a, b))', 'TODO'),
+            ('NotAnd(NotXor(b, c), And(a, c))', 'TODO'),
+
+            ('NotOr(Xor(a, b), Or(a, c))', 'TODO'),
+            ('NotOr(Xor(a, b), Or(b, c))', 'TODO'),
+            ('NotOr(Xor(a, c), Or(a, b))', 'TODO'),
+            ('NotOr(Xor(a, c), Or(b, c))', 'TODO'),
+            ('NotOr(Xor(b, c), Or(a, b))', 'TODO'),
+            ('NotOr(Xor(b, c), Or(a, c))', 'TODO'),
+
+            ('NotOr(NotXor(a, b), Or(a, c))', 'TODO'),
+            ('NotOr(NotXor(a, b), Or(b, c))', 'TODO'),
+            ('NotOr(NotXor(a, c), Or(a, b))', 'TODO'),
+            ('NotOr(NotXor(a, c), Or(b, c))', 'TODO'),
+            ('NotOr(NotXor(b, c), Or(a, b))', 'TODO'),
+            ('NotOr(NotXor(b, c), Or(a, c))', 'TODO'),
+
+            ('NotOr(Xor(a, b), And(a, c))', 'TODO'),
+            ('NotOr(Xor(a, b), And(b, c))', 'TODO'),
+            ('NotOr(Xor(a, c), And(a, b))', 'TODO'),
+            ('NotOr(Xor(a, c), And(b, c))', 'TODO'),
+            ('NotOr(Xor(b, c), And(a, b))', 'TODO'),
+            ('NotOr(Xor(b, c), And(a, c))', 'TODO'),
+
+            ('NotOr(NotXor(a, b), And(a, c))', 'TODO'),
+            ('NotOr(NotXor(a, b), And(b, c))', 'TODO'),
+            ('NotOr(NotXor(a, c), And(a, b))', 'TODO'),
+            ('NotOr(NotXor(a, c), And(b, c))', 'TODO'),
+            ('NotOr(NotXor(b, c), And(a, b))', 'TODO'),
+            ('NotOr(NotXor(b, c), And(a, c))', 'TODO'),
+
+            ('Xor(a, Or(b, c))', 'TODO'),
+            ('NotXor(a, Or(b, c))', 'TODO'),
+            ('Xor(a, And(b, c))', 'TODO'),
+            ('NotXor(a, And(b, c))', 'TODO'),
+            ('Xor(a, Or(~b, c))', 'TODO'),
+            ('NotXor(a, Or(~b, c))', 'TODO'),
+            ('Xor(a, And(~b, c))', 'TODO'),
+            ('NotXor(a, And(~b, c))', 'TODO'),
+            ('Xor(a, Or(b, ~c))', 'TODO'),
+            ('NotXor(a, Or(b, ~c))', 'TODO'),
+            ('Xor(a, And(b, ~c))', 'TODO'),
+            ('NotXor(a, And(b, ~c))', 'TODO'),
+
+            ('Xor(b, Or(a, c))', 'TODO'),
+            ('NotXor(b, Or(a, c))', 'TODO'),
+            ('Xor(b, And(a, c))', 'TODO'),
+            ('NotXor(b, And(a, c))', 'TODO'),
+            ('Xor(b, Or(~a, c))', 'TODO'),
+            ('NotXor(b, Or(~a, c))', 'TODO'),
+            ('Xor(b, And(~a, c))', 'TODO'),
+            ('NotXor(b, And(~a, c))', 'TODO'),
+            ('Xor(b, Or(a, ~c))', 'TODO'),
+            ('NotXor(b, Or(a, ~c))', 'TODO'),
+            ('Xor(b, And(a, ~c))', 'TODO'),
+            ('NotXor(b, And(a, ~c))', 'TODO'),
+
+            ('Xor(c, Or(a, b))', 'TODO'),
+            ('NotXor(c, Or(a, b))', 'TODO'),
+            ('Xor(c, And(a, b))', 'TODO'),
+            ('NotXor(c, And(a, b))', 'TODO'),
+            ('Xor(c, Or(~a, b))', 'TODO'),
+            ('NotXor(c, Or(~a, b))', 'TODO'),
+            ('Xor(c, And(~a, b))', 'TODO'),
+            ('NotXor(c, And(~a, b))', 'TODO'),
+            ('Xor(c, Or(a, ~b))', 'TODO'),
+            ('NotXor(c, Or(a, ~b))', 'TODO'),
+            ('Xor(c, And(a, ~b))', 'TODO'),
+            ('NotXor(c, And(a, ~b))', 'TODO'),
+
+            ('Or(Xor(a, b), And(a, c))', 'TODO'),
+            ('Or(Xor(a, c), And(a, b))', 'TODO'),
+            ('Or(Xor(b, a), And(b, a))', 'TODO'),
+            ('Or(Xor(b, c), And(b, c))', 'TODO'),
+            ('Or(Xor(c, a), And(c, b))', 'TODO'),
+            ('Or(Xor(c, b), And(c, a))', 'TODO'),
+            ('Or(NotXor(a, b), And(a, c))', 'TODO'),
+            ('Or(NotXor(a, c), And(a, b))', 'TODO'),
+            ('Or(NotXor(b, a), And(b, a))', 'TODO'),
+            ('Or(NotXor(b, c), And(b, c))', 'TODO'),
+            ('Or(NotXor(c, a), And(c, b))', 'TODO'),
+            ('Or(NotXor(c, b), And(c, a))', 'TODO'),
+
+            ('Or(Xor(a, b), And(~a, c))', 'TODO'),
+            ('Or(Xor(a, c), And(~a, b))', 'TODO'),
+            ('Or(Xor(b, a), And(~b, a))', 'TODO'),
+            ('Or(Xor(b, c), And(~b, c))', 'TODO'),
+            ('Or(Xor(c, a), And(~c, b))', 'TODO'),
+            ('Or(Xor(c, b), And(~c, a))', 'TODO'),
+            ('Or(NotXor(a, b), And(~a, c))', 'TODO'),
+            ('Or(NotXor(a, c), And(~a, b))', 'TODO'),
+            ('Or(NotXor(b, a), And(~b, a))', 'TODO'),
+            ('Or(NotXor(b, c), And(~b, c))', 'TODO'),
+            ('Or(NotXor(c, a), And(~c, b))', 'TODO'),
+            ('Or(NotXor(c, b), And(~c, a))', 'TODO'),
+
+            ('Or(Xor(a, b), And(a, ~c))', 'TODO'),
+            ('Or(Xor(a, c), And(a, ~b))', 'TODO'),
+            ('Or(Xor(b, a), And(b, ~a))', 'TODO'),
+            ('Or(Xor(b, c), And(b, ~c))', 'TODO'),
+            ('Or(Xor(c, a), And(c, ~b))', 'TODO'),
+            ('Or(Xor(c, b), And(c, ~a))', 'TODO'),
+            ('Or(NotXor(a, b), And(a, ~c))', 'TODO'),
+            ('Or(NotXor(a, c), And(a, ~b))', 'TODO'),
+            ('Or(NotXor(b, a), And(b, ~a))', 'TODO'),
+            ('Or(NotXor(b, c), And(b, ~c))', 'TODO'),
+            ('Or(NotXor(c, a), And(c, ~b))', 'TODO'),
+            ('Or(NotXor(c, b), And(c, ~a))', 'TODO'),
+
+            ('Or(Xor(a, b), NotOr(a, c))', 'TODO'),
+            ('Or(Xor(a, c), NotOr(a, b))', 'TODO'),
+            ('Or(Xor(b, a), NotOr(b, a))', 'TODO'),
+            ('Or(Xor(b, c), NotOr(b, c))', 'TODO'),
+            ('Or(Xor(c, a), NotOr(c, b))', 'TODO'),
+            ('Or(Xor(c, b), NotOr(c, a))', 'TODO'),
+            ('Or(NotXor(a, b), NotOr(a, c))', 'TODO'),
+            ('Or(NotXor(a, c), NotOr(a, b))', 'TODO'),
+            ('Or(NotXor(b, a), NotOr(b, a))', 'TODO'),
+            ('Or(NotXor(b, c), NotOr(b, c))', 'TODO'),
+            ('Or(NotXor(c, a), NotOr(c, b))', 'TODO'),
+            ('Or(NotXor(c, b), NotOr(c, a))', 'TODO'),
+
+            ('Or(Xor3(a, b, c), And(a, b))', 'TODO'),
+            ('Or(Xor3(a, b, c), And(a, c))', 'TODO'),
+            ('Or(Xor3(a, b, c), And(b, c))', 'TODO'),
+            ('Or(NotXor3(a, b, c), And(a, b))', 'TODO'),
+            ('Or(NotXor3(a, b, c), And(a, c))', 'TODO'),
+            ('Or(NotXor3(a, b, c), And(b, c))', 'TODO'),
+
+            ('Or(Xor3(a, b, c), And(~a, b))', 'TODO'),
+            ('Or(Xor3(a, b, c), And(~a, c))', 'TODO'),
+            ('Or(Xor3(a, b, c), And(~b, c))', 'TODO'),
+            ('Or(NotXor3(a, b, c), And(~a, b))', 'TODO'),
+            ('Or(NotXor3(a, b, c), And(~a, c))', 'TODO'),
+            ('Or(NotXor3(a, b, c), And(~b, c))', 'TODO'),
+
+            ('Or(Xor3(a, b, c), And(a, ~b))', 'TODO'),
+            ('Or(Xor3(a, b, c), And(a, ~c))', 'TODO'),
+            ('Or(Xor3(a, b, c), And(b, ~c))', 'TODO'),
+            ('Or(NotXor3(a, b, c), And(a, ~b))', 'TODO'),
+            ('Or(NotXor3(a, b, c), And(a, ~c))', 'TODO'),
+            ('Or(NotXor3(a, b, c), And(b, ~c))', 'TODO'),
+
+            ('Or(Xor3(a, b, c), NotOr(a, b))', 'TODO'),
+            ('Or(Xor3(a, b, c), NotOr(a, c))', 'TODO'),
+            ('Or(Xor3(a, b, c), NotOr(b, c))', 'TODO'),
+            ('Or(NotXor3(a, b, c), NotOr(a, b))', 'TODO'),
+            ('Or(NotXor3(a, b, c), NotOr(a, c))', 'TODO'),
+            ('Or(NotXor3(a, b, c), NotOr(b, c))', 'TODO'),
+
+            ('And(Xor(a, b), Or(a, c))', 'TODO'),
+            ('And(Xor(a, b), Or(~a, c))', 'TODO'),
+            ('And(Xor(a, b), Or(a, ~c))', 'TODO'),
+            ('And(Xor(a, b), NotAnd(a, c))', 'TODO'),
+
+            ('And(NotXor(a, b), Or(a, c))', 'TODO'),
+            ('And(NotXor(a, b), Or(~a, c))', 'TODO'),
+            ('And(NotXor(a, b), Or(a, ~c))', 'TODO'),
+            ('NotOr(Xor(a, b), And(a, c))', 'TODO'),
+
+            ('And(Xor(a, c), Or(a, b))', 'TODO'),
+            ('And(Xor(a, c), Or(~a, b))', 'TODO'),
+            ('And(Xor(a, c), Or(a, ~b))', 'TODO'),
+            ('And(Xor(a, c), NotAnd(a, b))', 'TODO'),
+
+            ('And(NotXor(a, c), Or(a, b))', 'TODO'),
+            ('And(NotXor(a, c), Or(~a, b))', 'TODO'),
+            ('And(NotXor(a, c), Or(a, ~b))', 'TODO'),
+            ('NotOr(Xor(a, c), And(a, b))', 'TODO'),
+
+            ('And(Xor(b, c), Or(a, b))', 'TODO'),
+            ('And(Xor(b, c), Or(~a, b))', 'TODO'),
+            ('And(Xor(b, c), Or(a, ~b))', 'TODO'),
+            ('And(Xor(b, c), NotAnd(a, b))', 'TODO'),
+
+            ('And(NotXor(b, c), Or(a, b))', 'TODO'),
+            ('And(NotXor(b, c), Or(~a, b))', 'TODO'),
+            ('And(NotXor(b, c), Or(a, ~b))', 'TODO'),
+            ('NotOr(Xor(b, c), And(a, b))', 'TODO'),
+
+            ('And(Xor(a, b), Or(b, c))', 'TODO'),
+            ('And(Xor(a, b), Or(~b, c))', 'TODO'),
+            ('And(Xor(a, b), Or(b, ~c))', 'TODO'),
+            ('And(Xor(a, b), NotAnd(b, c))', 'TODO'),
+
+            ('And(NotXor(a, b), Or(b, c))', 'TODO'),
+            ('And(NotXor(a, b), Or(~b, c))', 'TODO'),
+            ('And(NotXor(a, b), Or(b, ~c))', 'TODO'),
+            ('NotOr(Xor(a, b), And(b, c))', 'TODO'),
+
+            ('And(Xor(a, c), Or(b, c))', 'TODO'),
+            ('And(Xor(a, c), Or(b, ~c))', 'TODO'),
+            ('And(Xor(a, c), Or(~b, c))', 'TODO'),
+            ('And(Xor(a, c), NotAnd(b, c))', 'TODO'),
+
+            ('And(NotXor(a, c), Or(b, c))', 'TODO'),
+            ('And(NotXor(a, c), Or(~b, c))', 'TODO'),
+            ('And(NotXor(a, c), Or(b, ~c))', 'TODO'),
+            ('NotOr(Xor(a, c), And(b, c))', 'TODO'),
+
+            ('And(Xor(b, c), Or(a, c))', 'TODO'),
+            ('And(Xor(b, c), Or(~a, c))', 'TODO'),
+            ('And(Xor(b, c), Or(a, ~c))', 'TODO'),
+            ('And(Xor(b, c), NotAnd(a, c))', 'TODO'),
+
+            ('And(NotXor(b, c), Or(a, c))', 'TODO'),
+            ('And(NotXor(b, c), Or(~a, c))', 'TODO'),
+            ('And(NotXor(b, c), Or(a, ~c))', 'TODO'),
+            ('NotOr(Xor(b, c), And(a, c))', 'TODO'),
+
+            ('And(a, Xor(b, c))', 'TODO'),
+            ('And(b, Xor(a, c))', 'TODO'),
+            ('And(c, Xor(a, b))', 'TODO'),
+
+            ('And(a, NotXor(b, c))', 'TODO'),
+            ('And(b, NotXor(a, c))', 'TODO'),
+            ('And(c, NotXor(a, b))', 'TODO'),
+
+            ('And(~a, Xor(b, c))', 'TODO'),
+            ('And(~b, Xor(a, c))', 'TODO'),
+            ('And(~c, Xor(a, b))', 'TODO'),
+
+            ('NotOr(a, Xor(b, c))', 'TODO'),
+            ('NotOr(b, Xor(a, c))', 'TODO'),
+            ('NotOr(c, Xor(a, b))', 'TODO'),
+
             ]
-        for var2 in ["c"]:
-            for (pythonic_expr, comment) in [
-                (var2, "Identity function on {var2}."),
-                (f"~{var2}", "Negation of {var2}.")
-            ]:
-                ast: Expression = parse(pythonic_expr, mode='eval')
-                code = code_from_ints(ast)
-                name = name_from_strs(ast) + "3"
-                rust_expr = rust_from_strs(ast)
-                self.add_op(3, code, name, rust_expr, comment, [])
-            for var1 in ["a", "b"]:
-                for (pythonic_expr, comment) in [
-                    (f"NotAnd({var1}, {var2})", f"Nand({var1}, {var2})."),
-                    (f"And({var1}, {var2})", f"And({var1}, {var2})."),
-                    (f"NotOr({var1}, {var2})", f"Nor({var1}, {var2})."),
-                    (f"Or({var1}, {var2})", f"Or({var1}, {var2})."),
-                    (f"Xor({var1}, {var2})", f"Xor({var1}, {var2})."),
-                    (f"NotXor({var1}, {var2})", f"Biimp({var1}, {var2})."),
-                    (f"NotImplies({var1}, {var2})",
-                     f"Not(Implies({var1}, {var2}))."),
-                    (f"NotImplies({var2}, {var1})",
-                     f"Not(Implies({var2}, {var1}))."),
-                    (f"Implies({var1}, {var2})", f"Implies({var1}, {var2})."),
-                    (f"Implies({var2}, {var1})", f"Implies({var2}, {var1})."),
-                ]:
-                    ast = parse(pythonic_expr, mode='eval')
-                    code = code_from_ints(ast)
-                    name = name_from_strs(ast) + "3"
-                    rust_expr = rust_from_strs(ast)
-                    self.add_op(3, code, name, rust_expr, comment, [])
 
         for (pythonic_expr, comment) in simples:
-            ast = parse(pythonic_expr, mode='eval')
-            code = code_from_ints(ast)
-            name = name_from_strs(ast) + "3"
-            rust_expr = rust_from_strs(ast)
-            self.add_op(3, code, name, rust_expr, comment, [])
-
-        ternary_ops = [
-            (0x80, "AndABC3", "And3(a, b, c)", "Three-way AND", ["And3"]),
-            (0xfe, "OrABC3", "Or3(a, b, c)", "Three-way OR", ["Or3"]),
-            (0x96, "XorABC3", "Xor3(a, b, c)",
-             "Three-way XOR (odd parity)", ["Xor3", "ParityABC3"]),
-            (0xe8, "MajorityABC3", "Majority(a, b, c)",
-             "Majority function (at least 2 of 3 true)",
-             ["Majority3", "CarryABC3"]),
-            (0xd8, "IfABC3", "b if a else c",
-             "If a then b else c (multiplexer)", ["MuxABC3"]),
-            (0x7f, "NotAndABC3", "NotAnd3(a, b, c)",
-             "Three-way NAND", ["Nand3"]),
-            (0x01, "NotOrABC3", "NotOr3(a, b, c)",
-             "Three-way NOR", ["Nor3"]),
-            (0x69, "NotXorABC3", "NotXor3(a, b, c)",
-             "Three-way XNOR (even parity)", []),
-        ]
-
-        for code, name, expr, comment, aliases in ternary_ops:
-            self.add_op(3, code, name, expr, comment, aliases)
-
-        # Add variations of If-then-else (all 6 permutations of a, b, c)
-        if_variations = [
-            (0xd8, "IfABC3", "b if a else c", "If a then b else c"),
-            (0xe4, "IfACB3", "c if a else b", "If a then c else b"),
-            (0xb8, "IfBAC3", "a if b else c", "If b then a else c"),
-            (0xe2, "IfBCA3", "c if b else a", "If b then c else a"),
-            (0xca, "IfCAB3", "a if c else b", "If c then a else b"),
-            (0xd4, "IfCBA3", "b if c else a", "If c then b else a"),
-        ]
-
-        for code, name, expr, comment in if_variations:
-            if code not in self.named_at_arity[3]:
-                self.add_op(3, code, name, expr, comment)
+            self.add_computed_op(3, pythonic_expr, comment)
 
     def _name_by_composition(self):
         """Try to name remaining operations by composition."""
@@ -607,7 +1209,9 @@ def _format_variant(op: BooleanOp) -> str:
         lines.append(f"    /// Aliases: {alias_str}")
 
     # Variant definition
+    props = f"    #[strum(props(Expr=\"{op.expr}\"))]"
     variant = f"    {op.name} = {op.format_discriminant()},"
+    lines.append(props)
     lines.append(variant)
 
     return "\n".join(lines)
