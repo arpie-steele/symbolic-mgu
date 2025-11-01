@@ -123,8 +123,12 @@ impl BooleanSimpleOp {
             NotOrBAndAC3 => !(b.clone() | (a.clone() & c.clone())),
             AndNotAXorBC3 => !a.clone() & (b.clone() ^ c.clone()),
             NotOrAAndBC3 => !(a.clone() | (b.clone() & c.clone())),
-            NotOrAndABNotXor3ABC3 => !((a.clone() & b.clone()) | (!a.clone() ^ b.clone() ^ c.clone())),
-            NotMajority3ABC3 => !(a.clone() & b.clone() | a.clone() & c.clone() | b.clone() & c.clone()),
+            NotOrAndABNotXor3ABC3 => {
+                !((a.clone() & b.clone()) | (!a.clone() ^ b.clone() ^ c.clone()))
+            }
+            NotMajority3ABC3 => {
+                !(a.clone() & b.clone() | a.clone() & c.clone() | b.clone() & c.clone())
+            }
             AndBiimpABXorAC3 => !(a.clone() ^ b.clone()) & (a.clone() ^ c.clone()),
             NotOrXorABAndAC3 => !((a.clone() ^ b.clone()) | (a.clone() & c.clone())),
             NotOrBiimpACAndBC3 => !(!(a.clone() ^ c.clone()) | (b.clone() & c.clone())),
@@ -144,7 +148,9 @@ impl BooleanSimpleOp {
             AndAXorBC3 => a.clone() & (b.clone() ^ c.clone()),
             NotOrAndBCXor3ABC3 => !((b.clone() & c.clone()) | (a.clone() ^ b.clone() ^ c.clone())),
             NotOrNotAAndBC3 => !(!a.clone() | (b.clone() & c.clone())),
-            NotMajority3NotABC3 => !(!a.clone() & b.clone() | !a.clone() & c.clone() | b.clone() & c.clone()),
+            NotMajority3NotABC3 => {
+                !(!a.clone() & b.clone() | !a.clone() & c.clone() | b.clone() & c.clone())
+            }
             AndXorBCOrAB3 => (b.clone() ^ c.clone()) & (a.clone() | b.clone()),
             XorCOrNotAB3 => c.clone() ^ (!a.clone() | b.clone()),
             IfBNotCA3 => b.clone() & !c.clone() | !b.clone() & a.clone(),
@@ -178,7 +184,9 @@ impl BooleanSimpleOp {
             AndXorACOrAB3 => (a.clone() ^ c.clone()) & (a.clone() | b.clone()),
             BiimpCAndNotAB3 => !(c.clone() ^ (!a.clone() & b.clone())),
             NotOrNotBAndAC3 => !(!b.clone() | (a.clone() & c.clone())),
-            NotMajority3ANotBC3 => !(a.clone() & !b.clone() | a.clone() & c.clone() | !b.clone() & c.clone()),
+            NotMajority3ANotBC3 => {
+                !(a.clone() & !b.clone() | a.clone() & c.clone() | !b.clone() & c.clone())
+            }
             IfANotCB3 => a.clone() & !c.clone() | !a.clone() & b.clone(),
             ImpliesImpliesBANotC3 => !(!b.clone() | a.clone()) | !c.clone(),
             NotImpliesCA3 => c.clone() & !a.clone(),
@@ -205,16 +213,24 @@ impl BooleanSimpleOp {
             BiimpAAndNotBC3 => !(a.clone() ^ (!b.clone() & c.clone())),
             XorAB2 | XorAB3 => a.clone() ^ b.clone(),
             NotAndBiimpABOrAC3 => !(!(a.clone() ^ b.clone()) & (a.clone() | c.clone())),
-            NotOrNotOrABXor3ABC3 => !(!(a.clone() | b.clone()) | (a.clone() ^ b.clone() ^ c.clone())),
+            NotOrNotOrABXor3ABC3 => {
+                !(!(a.clone() | b.clone()) | (a.clone() ^ b.clone() ^ c.clone()))
+            }
             NotXor3ABC3 => !a.clone() ^ b.clone() ^ c.clone(),
             XorAAndBC3 => a.clone() ^ (b.clone() & c.clone()),
-            OrNotXor3ABCAndANotB3 => (!a.clone() ^ b.clone() ^ c.clone()) | (a.clone() & !b.clone()),
+            OrNotXor3ABCAndANotB3 => {
+                (!a.clone() ^ b.clone() ^ c.clone()) | (a.clone() & !b.clone())
+            }
             XorBAndAC3 => b.clone() ^ (a.clone() & c.clone()),
-            OrNotXor3ABCAndNotAB3 => (!a.clone() ^ b.clone() ^ c.clone()) | (!a.clone() & b.clone()),
+            OrNotXor3ABCAndNotAB3 => {
+                (!a.clone() ^ b.clone() ^ c.clone()) | (!a.clone() & b.clone())
+            }
             OrXorABAndANotC3 => (a.clone() ^ b.clone()) | (a.clone() & !c.clone()),
             ImpliesCXorAB3 => !c.clone() | (a.clone() ^ b.clone()),
             NotOrNotCAndAB3 => !(!c.clone() | (a.clone() & b.clone())),
-            NotMajority3ABNotC3 => !(a.clone() & b.clone() | a.clone() & !c.clone() | b.clone() & !c.clone()),
+            NotMajority3ABNotC3 => {
+                !(a.clone() & b.clone() | a.clone() & !c.clone() | b.clone() & !c.clone())
+            }
             IfANotBC3 => a.clone() & !b.clone() | !a.clone() & c.clone(),
             ImpliesImpliesCANotB3 => !(!c.clone() | a.clone()) | !b.clone(),
             IfBNotAC3 => b.clone() & !a.clone() | !b.clone() & c.clone(),
@@ -222,7 +238,9 @@ impl BooleanSimpleOp {
             OrXorABAndNotAC3 => (a.clone() ^ b.clone()) | (!a.clone() & c.clone()),
             NotAndAB2 | NotAndAB3 => !(a.clone() & b.clone()),
             XorCAndAB3 => c.clone() ^ (a.clone() & b.clone()),
-            OrNotXor3ABCAndNotAC3 => (!a.clone() ^ b.clone() ^ c.clone()) | (!a.clone() & c.clone()),
+            OrNotXor3ABCAndNotAC3 => {
+                (!a.clone() ^ b.clone() ^ c.clone()) | (!a.clone() & c.clone())
+            }
             OrXorACAndANotB3 => (a.clone() ^ c.clone()) | (a.clone() & !b.clone()),
             ImpliesBXorAC3 => !b.clone() | (a.clone() ^ c.clone()),
             OrXorCBAndCNotA3 => (c.clone() ^ b.clone()) | (c.clone() & !a.clone()),
@@ -235,7 +253,9 @@ impl BooleanSimpleOp {
             AndBiimpBCOrANotB3 => !(b.clone() ^ c.clone()) & (a.clone() | !b.clone()),
             AndBBiimpAC3 => b.clone() & !(a.clone() ^ c.clone()),
             AndBiimpACOrNotAB3 => !(a.clone() ^ c.clone()) & (!a.clone() | b.clone()),
-            NotOrAndNotACNotXor3ABC3 => !((!a.clone() & c.clone()) | (!a.clone() ^ b.clone() ^ c.clone())),
+            NotOrAndNotACNotXor3ABC3 => {
+                !((!a.clone() & c.clone()) | (!a.clone() ^ b.clone() ^ c.clone()))
+            }
             BiimpCAndAB3 => !(c.clone() ^ (a.clone() & b.clone())),
             AndAB2 | AndAB3 => a.clone() & b.clone(),
             AndBiimpABOrANotC3 => !(a.clone() ^ b.clone()) & (a.clone() | !c.clone()),
@@ -243,13 +263,19 @@ impl BooleanSimpleOp {
             IfBANotC3 => b.clone() & a.clone() | !b.clone() & !c.clone(),
             AndBOrANotC3 => b.clone() & (a.clone() | !c.clone()),
             IfABNotC3 => a.clone() & b.clone() | !a.clone() & !c.clone(),
-            Majority3ABNotC3 => a.clone() & b.clone() | a.clone() & !c.clone() | b.clone() & !c.clone(),
+            Majority3ABNotC3 => {
+                a.clone() & b.clone() | a.clone() & !c.clone() | b.clone() & !c.clone()
+            }
             ImpliesCAndAB3 => !c.clone() | (a.clone() & b.clone()),
             AndCBiimpAB3 => c.clone() & !(a.clone() ^ b.clone()),
             AndBiimpABOrNotAC3 => !(a.clone() ^ b.clone()) & (!a.clone() | c.clone()),
-            NotOrAndNotABNotXor3ABC3 => !((!a.clone() & b.clone()) | (!a.clone() ^ b.clone() ^ c.clone())),
+            NotOrAndNotABNotXor3ABC3 => {
+                !((!a.clone() & b.clone()) | (!a.clone() ^ b.clone() ^ c.clone()))
+            }
             BiimpBAndAC3 => !(b.clone() ^ (a.clone() & c.clone())),
-            NotOrAndANotBNotXor3ABC3 => !((a.clone() & !b.clone()) | (!a.clone() ^ b.clone() ^ c.clone())),
+            NotOrAndANotBNotXor3ABC3 => {
+                !((a.clone() & !b.clone()) | (!a.clone() ^ b.clone() ^ c.clone()))
+            }
             BiimpAAndBC3 => !(a.clone() ^ (b.clone() & c.clone())),
             Xor3ABC3 => a.clone() ^ b.clone() ^ c.clone(),
             OrXor3ABCNotOrAB3 => (a.clone() ^ b.clone() ^ c.clone()) | !(a.clone() | b.clone()),
@@ -279,7 +305,9 @@ impl BooleanSimpleOp {
             ImpliesCA3 => !c.clone() | a.clone(),
             AndCOrANotB3 => c.clone() & (a.clone() | !b.clone()),
             IfACNotB3 => a.clone() & c.clone() | !a.clone() & !b.clone(),
-            Majority3ANotBC3 => a.clone() & !b.clone() | a.clone() & c.clone() | !b.clone() & c.clone(),
+            Majority3ANotBC3 => {
+                a.clone() & !b.clone() | a.clone() & c.clone() | !b.clone() & c.clone()
+            }
             ImpliesBAndAC3 => !b.clone() | (a.clone() & c.clone()),
             XorCAndNotAB3 => c.clone() ^ (!a.clone() & b.clone()),
             NotAndXorACOrAB3 => !((a.clone() ^ c.clone()) & (a.clone() | b.clone())),
@@ -313,7 +341,9 @@ impl BooleanSimpleOp {
             IfBCNotA3 => b.clone() & c.clone() | !b.clone() & !a.clone(),
             BiimpCOrNotAB3 => !(c.clone() ^ (!a.clone() | b.clone())),
             NotAndXorBCOrAB3 => !((b.clone() ^ c.clone()) & (a.clone() | b.clone())),
-            Majority3NotABC3 => !a.clone() & b.clone() | !a.clone() & c.clone() | b.clone() & c.clone(),
+            Majority3NotABC3 => {
+                !a.clone() & b.clone() | !a.clone() & c.clone() | b.clone() & c.clone()
+            }
             ImpliesAAndBC3 => !a.clone() | (b.clone() & c.clone()),
             OrXor3ABCAndBC3 => (a.clone() ^ b.clone() ^ c.clone()) | (b.clone() & c.clone()),
             ImpliesXorBCNotA3 => !(b.clone() ^ c.clone()) | !a.clone(),
@@ -853,13 +883,17 @@ mod tests {
             let expected_code = variant.get_code3();
 
             let result = match arity {
-                0 => variant.eval0::<u8, u8, 3>()
+                0 => variant
+                    .eval0::<u8, u8, 3>()
                     .unwrap_or_else(|| panic!("eval0 failed for {}", variant)),
-                1 => variant.eval1::<u8, u8, 3>(&a)
+                1 => variant
+                    .eval1::<u8, u8, 3>(&a)
                     .unwrap_or_else(|| panic!("eval1 failed for {}", variant)),
-                2 => variant.eval2::<u8, u8, 3>(&a, &b)
+                2 => variant
+                    .eval2::<u8, u8, 3>(&a, &b)
                     .unwrap_or_else(|| panic!("eval2 failed for {}", variant)),
-                3 => variant.eval3::<u8, u8, 3>(&a, &b, &c)
+                3 => variant
+                    .eval3::<u8, u8, 3>(&a, &b, &c)
                     .unwrap_or_else(|| panic!("eval3 failed for {}", variant)),
                 _ => panic!("Unexpected arity {} for {}", arity, variant),
             };
@@ -884,20 +918,54 @@ mod tests {
         assert_eq!(BooleanSimpleOp::True0.eval0::<u8, u8, 3>().unwrap(), 0xff);
 
         // Test basic binary operations
-        assert_eq!(BooleanSimpleOp::AndAB2.eval2::<u8, u8, 3>(&a, &b).unwrap(), a & b);
-        assert_eq!(BooleanSimpleOp::OrAB2.eval2::<u8, u8, 3>(&a, &b).unwrap(), a | b);
-        assert_eq!(BooleanSimpleOp::XorAB2.eval2::<u8, u8, 3>(&a, &b).unwrap(), a ^ b);
-        assert_eq!(BooleanSimpleOp::NotAndAB2.eval2::<u8, u8, 3>(&a, &b).unwrap(), !(a & b));
+        assert_eq!(
+            BooleanSimpleOp::AndAB2.eval2::<u8, u8, 3>(&a, &b).unwrap(),
+            a & b
+        );
+        assert_eq!(
+            BooleanSimpleOp::OrAB2.eval2::<u8, u8, 3>(&a, &b).unwrap(),
+            a | b
+        );
+        assert_eq!(
+            BooleanSimpleOp::XorAB2.eval2::<u8, u8, 3>(&a, &b).unwrap(),
+            a ^ b
+        );
+        assert_eq!(
+            BooleanSimpleOp::NotAndAB2
+                .eval2::<u8, u8, 3>(&a, &b)
+                .unwrap(),
+            !(a & b)
+        );
 
         // Test basic ternary operations
-        assert_eq!(BooleanSimpleOp::Or3ABC3.eval3::<u8, u8, 3>(&a, &b, &c).unwrap(), a | b | c);
-        assert_eq!(BooleanSimpleOp::And3ABC3.eval3::<u8, u8, 3>(&a, &b, &c).unwrap(), a & b & c);
+        assert_eq!(
+            BooleanSimpleOp::Or3ABC3
+                .eval3::<u8, u8, 3>(&a, &b, &c)
+                .unwrap(),
+            a | b | c
+        );
+        assert_eq!(
+            BooleanSimpleOp::And3ABC3
+                .eval3::<u8, u8, 3>(&a, &b, &c)
+                .unwrap(),
+            a & b & c
+        );
 
-        // Test Xor3 (odd parity)
-        assert_eq!(BooleanSimpleOp::Xor3ABC3.eval3::<u8, u8, 3>(&a, &b, &c).unwrap(), a ^ b ^ c);
+        // Test `Xor3` (odd parity)
+        assert_eq!(
+            BooleanSimpleOp::Xor3ABC3
+                .eval3::<u8, u8, 3>(&a, &b, &c)
+                .unwrap(),
+            a ^ b ^ c
+        );
 
         // Test Majority (at least 2 of 3 true)
         let majority = (a & b) | (a & c) | (b & c);
-        assert_eq!(BooleanSimpleOp::Majority3ABC3.eval3::<u8, u8, 3>(&a, &b, &c).unwrap(), majority);
+        assert_eq!(
+            BooleanSimpleOp::Majority3ABC3
+                .eval3::<u8, u8, 3>(&a, &b, &c)
+                .unwrap(),
+            majority
+        );
     }
 }
