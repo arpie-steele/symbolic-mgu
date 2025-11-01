@@ -67,6 +67,7 @@ pub(crate) mod term;
 // #[cfg_attr(docsrs, doc(cfg(feature = "video")))]
 // pub mod video;
 
+pub use bool_eval_next::generated_enum::BooleanSimpleOp;
 pub use distinct::DistinctnessGraph;
 // pub use distinct::pair::Pair;
 // pub use distinct::simple_graph::Clique;
