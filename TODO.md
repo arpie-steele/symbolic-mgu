@@ -1,6 +1,6 @@
 # symbolic-mgu TODO List
 
-## 📊 Overall Progress: 85% Complete
+## 📊 Overall Progress: 95% Complete
 
 **Summary of v010 branch status:**
 
@@ -11,10 +11,13 @@
 | Phase 2: BooleanSimpleOp | ✅ Complete | 90% | Fully implemented, exported, tested |
 | Phase 3: Term Abstraction | ✅ Complete | 90% | Minor polish possible |
 | Phase 4: Testing | ✅ Good | 70% | 5 tests covering all 278 operations |
+| **Phase 5: Unification** | ✅ **Complete** | **100%** | **Robinson's MGU fully backported** |
 
-**Status for pre-release (v0.1.0-alpha.5):**
-- ✅ **All tests passing** - 5 comprehensive tests in bool_eval_next
+**Status for pre-release (v0.1.0-alpha.6):**
+- ✅ **All tests passing** - 21 tests (up from 12)
 - ✅ **All UnsignedBits types** - bool, u8, u16, u32, u64, u128, BigUint
+- ✅ **Unification algorithm** - Substitution, MGU, occurs check
+- ✅ **Statement operations** - substitute, apply, contract
 - ✅ **Quality gates pass** - clippy, doc, test all clean
 - ⚠️ **Documentation gaps** - Module docs exist but could be expanded
 
@@ -292,7 +295,7 @@ pub trait BooleanNode {
 ### Code Quality Gates - ✅ Complete
 - ✅ `cargo +1.77 clippy --all-features --all-targets` - No warnings
 - ✅ `cargo +1.77 doc --all-features` - Documentation builds
-- ✅ `cargo +1.77 test --all-features` - All 12 tests pass
+- ✅ `cargo +1.77 test --all-features` - All 21 tests pass (up from 12)
 
 **Remaining work:**
 - [ ] (Optional) Add tests specifically for u16, u32, u128
@@ -301,9 +304,75 @@ pub trait BooleanNode {
 
 ---
 
-## Summary - v010 Branch Ready for v0.1.0-alpha.5 Release
+## Phase 5: Unification Backport - ✅ 100% Complete
 
-**Branch status**: Feature-complete and ready for alpha.5 pre-release
+**Status**: Successfully backported from rustmgu (edition 2024) to symbolic-mgu (edition 2018)
+
+**What's been implemented:**
+- ✅ `Substitution<V, T>` type (src/term/substitution.rs lines 1-183)
+  - HashMap-based variable → term mapping
+  - Methods: new, get, extend, contains, len, is_empty, iter, iter_mut
+  - `ensure_acyclic()` - cycle detection with depth-first search
+
+- ✅ `NormalizingSubstitution<V, N, T, TF>` type (lines 185-363)
+  - Maintains normal form invariant (no variable chains)
+  - `try_normalize()` - safe promotion from Substitution
+  - `extend()` - adds binding and renormalizes all existing mappings
+
+- ✅ Unification functions (lines 365-617)
+  - `occurs_check()` - prevents cyclic substitutions like x ↦ f(x)
+  - `apply_substitution()` - recursively applies substitution to terms
+  - `unify()` - public MGU entry point (Robinson's algorithm)
+  - `unify_with_subst()` - recursive unification with accumulator
+
+- ✅ Statement operations enhanced (src/statement/mod.rs)
+  - `substitute()` - applies substitution to entire statement (line 256)
+  - `apply()` - applies one statement to another (line 470)
+  - `contract()` - Meredith's condensed detachment (line 300)
+
+- ✅ Distinctness graphs backported (from edition 2024)
+  - `src/distinct/pair.rs` (222 lines)
+  - `src/distinct/simple_graph.rs` (110 lines)
+  - Enhanced `src/distinct/mod.rs` (81 lines)
+
+**Test Coverage** (9 new tests in src/term/substitution.rs:619-790):
+1. ✅ `empty_substitution` - Basic substitution operations
+2. ✅ `single_binding` - Variable mapping
+3. ✅ `identical_terms_unify` - Identity unification
+4. ✅ `different_variables_unify` - Variable-to-variable unification
+5. ✅ `type_mismatch_fails` - Type system enforcement
+6. ✅ `occurs_check_detects_cycle` - Cycle detection works
+7. ✅ `occurs_check_prevents_unification` - Prevents x ↦ f(x)
+8. ✅ `apply_substitution_to_var` - Simple substitution
+9. ✅ `apply_substitution_to_node` - Recursive substitution on compound terms
+
+**Key Features:**
+- Full Robinson's unification algorithm with occurs check
+- Type-aware unification (respects Boolean/Setvar/Class hierarchy)
+- Normal form maintenance (no variable chains)
+- Edition 2018 compatible (all let-chains rewritten)
+- No new external dependencies
+
+**Architecture:**
+- Factory pattern integration for flexible term construction
+- Unified file structure (substitution + unification in one file)
+- Comprehensive error handling with MguError
+- Generic over Type, Metavariable, Node, and Term traits
+
+### Action Items
+
+✅ **All Complete** - No remaining work
+
+**Future Considerations (Optional):**
+- [ ] Add more Statement integration tests (multi-step proofs)
+- [ ] Document factory pattern usage examples
+- [ ] Consider caching strategy for term deduplication
+
+---
+
+## Summary - v010 Branch Ready for v0.1.0-alpha.6 Release
+
+**Branch status**: Feature-complete and ready for alpha.6 pre-release
 
 ### Key Accomplishments
 
@@ -319,13 +388,23 @@ pub trait BooleanNode {
 - ✅ NodeByteFactory concrete implementation (stateless)
 - ✅ EnumTerm<T, V, N> production-ready term representation
 
+**Unification System - Complete:**
+- ✅ Robinson's MGU algorithm with occurs check
+- ✅ Substitution and NormalizingSubstitution types
+- ✅ Type-aware unification (Boolean/Setvar/Class hierarchy)
+- ✅ Statement operations (substitute, apply, contract)
+- ✅ Distinctness graphs for preventing invalid substitutions
+- ✅ 9 comprehensive tests covering all core scenarios
+- ✅ Edition 2018 compatible (all let-chains rewritten)
+
 **Documentation:**
 - ✅ Module-level documentation in bool_eval_next/mod.rs
 - ✅ Macro documentation in src/macros.rs (updated with correct examples)
 - ✅ NodeByteTable.md documenting Boolean operations
+- ✅ BACKPORT_PLAN.md documenting unification backport
 - ⚠️ Factory pattern usage could be better documented
 
-### Pre-Release Readiness (alpha.5)
+### Pre-Release Readiness (alpha.6)
 
 **Ready to merge:**
 - ✅ Math correctness verified (comprehensive tests)
