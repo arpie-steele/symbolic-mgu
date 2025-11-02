@@ -666,6 +666,7 @@ WellFounded
 WellOrderRecGen
 WellOrdering
 WideMetavariable
+XNOR
 XYZ
 YCbCr
 YOLO
@@ -1282,3 +1283,19 @@ xyY
 τₖ
 µs
 𝑀ₜ
+H₁
+∪
+H₂
+A₁
+A₂
+S₁
+S₂
+S₁'s
+S₂'s
+D₁
+D₂
+Hₙ
+Hₘ
+≠
+n²−n
+≥

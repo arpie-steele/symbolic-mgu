@@ -13,9 +13,20 @@ use strum::{
 enum0! {
 /// Selected 222 Node types.
 ///
-/// These values have been chosen to co-exist with the values of [`MetaByte`] so that in theory a Polish notation byte-string could represent a Term.
+/// # Design Notes
+///
+/// **Toy Implementation**: This is a concrete toy implementation of the [`Node`] trait,
+/// intended for testing and examples. Production code should use trait-based abstractions
+/// as described in the project architectural principles.
+///
+/// **Discriminant Values**: The `u8` discriminant values for these 222 variants have been
+/// carefully hand-picked to avoid collisions with [`MetaByte`] and [`AsciiMetaVar`] values.
+/// This allows Polish notation byte-strings to represent complete terms by interleaving
+/// node operators and metavariables without ambiguity.
 ///
 /// [`MetaByte`]: `crate::MetaByte`
+/// [`Node`]: `crate::Node`
+/// [`AsciiMetaVar`]: `crate::AsciiMetaVar`
 ///
 #[cfg_attr(doc, doc = include_str!("NodeByteTable.md"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Display, EnumCount, EnumDiscriminants, EnumString, FromRepr, VariantArray, VariantNames)]
@@ -250,6 +261,24 @@ pub enum NodeByte {
 
 impl NodeByte {
     /// All defined nodes, as enum values.
+    ///
+    /// # Design Notes
+    ///
+    /// **Semantic Ordering**: The variants in this array are ordered by their type signatures
+    /// and logical relationships, NOT by source code declaration order. This ordering groups
+    /// related operations together (e.g., all Boolean nullary operators, then Boolean unary
+    /// operators, then Boolean binary operators, etc.).
+    ///
+    /// **Why Not `strum::VariantArray::VARIANTS`?**: While strum's `VariantArray` derive provides
+    /// a `VARIANTS` constant automatically, it uses source declaration order. The [`to_order()`]
+    /// method returns indices into this semantically-ordered `ALL_NODES` array, which is essential
+    /// for maintaining the mathematical grouping of operations.
+    ///
+    /// **Complementary Use**: This hand-written array complements strum's `FromRepr` derive,
+    /// which we use for O(1) discriminant → enum lookups via [`from_repr()`].
+    ///
+    /// [`to_order()`]: Self::to_order
+    /// [`from_repr()`]: Self::from_repr
     pub const ALL_NODES: [NodeByte; 222] = [
         NodeByte::True,
         NodeByte::False,

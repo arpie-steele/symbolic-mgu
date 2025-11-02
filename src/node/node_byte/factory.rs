@@ -8,17 +8,13 @@ use std::convert::TryInto;
 use std::marker::PhantomData;
 use std::str::FromStr;
 
-/// TODO.
+/// Factory for creating `NodeByte` instances.
+///
+/// This factory leverages strum's derived traits to avoid redundant storage.
 #[derive(Debug)]
 pub struct NodeByteFactory<Ty> {
     /// Literally not used.
     _not_used: PhantomData<Ty>,
-
-    /// Map `u8` to `NodeByte`
-    by_order: Vec<NodeByte>,
-
-    /// Map `u8` to `NodeByte`
-    by_u8_discriminant: Vec<Option<NodeByte>>,
 }
 
 impl<Ty> NodeByteFactory<Ty>
@@ -27,18 +23,8 @@ where
 {
     /// Create a factory for stateless `NodeByte` objects.
     pub fn new() -> Self {
-        let mut by_index = Vec::with_capacity(222);
-        let mut by_u8 = vec![None; 256];
-        for n in NodeByte::ALL_NODES.iter() {
-            by_index.push(*n);
-            let index_u8 = (*n) as u8;
-            by_u8[index_u8 as usize] = Some(*n);
-        }
-
         Self {
             _not_used: PhantomData,
-            by_order: by_index,
-            by_u8_discriminant: by_u8,
         }
     }
 
@@ -48,14 +34,16 @@ where
     /// # Errors
     /// - The index may not refer to a valid `NodeByte`.
     pub fn lookup_by_discriminant(&self, index: u8) -> Result<NodeByte, MguError> {
-        self.by_u8_discriminant[index as usize].ok_or_else(|| {
+        NodeByte::from_repr(index).ok_or_else(|| {
             MguError::from_unsuported_value_for_type_unsigned(index as u128, "NodeByte")
         })
     }
 
     /// Loop over all possible `NodeByte` values.
     pub fn all_nodes_iter(&self) -> std::vec::IntoIter<NodeByte> {
-        self.by_order.clone().into_iter()
+        // We use `to_vec().into_iter()` to agree with our declared `Self::NodeIterator`
+        #[allow(clippy::unnecessary_to_owned)]
+        NodeByte::ALL_NODES.to_vec().into_iter()
     }
 }
 
@@ -154,8 +142,7 @@ where
         the_type: Self::NodeType,
         index: usize,
     ) -> Result<Self::Node, crate::MguError> {
-        let node = self
-            .by_order
+        let node = NodeByte::ALL_NODES
             .get(index)
             .ok_or_else(|| MguError::from_error_code::<u16>(4330))?;
         if node.to_type() == the_type {

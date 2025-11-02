@@ -72,7 +72,7 @@ where
     /// - Returns error if the `type` or `index` (or the pair of them) is unsupported, or if the located `Metavariable` is not of type `the_type`
     fn create_by_type_and_index(
         &self,
-        the_type: Self::MetavariableType,
+        the_type: &Self::MetavariableType,
         index: usize,
     ) -> Result<Self::Metavariable, MguError>;
 
@@ -85,7 +85,7 @@ where
     /// - This iterator will return unique entries, but not necessarily a number that fits in memory.
     fn list_metavariables_by_type(
         &self,
-        the_type: Self::MetavariableType,
+        the_type: &Self::MetavariableType,
     ) -> Self::MetavariableIterator<'_>;
 
     /// Count all Metavariables by their Type.
@@ -99,7 +99,7 @@ where
     #[allow(unused_variables)]
     fn count_metavariables_by_type(
         &self,
-        the_type: Self::MetavariableType,
+        the_type: &Self::MetavariableType,
     ) -> (usize, Option<usize>) {
         (0, None)
     }
