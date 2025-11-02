@@ -68,6 +68,3 @@ config = ".cargo/spellcheck.toml"
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
-
-[lints.rust]
- unexpected_cfgs = { level = "warn", check-cfg = ['cfg(rust_analyzer)'] }
