@@ -99,17 +99,18 @@ pub use node::node_byte::factory::NodeByteFactory;
 // pub use node::traits::NodeCore;
 // pub use node::traits::StaticSlotNode;
 pub use statement::Statement;
-// pub use term::NormalizingSubstitution;
-// pub use term::Substitution;
+pub use term::substitution::NormalizingSubstitution;
+pub use term::substitution::Substitution;
 pub use mgutype::type_trait::Type;
 pub use mgutype::type_trait::TypeCore;
 pub use term::base::Term;
 pub use term::factory::TermFactory;
 pub use term::simple::EnumTerm;
-// pub use term::apply_substitution;
+pub use term::substitution::apply_substitution;
+pub use term::substitution::occurs_check;
+pub use term::substitution::unify;
 // pub use term::dbterm::DbTerm;
 // pub use term::enums::EnumTerm;
-// pub use term::unify;
 // pub use term::veryfinite::TinyTerm;
 
 #[cfg(test)]
