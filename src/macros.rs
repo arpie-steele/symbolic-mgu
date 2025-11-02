@@ -462,3 +462,96 @@ macro_rules! enum0 {
         }
     };
 }
+
+/// Implements the `UnsignedBits` trait for primitive unsigned integer types.
+///
+/// This macro generates an implementation of `UnsignedBits<T, N>` for type `T`,
+/// where `N` is the number of Boolean variables in this specific instance and
+/// `max_n` is the maximum number of Boolean variables that can be represented
+/// in the type's bits as a truth table.
+///
+/// For a type with `B` bits, the maximum `N` is `log2(B)`, because a truth table
+/// for `N` variables requires `2^N` entries.
+///
+/// # Syntax
+///
+/// ```ignore
+/// ub_prim_impl!(TraitName; prim_type, n; max_n);
+/// ```
+///
+/// - `TraitName`: The trait being implemented (typically `UnsignedBits`)
+/// - `prim_type`: An unsigned integer primitive type (`u8`, `u16`, `u32`, `u64`, `u128`)
+/// - `n`: The specific number of Boolean variables for this implementation
+/// - `max_n`: The maximum value of `N` for this type (must be `log2(BITS)`)
+///
+/// # Examples
+///
+/// ```ignore
+/// ub_prim_impl!(UnsignedBits; u8, 3; 3);    // u8 with N=3: 2^3 = 8 bits
+/// ub_prim_impl!(UnsignedBits; u64, 6; 6);   // u64 with N=6: 2^6 = 64 bits
+/// ub_prim_impl!(UnsignedBits; u128, 7; 7);  // u128 with N=7: 2^7 = 128 bits
+/// ```
+///
+/// # Generated Implementation
+///
+/// The macro generates an implementation with these methods:
+/// - `mask()`: Returns a mask with `2^N` ones (or `T::MAX` if `N == max_n`)
+/// - `is_mask_maximum()`: Returns true if `N == max_n`
+/// - `n()`: Returns `N` after asserting `N <= max_n`
+/// - `from_orig()`: Masks the input value to fit within `2^N` bits
+/// - `set_bit()`: Sets or clears a specific bit in the truth table
+#[macro_export]
+macro_rules! ub_prim_impl {
+    ($ub:ident; $prim_type:ty, $n:literal; $max_n:literal) => {
+        impl $ub<$prim_type, $n> for $prim_type {
+            fn mask() -> $prim_type {
+                assert!($n <= $max_n);
+                if $n == $max_n {
+                    return <$prim_type>::MAX;
+                }
+                ((1 as $prim_type) << (1 << $n)) - 1
+            }
+            fn is_mask_maximum(&self) -> bool {
+                assert!($n <= $max_n);
+                $n == $max_n
+            }
+
+            fn n() -> usize {
+                assert!($n <= $max_n);
+                $n
+            }
+
+            fn from_orig(orig: $prim_type) -> Self {
+                assert!($n <= $max_n);
+
+                if $n == $max_n {
+                    return orig;
+                }
+                let mask = ((1 as $prim_type) << (1 << $n)) - 1;
+                mask & orig
+            }
+
+            fn set_bit(&mut self, bit_pos: u64, value: bool) -> Result<(), MguError> {
+                assert!($n <= $max_n);
+                let high_index = 1u64 << $n;
+                if bit_pos < high_index {
+                    if value {
+                        *self |= 1 << (bit_pos as u32);
+                    } else {
+                        let bit = (1 as $prim_type) << (bit_pos as u32);
+                        let mask = if $n == $max_n {
+                            <$prim_type>::MAX
+                        } else {
+                            ((1 as $prim_type) << (1 << $n)) - 1
+                        };
+                        let bit = (bit & mask) ^ mask;
+                        *self &= bit;
+                    }
+                    Ok(())
+                } else {
+                    Err(MguError::UnknownError(121))
+                }
+            }
+        }
+    };
+}

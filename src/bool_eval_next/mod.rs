@@ -1,8 +1,44 @@
-//! Next-gen Boolean evaluation.
+//! Boolean evaluation of terms.
+//!
+//! This module provides functionality for evaluating terms where
+//! all metavariables and nodes are boolean-valued. It supports
+//! tautology testing and truth table evaluation using bit-wise
+//! operations on primitive unsigned integers and `BigUint`.
+//!
+//! # Future Enhancements
+//!
+//! The evaluator could be enhanced with structural short-circuit
+//! evaluation for tautological patterns:
+//!
+//! - **`φ → φ`**: Always true (any term implies itself)
+//! - **`φ ↔ φ`**: Always true (any term is equivalent to itself)
+//!
+//! This would enable verification of definitions involving these
+//! patterns without requiring full evaluation of the sub-terms.
+//! For example, the True definition `⊤ ↔ (∀x x = x → ∀x x = x)`
+//! contains the pattern `ψ → ψ` where `ψ = ∀x x = x`, which could
+//! be recognized as tautological regardless of whether `ψ` contains
+//! quantifiers or other non-propositional constructs.
+//!
+//! Implementation approach:
+//! 1. Before evaluating `Implies(a, b)` or `Biimp(a, b)`, check
+//!    if `a` and `b` are structurally identical Boolean-valued
+//!    terms
+//! 2. If identical, return `true_value(num_bits)` immediately
+//!    without recursion
+//! 3. Otherwise, proceed with normal evaluation
+//!
+//! This would require adding an equality check (e.g., `a == b`
+//! where `a` and `b` are `EnumTerm` references) before the evaluation
+//! logic in `eval_implies` and `eval_biimp` within the `eval_map`
+//! function.
 
 pub(crate) mod generated_enum;
 
-use crate::{BooleanSimpleOp, EnumTerm, Metavariable, MguError, Node, NodeByte, SimpleType, Type};
+use crate::{
+    ub_prim_impl, BooleanSimpleOp, EnumTerm, Metavariable, MguError, Node, NodeByte, SimpleType,
+    Type,
+};
 use std::convert::TryInto;
 use std::fmt::{Debug as DebugTrait, Display};
 use std::marker::PhantomData;
@@ -50,10 +86,15 @@ impl BooleanSimpleOp {
         B: UnsignedBits<U, N>,
         U: Clone + BitAnd<Output = U> + BitOr<Output = U> + BitXor<Output = U>,
     {
+        use BooleanSimpleOp::*;
         if self.get_arity() > 0 {
             return None;
         }
-        Self::eval1::<B, U, N>(self, &(B::from_bool(false))) // TODO: replace this with a 2-branch match.
+        Some(match self {
+            False0 => B::from_bool(false),
+            True0 => B::from_bool(true),
+            _ => return None,
+        })
     }
 
     /// Evaluate the Boolean operator on 1 input.
@@ -66,10 +107,17 @@ impl BooleanSimpleOp {
         B: UnsignedBits<U, N>,
         U: Clone + BitAnd<Output = U> + BitOr<Output = U> + BitXor<Output = U>,
     {
+        use BooleanSimpleOp::*;
         if self.get_arity() > 1 {
             return None;
         }
-        Self::eval2::<B, U, N>(self, a, &(B::from_bool(false))) // TODO: replace this with a 4-branch match.
+        Some(match self {
+            False0 | False1 => B::from_bool(false),
+            True0 | True1 => B::from_bool(true),
+            NotA1 => !a.clone(),
+            IdA1 => a.clone(),
+            _ => return None,
+        })
     }
 
     /// Evaluate the Boolean operator on 2 inputs.
@@ -81,10 +129,29 @@ impl BooleanSimpleOp {
         B: UnsignedBits<U, N>,
         U: Clone + BitAnd<Output = U> + BitOr<Output = U> + BitXor<Output = U>,
     {
+        use BooleanSimpleOp::*;
         if self.get_arity() > 2 {
             return None;
         }
-        Self::eval3::<B, U, N>(self, a, b, &(B::from_bool(false))) // TODO: replace this with a 16-branch match.
+        Some(match self {
+            False0 | False1 | False2 => B::from_bool(false),
+            True0 | True1 | True2 => B::from_bool(true),
+            NotA1 | NotA2 => !a.clone(),
+            IdA1 | IdA2 => a.clone(),
+            NotB2 => !b.clone(),
+            IdB2 => b.clone(),
+            NotOrAB2 => !(a.clone() | b.clone()),
+            NotImpliesAB2 => a.clone() & !b.clone(),
+            NotImpliesBA2 => !a.clone() & b.clone(),
+            NotAndAB2 => !(a.clone() & b.clone()),
+            XorAB2 => a.clone() ^ b.clone(),
+            BiimpAB2 => !(a.clone() ^ b.clone()),
+            AndAB2 => a.clone() & b.clone(),
+            ImpliesBA2 => a.clone() | !b.clone(),
+            ImpliesAB2 => !a.clone() | b.clone(),
+            OrAB2 => a.clone() | b.clone(),
+            _ => return None,
+        })
     }
 
     /// Evaluate the Boolean operator on 3 inputs.
@@ -729,60 +796,40 @@ impl UnsignedBits<bool, 0> for bool {
     }
 }
 
-impl<const N: usize> UnsignedBits<u8, N> for u8 {
-    fn mask() -> u8 {
-        assert!(N <= 3);
-        if N == 3 {
-            return u8::MAX;
-        }
-        (1u8 << (1 << N)) - 1
-    }
-    fn is_mask_maximum(&self) -> bool {
-        assert!(N <= 3);
-        N == 3
-    }
-
-    fn n() -> usize {
-        assert!(N <= 3);
-        N
-    }
-
-    fn from_orig(orig: u8) -> Self {
-        assert!(N <= 3);
-
-        if N == 3 {
-            return orig;
-        }
-        let mask = (1u8 << (1 << N)) - 1;
-        mask & orig
-    }
-
-    fn set_bit(&mut self, bit_pos: u64, value: bool) -> Result<(), MguError> {
-        assert!(N <= 3);
-        let high_index = 1u64 << N;
-        if bit_pos < high_index {
-            if value {
-                *self |= 1 << (bit_pos as u32);
-            } else {
-                let bit = 1u8 << (bit_pos as u32);
-                let mask = if N == 3 {
-                    u8::MAX
-                } else {
-                    (1u8 << (1 << N)) - 1
-                };
-                let bit = (bit & mask) ^ mask;
-                *self &= bit;
-            }
-            Ok(())
-        } else {
-            Err(MguError::UnknownError(121))
-        }
-    }
-}
+ub_prim_impl!(UnsignedBits; u8, 0; 3);
+ub_prim_impl!(UnsignedBits; u8, 1; 3);
+ub_prim_impl!(UnsignedBits; u8, 2; 3);
+ub_prim_impl!(UnsignedBits; u8, 3; 3);
+ub_prim_impl!(UnsignedBits; u16, 0; 4);
+ub_prim_impl!(UnsignedBits; u16, 1; 4);
+ub_prim_impl!(UnsignedBits; u16, 2; 4);
+ub_prim_impl!(UnsignedBits; u16, 3; 4);
+ub_prim_impl!(UnsignedBits; u16, 4; 4);
+ub_prim_impl!(UnsignedBits; u32, 0; 5);
+ub_prim_impl!(UnsignedBits; u32, 1; 5);
+ub_prim_impl!(UnsignedBits; u32, 2; 5);
+ub_prim_impl!(UnsignedBits; u32, 3; 5);
+ub_prim_impl!(UnsignedBits; u32, 4; 5);
+ub_prim_impl!(UnsignedBits; u32, 5; 5);
+ub_prim_impl!(UnsignedBits; u64, 0; 6);
+ub_prim_impl!(UnsignedBits; u64, 1; 6);
+ub_prim_impl!(UnsignedBits; u64, 2; 6);
+ub_prim_impl!(UnsignedBits; u64, 3; 6);
+ub_prim_impl!(UnsignedBits; u64, 4; 6);
+ub_prim_impl!(UnsignedBits; u64, 5; 6);
+ub_prim_impl!(UnsignedBits; u64, 6; 6);
+ub_prim_impl!(UnsignedBits; u128, 0; 7);
+ub_prim_impl!(UnsignedBits; u128, 1; 7);
+ub_prim_impl!(UnsignedBits; u128, 2; 7);
+ub_prim_impl!(UnsignedBits; u128, 3; 7);
+ub_prim_impl!(UnsignedBits; u128, 4; 7);
+ub_prim_impl!(UnsignedBits; u128, 5; 7);
+ub_prim_impl!(UnsignedBits; u128, 6; 7);
+ub_prim_impl!(UnsignedBits; u128, 7; 7);
 
 /// A wrapper around `BigUint` to have it model truth tables on N Boolean variables.
 #[cfg(feature = "bigint")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SomeBits<const N: usize>(BigUint);
 
 #[cfg(feature = "bigint")]
@@ -790,7 +837,7 @@ impl<const N: usize> SomeBits<N> {
     /// A mask with `2^(2^N)` ones.
     pub fn all_ones_mask() -> Self {
         let one: BigUint = 1u32.into();
-        Self(one.clone().pow(1 << N) - one)
+        Self((one.clone() << (1 << N)) - one)
     }
 }
 
@@ -857,6 +904,27 @@ impl<const N: usize> BitXor for SomeBits<N> {
     }
 }
 
+#[cfg(feature = "bigint")]
+impl<const N: usize> std::fmt::LowerHex for SomeBits<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::LowerHex::fmt(&(self.0), f) // delegate to `BigUint`'s implementation
+    }
+}
+
+#[cfg(feature = "bigint")]
+impl<const N: usize> std::fmt::UpperHex for SomeBits<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::UpperHex::fmt(&(self.0), f) // delegate to `BigUint`'s implementation
+    }
+}
+
+#[cfg(feature = "bigint")]
+impl<const N: usize> std::fmt::Display for SomeBits<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&(self.0), f) // delegate to `BigUint`'s implementation
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -868,14 +936,61 @@ mod tests {
     /// possible input combinations (using a, b, c from the standard test vectors),
     /// then verifies the result matches the operation's code.
     #[test]
-    fn test_all_variants_truth_tables() {
+    fn all_variants_make_truth_tables() {
+        // Test all 278 operations
+        for variant in BooleanSimpleOp::VARIANTS {
+            let arity = variant.get_arity();
+            let expected_code = variant.get_code3().into();
+
+            let mut truth_table = 0;
+            for c in [true, false] {
+                for b in [true, false] {
+                    for a in [true, false] {
+                        let result = match arity {
+                            0 => variant
+                                .eval0::<bool, bool, 0>()
+                                .unwrap_or_else(|| panic!("eval0 failed for {}", variant)),
+                            1 => variant
+                                .eval1::<bool, bool, 0>(&a)
+                                .unwrap_or_else(|| panic!("eval1 failed for {}", variant)),
+                            2 => variant
+                                .eval2::<bool, bool, 0>(&a, &b)
+                                .unwrap_or_else(|| panic!("eval2 failed for {}", variant)),
+                            3 => variant
+                                .eval3::<bool, bool, 0>(&a, &b, &c)
+                                .unwrap_or_else(|| panic!("eval3 failed for {}", variant)),
+                            _ => panic!("Unexpected arity {} for {}", arity, variant),
+                        };
+                        truth_table <<= 1;
+                        truth_table |= if result { 1 } else { 0 };
+                    }
+                }
+            }
+
+            assert_eq!(
+                truth_table, expected_code,
+                "Truth table mismatch for {variant} (arity={arity}): \
+                 got 0x{truth_table:02x}, expected 0x{expected_code:02x}",
+            );
+        }
+    }
+
+    /// Test that all `BooleanSimpleOp` variants evaluate to their correct truth table codes.
+    ///
+    /// This test builds the truth table for each operation by evaluating it on all
+    /// possible input combinations (using a, b, c from the standard test vectors),
+    /// then verifies the result matches the operation's code.
+    #[test]
+    fn all_variants_u8_truth_tables() {
         // Standard test vectors for 3 variables
         // a = 10101010 = 0xaa
         // b = 11001100 = 0xcc
         // c = 11110000 = 0xf0
-        let a: u8 = 0xaa;
-        let b: u8 = 0xcc;
-        let c: u8 = 0xf0;
+
+        let a = <u8 as UnsignedBits<u8, 3>>::from_orig(0xaa);
+        let b = <u8 as UnsignedBits<u8, 3>>::from_orig(0xcc);
+        let c = <u8 as UnsignedBits<u8, 3>>::from_orig(0xf0);
+        let mask = <u8 as UnsignedBits<u8, 3>>::mask();
 
         // Test all 278 operations
         for variant in BooleanSimpleOp::VARIANTS {
@@ -896,7 +1011,7 @@ mod tests {
                     .eval3::<u8, u8, 3>(&a, &b, &c)
                     .unwrap_or_else(|| panic!("eval3 failed for {}", variant)),
                 _ => panic!("Unexpected arity {} for {}", arity, variant),
-            };
+            } & mask;
 
             assert_eq!(
                 result, expected_code,
@@ -906,9 +1021,103 @@ mod tests {
         }
     }
 
+    /// Test that all `BooleanSimpleOp` variants evaluate to their correct truth table codes.
+    ///
+    /// This test builds the truth table for each operation by evaluating it on all
+    /// possible input combinations (using a, b, c from the standard test vectors),
+    /// then verifies the result matches the operation's code.
+    #[test]
+    fn all_variants_u64_truth_tables() {
+        // Standard test vectors for 3 variables
+        // a = 10101010 = 0xaa
+        // b = 11001100 = 0xcc
+        // c = 11110000 = 0xf0
+
+        let a = <u64 as UnsignedBits<u64, 3>>::from_orig(0xaaaa_aaaa_aaaa_aaaa);
+        let b = <u64 as UnsignedBits<u64, 3>>::from_orig(0xcccc_cccc_cccc_cccc);
+        let c = <u64 as UnsignedBits<u64, 3>>::from_orig(0xf0f0_f0f0_f0f0_f0f0);
+        let mask = <u64 as UnsignedBits<u64, 3>>::mask();
+
+        // Test all 278 operations
+        for variant in BooleanSimpleOp::VARIANTS {
+            let arity = variant.get_arity();
+            let expected_code = <u64 as UnsignedBits<u64, 3>>::from_orig(
+                0x0101_0101_0101_0101u64 * variant.get_code3() as u64,
+            );
+
+            let result = match arity {
+                0 => variant
+                    .eval0::<u64, u64, 3>()
+                    .unwrap_or_else(|| panic!("eval0 failed for {}", variant)),
+                1 => variant
+                    .eval1::<u64, u64, 3>(&a)
+                    .unwrap_or_else(|| panic!("eval1 failed for {}", variant)),
+                2 => variant
+                    .eval2::<u64, u64, 3>(&a, &b)
+                    .unwrap_or_else(|| panic!("eval2 failed for {}", variant)),
+                3 => variant
+                    .eval3::<u64, u64, 3>(&a, &b, &c)
+                    .unwrap_or_else(|| panic!("eval3 failed for {}", variant)),
+                _ => panic!("Unexpected arity {} for {}", arity, variant),
+            } & mask;
+
+            assert_eq!(
+                result, expected_code,
+                "Truth table mismatch for {variant} (arity={arity}): \
+                 got 0x{result:016x}, expected 0x{expected_code:016x}",
+            );
+        }
+    }
+
+    /// Test that all `BooleanSimpleOp` variants evaluate to their correct truth table codes.
+    ///
+    /// This test builds the truth table for each operation by evaluating it on all
+    /// possible input combinations (using a, b, c from the standard test vectors),
+    /// then verifies the result matches the operation's code.
+    #[test]
+    #[cfg(feature = "bigint")]
+    fn all_variants_bigint_truth_tables() {
+        // Standard test vectors for 3 variables
+        // a = 10101010 = 0xaa
+        // b = 11001100 = 0xcc
+        // c = 11110000 = 0xf0
+        let a = SomeBits::<3>(BigUint::from(0xaa_u32));
+        let b = SomeBits::<3>(BigUint::from(0xcc_u32));
+        let c = SomeBits::<3>(BigUint::from(0xf0_u32));
+
+        // Test all 278 operations
+        for variant in BooleanSimpleOp::VARIANTS {
+            let arity = variant.get_arity();
+            let expected_code = variant.get_code3();
+
+            let result = match arity {
+                0 => variant
+                    .eval0::<SomeBits<3>, SomeBits<3>, 3>()
+                    .unwrap_or_else(|| panic!("eval0 failed for {}", variant)),
+                1 => variant
+                    .eval1::<SomeBits<3>, SomeBits<3>, 3>(&a)
+                    .unwrap_or_else(|| panic!("eval1 failed for {}", variant)),
+                2 => variant
+                    .eval2::<SomeBits<3>, SomeBits<3>, 3>(&a, &b)
+                    .unwrap_or_else(|| panic!("eval2 failed for {}", variant)),
+                3 => variant
+                    .eval3::<SomeBits<3>, SomeBits<3>, 3>(&a, &b, &c)
+                    .unwrap_or_else(|| panic!("eval3 failed for {}", variant)),
+                _ => panic!("Unexpected arity {} for {}", arity, variant),
+            };
+
+            assert_eq!(
+                result,
+                SomeBits::<3>(BigUint::from(expected_code)),
+                "Truth table mismatch for {variant} (arity={arity}): \
+                 got 0x{result:02x}, expected 0x{expected_code:02x}",
+            );
+        }
+    }
+
     /// Test a few specific operations to ensure correct behavior.
     #[test]
-    fn test_specific_operations() {
+    fn specific_operations() {
         let a: u8 = 0xaa;
         let b: u8 = 0xcc;
         let c: u8 = 0xf0;
