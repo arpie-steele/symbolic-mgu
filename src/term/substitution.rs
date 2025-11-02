@@ -22,6 +22,16 @@ where
     map: HashMap<V, T>,
 }
 
+impl<V, T> From<HashMap<V, T>> for Substitution<V, T>
+where
+    V: std::hash::Hash + Eq,
+    T: PartialEq,
+{
+    fn from(value: HashMap<V, T>) -> Self {
+        Self { map: value }
+    }
+}
+
 impl<V, T> Substitution<V, T>
 where
     V: Metavariable + std::hash::Hash + Eq + Clone,
@@ -198,7 +208,7 @@ where
     inner: Substitution<V, T>,
     /// `PhantomData` to hold the Node type parameter
     _phantom_node: std::marker::PhantomData<N>,
-    /// `PhantomData` to hold the TermFactory type parameter
+    /// `PhantomData` to hold the `TermFactory` type parameter
     _phantom_factory: std::marker::PhantomData<TF>,
 }
 
@@ -515,9 +525,7 @@ where
             let t2_type = t2.get_type()?;
             if !t2_type.is_subtype_of(&var1_type) {
                 return Err(MguError::from_found_and_expected_types(
-                    true,
-                    &t2_type,
-                    &var1_type,
+                    true, &t2_type, &var1_type,
                 ));
             }
 
@@ -544,9 +552,7 @@ where
             let t1_type = t1.get_type()?;
             if !t1_type.is_subtype_of(&var2_type) {
                 return Err(MguError::from_found_and_expected_types(
-                    true,
-                    &t1_type,
-                    &var2_type,
+                    true, &t1_type, &var2_type,
                 ));
             }
 
@@ -565,12 +571,12 @@ where
     }
 
     // Case 3: Both are nodes - they must have the same root
-    let node1 = t1.get_node().ok_or_else(|| {
-        MguError::UnificationFailure("Expected node in term1".to_string())
-    })?;
-    let node2 = t2.get_node().ok_or_else(|| {
-        MguError::UnificationFailure("Expected node in term2".to_string())
-    })?;
+    let node1 = t1
+        .get_node()
+        .ok_or_else(|| MguError::UnificationFailure("Expected node in term1".to_string()))?;
+    let node2 = t2
+        .get_node()
+        .ok_or_else(|| MguError::UnificationFailure("Expected node in term2".to_string()))?;
 
     let node1_index = node1.get_index()?;
     let node1_type = node1.get_type()?;
@@ -608,4 +614,177 @@ where
     }
 
     Ok(current_subst)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{EnumTerm, MetaByte, MetavariableFactory, NodeByte, NodeFactory, SimpleType};
+
+    type TestTerm = EnumTerm<SimpleType, MetaByte, NodeByte>;
+
+    /// Minimal `TermFactory` implementation for testing
+    #[derive(Debug)]
+    struct TestTermFactory;
+
+    impl TermFactory<TestTerm, SimpleType, MetaByte, NodeByte> for TestTermFactory {
+        type TermType = SimpleType;
+        type Term = TestTerm;
+        type TermNode = NodeByte;
+        type TermMetavariable = MetaByte;
+
+        fn from_factories<VF, NF>(_vars: VF, _nodes: NF) -> Self
+        where
+            VF: MetavariableFactory<Metavariable = MetaByte>,
+            NF: NodeFactory<Node = NodeByte>,
+        {
+            TestTermFactory
+        }
+
+        fn create_leaf(&self, var: Self::TermMetavariable) -> Result<Self::Term, MguError> {
+            Ok(TestTerm::Leaf(var))
+        }
+
+        fn create_node(
+            &self,
+            node: Self::TermNode,
+            children: Vec<Self::Term>,
+        ) -> Result<Self::Term, MguError> {
+            // Validate arity
+            let expected_arity = node.get_arity()?;
+            if children.len() != expected_arity {
+                return Err(MguError::SlotsMismatch(expected_arity, children.len()));
+            }
+            Ok(TestTerm::NodeOrLeaf(node, children))
+        }
+    }
+
+    #[test]
+    fn empty_substitution() {
+        let subst: Substitution<MetaByte, TestTerm> = Substitution::new();
+        assert!(subst.is_empty());
+        assert_eq!(subst.len(), 0);
+    }
+
+    #[test]
+    fn single_binding() {
+        let var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let term = TestTerm::Leaf(var);
+
+        let mut subst = Substitution::new();
+        assert!(subst.extend(var, term.clone()).is_ok());
+        assert_eq!(subst.len(), 1);
+        assert!(subst.contains(&var));
+        assert_eq!(subst.get(&var), Some(&term));
+    }
+
+    #[test]
+    fn identical_terms_unify() {
+        let factory = TestTermFactory;
+        let var1 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let term1 = TestTerm::Leaf(var1);
+        let term2 = TestTerm::Leaf(var1);
+
+        let result = unify(&factory, &term1, &term2);
+        assert!(result.is_ok());
+        let subst = result.unwrap();
+        assert!(subst.is_empty());
+    }
+
+    #[test]
+    fn different_variables_unify() {
+        let factory = TestTermFactory;
+        let var1 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let var2 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 1).unwrap();
+        let term1 = TestTerm::Leaf(var1);
+        let term2 = TestTerm::Leaf(var2);
+
+        let result = unify(&factory, &term1, &term2);
+        assert!(result.is_ok());
+        let subst = result.unwrap();
+        assert_eq!(subst.len(), 1);
+    }
+
+    #[test]
+    fn type_mismatch_fails() {
+        let factory = TestTermFactory;
+        let var_bool = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let var_class = MetaByte::try_from_type_and_index(SimpleType::Class, 0).unwrap();
+        let term_bool = TestTerm::Leaf(var_bool);
+        let term_class = TestTerm::Leaf(var_class);
+
+        let result = unify(&factory, &term_bool, &term_class);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn occurs_check_detects_cycle() {
+        let var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let term_var = TestTerm::Leaf(var);
+
+        // Create term: Not(var)
+        let not_node = NodeByte::Not;
+        let term_not = TestTerm::NodeOrLeaf(not_node, vec![term_var.clone()]);
+
+        // Occurs check should detect that var appears in Not(var)
+        let result = occurs_check(&var, &term_not);
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+    }
+
+    #[test]
+    fn occurs_check_prevents_unification() {
+        let factory = TestTermFactory;
+        let var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let term_var = TestTerm::Leaf(var);
+
+        // Create term: Not(var)
+        let not_node = NodeByte::Not;
+        let term_not = TestTerm::NodeOrLeaf(not_node, vec![term_var.clone()]);
+
+        // Trying to unify var with Not(var) should fail
+        let result = unify(&factory, &term_var, &term_not);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn apply_substitution_to_var() {
+        let factory = TestTermFactory;
+        let var1 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let var2 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 1).unwrap();
+        let term1 = TestTerm::Leaf(var1);
+        let term2 = TestTerm::Leaf(var2);
+
+        let mut subst = Substitution::new();
+        subst.extend(var1, term2.clone()).unwrap();
+
+        let result = apply_substitution(&factory, &subst, &term1);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), term2);
+    }
+
+    #[test]
+    fn apply_substitution_to_node() {
+        let factory = TestTermFactory;
+        let var1 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let var2 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 1).unwrap();
+        let term1 = TestTerm::Leaf(var1);
+        let term2 = TestTerm::Leaf(var2);
+
+        // Create And(var1, var1)
+        let and_node = NodeByte::And;
+        let and_term = TestTerm::NodeOrLeaf(and_node, vec![term1.clone(), term1.clone()]);
+
+        // Substitution: var1 -> var2
+        let mut subst = Substitution::new();
+        subst.extend(var1, term2.clone()).unwrap();
+
+        // Apply should give And(var2, var2)
+        let result = apply_substitution(&factory, &subst, &and_term);
+        assert!(result.is_ok());
+        let result_term = result.unwrap();
+
+        let expected = TestTerm::NodeOrLeaf(and_node, vec![term2.clone(), term2.clone()]);
+        assert_eq!(result_term, expected);
+    }
 }

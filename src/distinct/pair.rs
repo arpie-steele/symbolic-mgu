@@ -68,7 +68,7 @@ impl<U: fmt::Debug + PartialOrd> Pair<U> {
     ///
     /// # Errors
     ///
-    /// It is an error if `self.0` >= `self.1` or they are not comparable.
+    /// It is an error if `self.0` ≥ `self.1` or they are not comparable.
     pub fn check(&self) -> Result<(), MguError> {
         if self.0 < self.1 {
             Ok(())
@@ -201,9 +201,7 @@ macro_rules! impl_index_for_pair {
     }
 }
 
-impl_index_for_pair!(
-    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize
-);
+impl_index_for_pair!(i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize);
 
 impl<U> From<Pair<U>> for (U, U) {
     fn from(value: Pair<U>) -> Self {
