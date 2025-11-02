@@ -69,12 +69,12 @@ pub(crate) mod term;
 
 pub use bool_eval_next::generated_enum::BooleanSimpleOp;
 pub use distinct::DistinctnessGraph;
-// pub use distinct::pair::Pair;
-// pub use distinct::simple_graph::Clique;
-// pub use distinct::simple_graph::Decomposition;
-// pub use distinct::simple_graph::SimpleGraph;
-// pub use distinct::simple_graph::check_clique;
-// pub use distinct::simple_graph::check_decomposition;
+pub use distinct::pair::Pair;
+pub use distinct::simple_graph::check_clique;
+pub use distinct::simple_graph::check_decomposition;
+pub use distinct::simple_graph::Clique;
+pub use distinct::simple_graph::Decomposition;
+pub use distinct::simple_graph::SimpleGraph;
 pub use error::base::MguError;
 pub use error::err_type::MguErrorType;
 // pub use metavariable::InfallibleMetavariable;
