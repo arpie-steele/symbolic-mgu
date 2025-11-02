@@ -775,7 +775,7 @@ mod tests {
         let and_node = NodeByte::And;
         let and_term = TestTerm::NodeOrLeaf(and_node, vec![term1.clone(), term1.clone()]);
 
-        // Substitution: var1 -> var2
+        // Substitution: map var1 to var2
         let mut subst = Substitution::new();
         subst.extend(var1, term2.clone()).unwrap();
 
