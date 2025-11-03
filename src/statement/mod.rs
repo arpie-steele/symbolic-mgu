@@ -1,5 +1,7 @@
 //! Define the Statement type.
 
+pub mod compact_proof;
+
 use crate::{
     apply_substitution, unify, DistinctnessGraph, Metavariable, MetavariableFactory, MguError,
     Node, Substitution, Term, TermFactory, Type,
@@ -518,6 +520,135 @@ where
             &self_subst.distinctness_graph,
             &other_subst.distinctness_graph,
         )?;
+
+        Ok(Self {
+            _not_used: PhantomData,
+            assertion: self_subst.assertion,
+            hypotheses: new_hypotheses,
+            distinctness_graph: new_graph,
+        })
+    }
+
+    /// APPLY_MULTIPLE operation: Unify multiple hypotheses with multiple statements' assertions.
+    ///
+    /// Given S = (A; [H₀, H₁, ..., Hₙ₋₁]; D) and proofs = [P₀, P₁, ..., Pₙ₋₁]:
+    /// 1. Relabel all Pᵢ to be mutually disjoint and disjoint from S
+    /// 2. For each i, unify Hᵢ with Pᵢ's assertion (if Pᵢ is Some)
+    /// 3. Return a new statement with:
+    ///    - A with the combined substitution applied
+    ///    - Union of all satisfied hypotheses from Pᵢ
+    ///    - Merged distinctness graphs
+    ///
+    /// This is used for compact proof parsing where multiple hypotheses are satisfied simultaneously.
+    ///
+    /// # Arguments
+    ///
+    /// * `var_factory` - Factory for creating fresh metavariables during relabeling
+    /// * `term_factory` - Factory for applying substitutions
+    /// * `proofs` - Slice of optional statements, where None = unsatisfied hypothesis
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Length of proofs doesn't match number of hypotheses
+    /// - Unification fails
+    /// - Distinctness constraints are violated
+    pub fn apply_multiple<VF, TF>(
+        &self,
+        var_factory: &VF,
+        term_factory: &TF,
+        proofs: &[Option<Self>],
+    ) -> Result<Self, MguError>
+    where
+        VF: MetavariableFactory<Metavariable = V, MetavariableType = Ty>,
+        TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N, TermMetavariable = V>,
+    {
+        // Validate that proofs length matches hypotheses length
+        if proofs.len() != self.hypotheses.len() {
+            return Err(MguError::UnificationFailure(format!(
+                "apply_multiple: expected {} proofs, got {}",
+                self.hypotheses.len(),
+                proofs.len()
+            )));
+        }
+
+        // Collect all variables to avoid
+        let mut all_vars = self.collect_metavariables()?;
+
+        // Step 1: Relabel all proofs to be mutually disjoint
+        let mut relabeled_proofs: Vec<Option<Self>> = Vec::new();
+        for proof_opt in proofs {
+            if let Some(proof) = proof_opt {
+                let relabeled = proof.relabel_disjoint(var_factory, term_factory, &all_vars)?;
+                // Add relabeled proof's variables to avoid set
+                all_vars.extend(relabeled.collect_metavariables()?);
+                relabeled_proofs.push(Some(relabeled));
+            } else {
+                relabeled_proofs.push(None);
+            }
+        }
+
+        // Step 2: Build combined substitution incrementally
+        let mut combined_subst = Substitution::new();
+
+        for (i, (hyp, proof_opt)) in self.hypotheses.iter().zip(&relabeled_proofs).enumerate() {
+            if let Some(proof) = proof_opt {
+                // Apply current substitution to both hypothesis and proof assertion
+                let hyp_subst = apply_substitution(term_factory, &combined_subst, hyp)?;
+                let proof_assertion_subst =
+                    apply_substitution(term_factory, &combined_subst, &proof.assertion)?;
+
+                // Unify hypothesis with proof's assertion
+                let new_subst = unify(term_factory, &hyp_subst, &proof_assertion_subst)
+                    .map_err(|e| {
+                        MguError::UnificationFailure(format!(
+                            "apply_multiple: failed to unify hypothesis {} with proof assertion: {}",
+                            i, e
+                        ))
+                    })?;
+
+                // Extend combined substitution with all mappings from new_subst
+                for (var, term) in new_subst.iter() {
+                    combined_subst.extend(var.clone(), term.clone())?;
+                }
+            }
+        }
+
+        // Step 3: Apply combined substitution to self
+        let self_subst = self.substitute(term_factory, &combined_subst)?;
+
+        // Step 4: Collect new hypotheses (unsatisfied from self, plus all from proofs)
+        let mut new_hypotheses = Vec::new();
+        let mut seen = HashSet::new();
+
+        // Add unsatisfied hypotheses from self (where proof is None)
+        for (i, hyp) in self_subst.hypotheses.iter().enumerate() {
+            if relabeled_proofs[i].is_none() && seen.insert(hyp.clone()) {
+                new_hypotheses.push(hyp.clone());
+            }
+        }
+
+        // Add hypotheses from all proofs
+        for proof_opt in &relabeled_proofs {
+            if let Some(proof) = proof_opt {
+                let proof_subst = proof.substitute(term_factory, &combined_subst)?;
+                for hyp in &proof_subst.hypotheses {
+                    if seen.insert(hyp.clone()) {
+                        new_hypotheses.push(hyp.clone());
+                    }
+                }
+            }
+        }
+
+        // Step 5: Merge all distinctness graphs
+        let mut new_graph = self_subst.distinctness_graph.clone();
+
+        for proof_opt in &relabeled_proofs {
+            if let Some(proof) = proof_opt {
+                let proof_subst = proof.substitute(term_factory, &combined_subst)?;
+                new_graph = Self::merge_distinctness_graphs(&new_graph, &proof_subst.distinctness_graph)?;
+            }
+        }
 
         Ok(Self {
             _not_used: PhantomData,
