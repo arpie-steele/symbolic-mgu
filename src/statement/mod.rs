@@ -1,6 +1,7 @@
 //! Define the Statement type.
 
 pub mod compact_proof;
+pub mod inclusion;
 
 use crate::{
     apply_substitution, unify, DistinctnessGraph, Metavariable, MetavariableFactory, MguError,
