@@ -1,4 +1,194 @@
 //! Factory pattern for `Metavariable`s.
+//!
+//! # Factory Pattern Rationale
+//!
+//! This module implements the **factory pattern** for creating [`Metavariable`] instances.
+//! Factories separate **construction strategy** from **behavior**, enabling flexible
+//! variable management across different logical systems.
+//!
+//! ## Why Metavariable Factories?
+//!
+//! Metavariables represent **logical variables** in formal systems (φ, ψ, x, y, A, B, etc.).
+//! Different theorem-proving contexts require different variable management strategies:
+//!
+//! 1. **Multiple naming conventions**
+//!    - Testing: Simple ASCII names ("p", "q", "x", "y")
+//!    - Metamath: Numbered variables with type prefixes ("ph", "ps", "x1", "x2")
+//!    - Unicode: Greek letters and mathematical symbols ("φ", "ψ", "∀x", "∃y")
+//!    - Generated: Fresh variables during proof search ("v0", "v1", "v2", ...)
+//!
+//! 2. **Type system integration**
+//!    - Boolean variables for propositional logic (φ, ψ, χ)
+//!    - Set variables for first-order logic (x, y, z)
+//!    - Class variables for set theory (A, B, C)
+//!    - Domain-specific types (ordinals, real numbers, etc.)
+//!
+//! 3. **Variable enumeration**
+//!    - Fresh variable generation during unification
+//!    - Listing all variables of a given type
+//!    - Avoiding variable capture during substitution
+//!
+//! 4. **Different backends**
+//!    - Testing: In-memory, simple construction
+//!    - Production: Interning, sharing, deduplication
+//!    - Database: Persistent variable tables from theorem libraries
+//!
+//! ## Stateless vs Stateful Factories
+//!
+//! ### Stateless Factories
+//!
+//! Stateless factories create variables directly without maintaining state.
+//! Suitable for simple variable schemes and testing.
+//!
+//! ```rust
+//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType};
+//!
+//! let factory = MetaByteFactory();
+//!
+//! // Create Boolean variables by name (uppercase P-Z)
+//! let p = factory.create("P", &SimpleType::Boolean).unwrap();
+//! let q = factory.create("Q", &SimpleType::Boolean).unwrap();
+//!
+//! // Create Setvar/Class by type and index (create_by_name has a bug for these)
+//! let x = factory.create_by_type_and_index(&SimpleType::Setvar, 0).unwrap();  // 'x'
+//! let y = factory.create_by_type_and_index(&SimpleType::Setvar, 1).unwrap();  // 'y'
+//! ```
+//!
+//! ### Stateful Factories (Conceptual)
+//!
+//! Stateful factories maintain internal state for variable generation, caching, or database access.
+//!
+//! ```rust,ignore
+//! // Hypothetical fresh variable generator
+//! struct FreshVariableFactory {
+//!     counter: usize,
+//!     used_names: HashSet<String>,
+//! }
+//!
+//! impl MetavariableFactory for FreshVariableFactory {
+//!     fn create_fresh(&mut self, ty: &SimpleType) -> Result<MetaByte, MguError> {
+//!         loop {
+//!             let name = format!("v{}", self.counter);
+//!             self.counter += 1;
+//!
+//!             if !self.used_names.contains(&name) {
+//!                 self.used_names.insert(name.clone());
+//!                 return self.create_by_name(&name);
+//!             }
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! ## Different Backend Examples
+//!
+//! ### Testing Backend: ASCII Variables
+//!
+//! Simple factory for unit tests using ASCII variable names:
+//!
+//! ```rust
+//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType};
+//!
+//! let factory = MetaByteFactory();
+//!
+//! // Create variables with ASCII names (Boolean uses uppercase P-Z)
+//! let phi = factory.create("P", &SimpleType::Boolean).unwrap();
+//! let psi = factory.create("Q", &SimpleType::Boolean).unwrap();
+//! ```
+//!
+//! ### Production Backend: Unicode Variables (Conceptual)
+//!
+//! ```rust,ignore
+//! // Hypothetical Unicode variable factory
+//! let factory = UnicodeMetavariableFactory::new();
+//!
+//! // Greek letters for Boolean variables
+//! let phi = factory.create("φ", &SimpleType::Boolean)?;
+//! let psi = factory.create("ψ", &SimpleType::Boolean)?;
+//!
+//! // Latin letters for set variables
+//! let x = factory.create("x", &SimpleType::Setvar)?;
+//! let y = factory.create("y", &SimpleType::Setvar)?;
+//! ```
+//!
+//! ### Database Backend: Metamath Integration (Conceptual)
+//!
+//! ```rust,ignore
+//! // Hypothetical Metamath variable factory
+//! let factory = MetamathVariableFactory::load("set.mm")?;
+//!
+//! // Variables follow Metamath naming conventions
+//! let wph = factory.create("ph", &SimpleType::Boolean)?;  // wff variable
+//! let vx = factory.create("x", &SimpleType::Setvar)?;     // setvar variable
+//! let cA = factory.create("A", &SimpleType::Class)?;      // class variable
+//! ```
+//!
+//! ## Usage Patterns
+//!
+//! ### Pattern 1: Creating Variables with Type Constraints
+//!
+//! ```rust
+//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType};
+//!
+//! let factory = MetaByteFactory();
+//!
+//! // Type-safe variable creation
+//! let phi = factory.create("P", &SimpleType::Boolean).unwrap();
+//! let x = factory.create_by_type_and_index(&SimpleType::Setvar, 0).unwrap();  // 'x'
+//! let A = factory.create_by_type_and_index(&SimpleType::Class, 0).unwrap();  // 'A'
+//! ```
+//!
+//! ### Pattern 2: Enumerating Variables by Type
+//!
+//! ```rust
+//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType};
+//!
+//! let factory = MetaByteFactory();
+//!
+//! // List all Boolean variables
+//! let boolean_vars: Vec<_> = factory
+//!     .list_metavariables_by_type(&SimpleType::Boolean)
+//!     .collect();
+//!
+//! // List all set variables
+//! let setvar_vars: Vec<_> = factory
+//!     .list_metavariables_by_type(&SimpleType::Setvar)
+//!     .collect();
+//! ```
+//!
+//! ### Pattern 3: Fresh Variable Generation
+//!
+//! During unification and proof search, we often need to generate fresh variables
+//! that don't conflict with existing ones:
+//!
+//! ```rust
+//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, Metavariable, SimpleType};
+//! use std::collections::HashSet;
+//!
+//! let factory = MetaByteFactory();
+//!
+//! // Collect used variables (Boolean uses uppercase P-Z)
+//! let mut used_vars = HashSet::new();
+//! used_vars.insert(factory.create("P", &SimpleType::Boolean).unwrap());
+//! used_vars.insert(factory.create("Q", &SimpleType::Boolean).unwrap());
+//!
+//! // Find a fresh variable (simplified example)
+//! let fresh = factory.create("R", &SimpleType::Boolean).unwrap();
+//! assert!(!used_vars.contains(&fresh));
+//! ```
+//!
+//! ## Design Principles
+//!
+//! 1. **Factories define HOW** - Variable naming, enumeration, type assignment
+//! 2. **Traits define WHAT** - Variable behavior ([`Metavariable::get_type()`], etc.)
+//! 3. **Type safety** - Variables carry type constraints (Boolean, Setvar, Class)
+//! 4. **Independence** - Separate from [`NodeFactory`] and [`TermFactory`] for clean design
+//! 5. **Flexibility** - Support different naming conventions and backends transparently
+//!
+//! [`Metavariable`]: crate::Metavariable
+//! [`Metavariable::get_type()`]: crate::Metavariable::get_type
+//! [`NodeFactory`]: crate::NodeFactory
+//! [`TermFactory`]: crate::TermFactory
 
 use crate::{Metavariable, MguError, Type};
 use std::fmt::Debug;

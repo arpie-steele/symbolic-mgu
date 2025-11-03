@@ -48,6 +48,7 @@
     rustdoc::missing_doc_code_examples
 )]
 #![deny(invalid_doc_attributes)]
+#![allow(rustdoc::private_doc_tests)]
 
 pub mod bool_eval;
 // pub mod color;

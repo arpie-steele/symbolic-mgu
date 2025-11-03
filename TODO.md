@@ -1,12 +1,12 @@
 # symbolic-mgu TODO List
 
-## 📊 Overall Progress: 98% Complete
+## 📊 Overall Progress: 99% Complete
 
 **Summary of v010 branch status:**
 
 | Phase | Status | Completion | Notes |
 |-------|--------|------------|-------|
-| Phase 0: Factory Pattern | ⚠️ Partial | 50% | Working, needs documentation |
+| Phase 0: Factory Pattern | ✅ Complete | 100% | Comprehensive documentation added |
 | Phase 1: UnsignedBits | ✅ Complete | 100% | All types implemented and tested |
 | Phase 2: BooleanSimpleOp | ✅ Complete | 100% | Fully implemented, exported, tested |
 | Phase 3: Term Abstraction | ✅ Complete | 100% | Generic Term trait support |
@@ -50,16 +50,17 @@ The `bool_eval` module is feature-complete and tested:
 
 ---
 
-## Phase 0: Document Factory Pattern Use - ⚠️ 50% Complete
+## Phase 0: Document Factory Pattern Use - ✅ 100% Complete
 
-**Status**: Implementation complete, documentation missing
+**Status**: Implementation and documentation complete
 
 **What's been implemented:**
-- ✅ `NodeFactory` trait in `src/node/factory.rs`
-- ✅ `MetavariableFactory` trait in `src/metavariable/factory.rs`
-- ✅ `TermFactory` trait in `src/term/factory.rs`
-- ✅ `NodeByteFactory` concrete implementation (174 lines, stateless with PhantomData)
-- ✅ Factory methods demonstrated in metavariable/meta_byte.rs
+- ✅ `NodeFactory` trait in `src/node/factory.rs` with comprehensive documentation
+- ✅ `MetavariableFactory` trait in `src/metavariable/factory.rs` with comprehensive documentation
+- ✅ `TermFactory` trait in `src/term/factory.rs` with comprehensive documentation
+- ✅ `NodeByteFactory` concrete implementation (stateless example)
+- ✅ `MetaByteFactory` concrete implementation (stateless example)
+- ✅ `EnumTermFactory` concrete implementation (stateless example)
 
 **Type System Examples**:
 
@@ -88,15 +89,24 @@ The `bool_eval` module is feature-complete and tested:
    - Lattice theory: custom type hierarchies
    - Can ignore Boolean/Setvar/Class if not needed
 
+**Documentation added (v0.1.0-alpha.9):**
+- ✅ NodeFactory module-level docs: 180 lines of rationale, examples, and patterns
+- ✅ MetavariableFactory module-level docs: 190 lines covering variable management
+- ✅ TermFactory module-level docs: 290 lines on term construction and caching
+- ✅ All examples tested as doctests (35 doctests passing)
+- ✅ Stateful vs stateless factory patterns explained with examples
+- ✅ Different backend examples (testing, production, database) documented
+- ✅ Usage patterns for all three factory types
+
 ---
 
-### Action Items
+### Action Items - All Complete
 
-#### Documentation (0% Complete)
-- [ ] Document factory pattern rationale in module-level docs
-- [ ] Provide examples of stateful vs. stateless factory implementations
-- [ ] Document how factories enable different construction strategies
-- [ ] Add examples showing factory usage for different backends (testing, production, database)
+#### Documentation (100% Complete)
+- [x] Document factory pattern rationale in module-level docs
+- [x] Provide examples of stateful vs. stateless factory implementations
+- [x] Document how factories enable different construction strategies
+- [x] Add examples showing factory usage for different backends (testing, production, database)
 
 #### Design Considerations for Later (Not Blocking)
 - [ ] Consider `StatementFactory` trait (Statements are serialized for long-term storage)
