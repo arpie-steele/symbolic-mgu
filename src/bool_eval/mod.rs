@@ -711,7 +711,163 @@ where
             }
         }
         #[cfg(feature = "bigint")]
-        8..=20 => {
+        8 => {
+            let result = SomeBits::<8>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let all_true = SomeBits::<8>::from_bool(true);
+            let all_false = SomeBits::<8>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
+        }
+        #[cfg(feature = "bigint")]
+        9 => {
+            let result = SomeBits::<9>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let all_true = SomeBits::<9>::from_bool(true);
+            let all_false = SomeBits::<9>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
+        }
+        #[cfg(feature = "bigint")]
+        10 => {
+            let result = SomeBits::<10>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let all_true = SomeBits::<10>::from_bool(true);
+            let all_false = SomeBits::<10>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
+        }
+        #[cfg(feature = "bigint")]
+        11 => {
+            let result = SomeBits::<11>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let all_true = SomeBits::<11>::from_bool(true);
+            let all_false = SomeBits::<11>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
+        }
+        #[cfg(feature = "bigint")]
+        12 => {
+            let result = SomeBits::<12>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let all_true = SomeBits::<12>::from_bool(true);
+            let all_false = SomeBits::<12>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
+        }
+        #[cfg(feature = "bigint")]
+        13 => {
+            let result = SomeBits::<13>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let all_true = SomeBits::<13>::from_bool(true);
+            let all_false = SomeBits::<13>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
+        }
+        #[cfg(feature = "bigint")]
+        14 => {
+            let result = SomeBits::<14>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let all_true = SomeBits::<14>::from_bool(true);
+            let all_false = SomeBits::<14>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
+        }
+        #[cfg(feature = "bigint")]
+        15 => {
+            let result = SomeBits::<15>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let all_true = SomeBits::<15>::from_bool(true);
+            let all_false = SomeBits::<15>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
+        }
+        #[cfg(feature = "bigint")]
+        16 => {
+            let result = SomeBits::<16>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let all_true = SomeBits::<16>::from_bool(true);
+            let all_false = SomeBits::<16>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
+        }
+        #[cfg(feature = "bigint")]
+        17 => {
+            let result = SomeBits::<17>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let all_true = SomeBits::<17>::from_bool(true);
+            let all_false = SomeBits::<17>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
+        }
+        #[cfg(feature = "bigint")]
+        18 => {
+            let result = SomeBits::<18>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let all_true = SomeBits::<18>::from_bool(true);
+            let all_false = SomeBits::<18>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
+        }
+        #[cfg(feature = "bigint")]
+        19 => {
+            let result = SomeBits::<19>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let all_true = SomeBits::<19>::from_bool(true);
+            let all_false = SomeBits::<19>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
+        }
+        #[cfg(feature = "bigint")]
+        20 => {
             let result = SomeBits::<20>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
             let all_true = SomeBits::<20>::from_bool(true);
             let all_false = SomeBits::<20>::from_bool(false);
@@ -766,6 +922,76 @@ where
     <No as TryInto<NodeByte>>::Error: Into<MguError>,
 {
     test_term(term).map(|opt| opt == Some(true))
+}
+
+/// Test if a Boolean term is a contradiction.
+///
+/// This is a convenience wrapper around [`test_term`] that returns `true` if the term
+/// is a contradiction (false for all variable assignments) and `false` otherwise.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The term contains non-Boolean variables
+/// - The term contains more than 20 variables
+/// - Evaluation fails
+///
+/// # Examples
+///
+/// ```ignore
+/// use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, test_contradiction};
+///
+/// // Test a simple contradiction: p ∧ ¬p
+/// let p = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
+/// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
+/// let law = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p, not_p]);
+///
+/// assert!(test_contradiction(&law)?);  // true - it's never true
+/// ```
+pub fn test_contradiction<T, Ty, V, No>(term: &T) -> Result<bool, MguError>
+where
+    T: Term<Ty, V, No>,
+    Ty: Type,
+    V: Metavariable<Type = Ty>,
+    No: Node<Type = Ty> + TryInto<NodeByte>,
+    <No as TryInto<NodeByte>>::Error: Into<MguError>,
+{
+    test_term(term).map(|opt| opt == Some(true))
+}
+
+/// Test if a Boolean term remains contingent on the content of its variables.
+///
+/// This is a convenience wrapper around [`test_term`] that returns `true` if the term
+/// is contingent (true for only some variable assignments) and `false` otherwise.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The term contains non-Boolean variables
+/// - The term contains more than 20 variables
+/// - Evaluation fails
+///
+/// # Examples
+///
+/// ```ignore
+/// use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, test_contingent};
+///
+/// // Test term which is neither always true nor always false: p → ¬p
+/// let p = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
+/// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
+/// let law = EnumTerm::NodeOrLeaf(NodeByte::Implies, vec![p, not_p]);
+///
+/// assert!(test_contingent(&law)?);  // true - it's true only some of the time
+/// ```
+pub fn test_contingent<T, Ty, V, No>(term: &T) -> Result<bool, MguError>
+where
+    T: Term<Ty, V, No>,
+    Ty: Type,
+    V: Metavariable<Type = Ty>,
+    No: Node<Type = Ty> + TryInto<NodeByte>,
+    <No as TryInto<NodeByte>>::Error: Into<MguError>,
+{
+    test_term(term).map(|opt| opt.is_none())
 }
 
 /// Isolate the differences between various unsigned representations.
