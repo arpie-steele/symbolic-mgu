@@ -4,7 +4,10 @@
 //! using the propositional calculus with Implies (→), Not (¬), and
 //! Biimplication (↔).
 
-use crate::{DistinctnessGraph, EnumTerm, Metavariable, MetavariableFactory, MguError, Node, Statement, SimpleType, TypeCore};
+use crate::{
+    DistinctnessGraph, Metavariable, MetavariableFactory, MguError, Node, Statement, Term,
+    TermFactory, Type, TypeCore,
+};
 use itertools::Itertools;
 use std::collections::HashMap;
 
@@ -17,6 +20,26 @@ pub const MP_MINOR_PREMISE: usize = 0;
 ///
 /// Modus Ponens has hypotheses `[φ, (φ → ψ)]`, so the major premise (φ → ψ) is at index 1.
 pub const MP_MAJOR_PREMISE: usize = 1;
+
+/// Gating function.
+///
+/// # Errors
+/// - if the variable isn't of type Boolean
+/// - if the variable's type doesn't support Booleans.
+pub fn require_var_is_boolean<V: Metavariable>(some_var: &V) -> Result<(), MguError> {
+    let some_type = some_var.get_type()?;
+    if !some_type.is_boolean() {
+        let wanted = <V::Type>::try_boolean().ok();
+        if let Some(bool_type) = wanted {
+            return Err(MguError::from_found_and_expected_types(
+                false, &some_type, &bool_type,
+            ));
+        } else {
+            return Err(MguError::from_error_code(0x8001_usize)); // Type does not support Boolean
+        }
+    }
+    Ok(())
+}
 
 /// Build the Modus Ponens inference rule.
 ///
@@ -34,7 +57,10 @@ pub const MP_MAJOR_PREMISE: usize = 1;
 ///
 /// ```
 /// use symbolic_mgu::logic::modus_ponens;
-/// use symbolic_mgu::{MetaByte, Metavariable, NodeByte, SimpleType};
+/// use symbolic_mgu::{EnumTermFactory, MetaByte, Metavariable, NodeByte, SimpleType};
+///
+/// // Create factory for building terms
+/// let factory = EnumTermFactory::new();
 ///
 /// // Get two boolean metavariables
 /// let mut vars = MetaByte::enumerate(SimpleType::Boolean);
@@ -42,7 +68,7 @@ pub const MP_MAJOR_PREMISE: usize = 1;
 /// let psi = vars.next().unwrap();
 ///
 /// // Create Modus Ponens: (ψ; φ, (φ → ψ); ∅)
-/// let mp = modus_ponens(phi, psi, NodeByte::Implies).unwrap();
+/// let mp = modus_ponens(&factory, phi, psi, NodeByte::Implies).unwrap();
 ///
 /// assert_eq!(mp.get_n_hypotheses(), 2);
 /// ```
@@ -50,36 +76,30 @@ pub const MP_MAJOR_PREMISE: usize = 1;
 /// # Errors
 ///
 /// Returns an error if term construction or statement validation fails.
-pub fn modus_ponens<V, N>(
+pub fn modus_ponens<Ty, V, N, T, TF>(
+    factory: &TF,
     phi_var: V,
     psi_var: V,
     implies_node: N,
-) -> Result<Statement<SimpleType, V, N, EnumTerm<SimpleType, V, N>>, MguError>
+) -> Result<Statement<Ty, V, N, T>, MguError>
 where
-    V: Metavariable<Type = SimpleType> + Default,
-    N: Node<Type = SimpleType>,
+    Ty: Type,
+    V: Metavariable<Type = Ty> + Default,
+    N: Node<Type = Ty>,
+    T: Term<Ty, V, N>,
+    TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
 {
-    // Get types of variables
-    let phi_type = phi_var.get_type()?;
-    let psi_type = psi_var.get_type()?;
-
-    // Verify both are Boolean
-    if !phi_type.is_boolean() {
-        return Err(MguError::from_found_and_expected_types(false, &phi_type, &SimpleType::Boolean));
-    }
-    if !psi_type.is_boolean() {
-        return Err(MguError::from_found_and_expected_types(false, &psi_type, &SimpleType::Boolean));
-    }
+    // Verify both variables are Boolean
+    require_var_is_boolean(&phi_var)?;
+    require_var_is_boolean(&psi_var)?;
 
     // Build terms for φ and ψ
-    let phi = EnumTerm::Leaf(phi_var.clone());
-    let psi = EnumTerm::Leaf(psi_var.clone());
+    let phi = factory.create_leaf(phi_var.clone())?;
+    let psi = factory.create_leaf(psi_var.clone())?;
 
     // Build (φ → ψ)
-    let phi_implies_psi = EnumTerm::NodeOrLeaf(
-        implies_node.clone(),
-        vec![phi.clone(), psi.clone()],
-    );
+    let phi_implies_psi =
+        factory.create_node(implies_node.clone(), vec![phi.clone(), psi.clone()])?;
 
     // Assertion: ψ
     let assertion = psi;
@@ -108,14 +128,17 @@ where
 ///
 /// ```
 /// use symbolic_mgu::logic::simp;
-/// use symbolic_mgu::{MetaByte, Metavariable, NodeByte, SimpleType};
+/// use symbolic_mgu::{EnumTermFactory, MetaByte, Metavariable, NodeByte, SimpleType};
+///
+/// // Create factory for building terms
+/// let factory = EnumTermFactory::new();
 ///
 /// let mut vars = MetaByte::enumerate(SimpleType::Boolean);
 /// let phi = vars.next().unwrap();
 /// let psi = vars.next().unwrap();
 ///
 /// // Create Simp axiom: ((φ → (ψ → φ)); ∅; ∅)
-/// let axiom = simp(phi, psi, NodeByte::Implies).unwrap();
+/// let axiom = simp(&factory, phi, psi, NodeByte::Implies).unwrap();
 ///
 /// assert_eq!(axiom.get_n_hypotheses(), 0); // It's an axiom
 /// ```
@@ -123,42 +146,32 @@ where
 /// # Errors
 ///
 /// Returns an error if term construction or statement validation fails.
-pub fn simp<V, N>(
+pub fn simp<Ty, V, N, T, TF>(
+    factory: &TF,
     phi_var: V,
     psi_var: V,
     implies_node: N,
-) -> Result<Statement<SimpleType, V, N, EnumTerm<SimpleType, V, N>>, MguError>
+) -> Result<Statement<Ty, V, N, T>, MguError>
 where
-    V: Metavariable<Type = SimpleType> + Default,
-    N: Node<Type = SimpleType>,
+    Ty: Type,
+    V: Metavariable<Type = Ty> + Default,
+    N: Node<Type = Ty>,
+    T: Term<Ty, V, N>,
+    TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
 {
-    // Get types of variables
-    let phi_type = phi_var.get_type()?;
-    let psi_type = psi_var.get_type()?;
-
-    // Verify both are Boolean
-    if !phi_type.is_boolean() {
-        return Err(MguError::from_found_and_expected_types(false, &phi_type, &SimpleType::Boolean));
-    }
-    if !psi_type.is_boolean() {
-        return Err(MguError::from_found_and_expected_types(false, &psi_type, &SimpleType::Boolean));
-    }
+    // Verify both variables are Boolean
+    require_var_is_boolean(&phi_var)?;
+    require_var_is_boolean(&psi_var)?;
 
     // Build terms for φ and ψ
-    let phi = EnumTerm::Leaf(phi_var);
-    let psi = EnumTerm::Leaf(psi_var);
+    let phi = factory.create_leaf(phi_var)?;
+    let psi = factory.create_leaf(psi_var)?;
 
     // Build (ψ → φ)
-    let psi_implies_phi = EnumTerm::NodeOrLeaf(
-        implies_node.clone(),
-        vec![psi, phi.clone()],
-    );
+    let psi_implies_phi = factory.create_node(implies_node.clone(), vec![psi, phi.clone()])?;
 
     // Build (φ → (ψ → φ))
-    let assertion = EnumTerm::NodeOrLeaf(
-        implies_node,
-        vec![phi, psi_implies_phi],
-    );
+    let assertion = factory.create_node(implies_node, vec![phi, psi_implies_phi])?;
 
     Statement::simple_axiom(assertion)
 }
@@ -178,7 +191,10 @@ where
 ///
 /// ```
 /// use symbolic_mgu::logic::frege;
-/// use symbolic_mgu::{MetaByte, Metavariable, NodeByte, SimpleType};
+/// use symbolic_mgu::{EnumTermFactory, MetaByte, Metavariable, NodeByte, SimpleType};
+///
+/// // Create factory for building terms
+/// let factory = EnumTermFactory::new();
 ///
 /// let mut vars = MetaByte::enumerate(SimpleType::Boolean);
 /// let phi = vars.next().unwrap();
@@ -186,7 +202,7 @@ where
 /// let chi = vars.next().unwrap();
 ///
 /// // Create Frege axiom (distributivity)
-/// let axiom = frege(phi, psi, chi, NodeByte::Implies).unwrap();
+/// let axiom = frege(&factory, phi, psi, chi, NodeByte::Implies).unwrap();
 ///
 /// assert_eq!(axiom.get_n_hypotheses(), 0);
 /// ```
@@ -194,72 +210,52 @@ where
 /// # Errors
 ///
 /// Returns an error if term construction or statement validation fails.
-pub fn frege<V, N>(
+pub fn frege<Ty, V, N, T, TF>(
+    factory: &TF,
     phi_var: V,
     psi_var: V,
     chi_var: V,
     implies_node: N,
-) -> Result<Statement<SimpleType, V, N, EnumTerm<SimpleType, V, N>>, MguError>
+) -> Result<Statement<Ty, V, N, T>, MguError>
 where
-    V: Metavariable<Type = SimpleType> + Default,
-    N: Node<Type = SimpleType>,
+    Ty: Type,
+    V: Metavariable<Type = Ty> + Default,
+    N: Node<Type = Ty>,
+    T: Term<Ty, V, N>,
+    TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
 {
-    // Get types of variables
-    let phi_type = phi_var.get_type()?;
-    let psi_type = psi_var.get_type()?;
-    let chi_type = chi_var.get_type()?;
-
-    // Verify all are Boolean
-    if !phi_type.is_boolean() {
-        return Err(MguError::from_found_and_expected_types(false, &phi_type, &SimpleType::Boolean));
-    }
-    if !psi_type.is_boolean() {
-        return Err(MguError::from_found_and_expected_types(false, &psi_type, &SimpleType::Boolean));
-    }
-    if !chi_type.is_boolean() {
-        return Err(MguError::from_found_and_expected_types(false, &chi_type, &SimpleType::Boolean));
-    }
+    // Verify all variables are Boolean
+    require_var_is_boolean(&phi_var)?;
+    require_var_is_boolean(&psi_var)?;
+    require_var_is_boolean(&chi_var)?;
 
     // Build terms for φ, ψ, χ
-    let phi = EnumTerm::Leaf(phi_var);
-    let psi = EnumTerm::Leaf(psi_var);
-    let chi = EnumTerm::Leaf(chi_var);
+    let phi = factory.create_leaf(phi_var)?;
+    let psi = factory.create_leaf(psi_var)?;
+    let chi = factory.create_leaf(chi_var)?;
 
     // Build (ψ → χ)
-    let psi_implies_chi = EnumTerm::NodeOrLeaf(
-        implies_node.clone(),
-        vec![psi.clone(), chi.clone()],
-    );
+    let psi_implies_chi =
+        factory.create_node(implies_node.clone(), vec![psi.clone(), chi.clone()])?;
 
     // Build (φ → (ψ → χ))
-    let phi_implies_psi_implies_chi = EnumTerm::NodeOrLeaf(
-        implies_node.clone(),
-        vec![phi.clone(), psi_implies_chi],
-    );
+    let phi_implies_psi_implies_chi =
+        factory.create_node(implies_node.clone(), vec![phi.clone(), psi_implies_chi])?;
 
     // Build (φ → ψ)
-    let phi_implies_psi = EnumTerm::NodeOrLeaf(
-        implies_node.clone(),
-        vec![phi.clone(), psi],
-    );
+    let phi_implies_psi = factory.create_node(implies_node.clone(), vec![phi.clone(), psi])?;
 
     // Build (φ → χ)
-    let phi_implies_chi = EnumTerm::NodeOrLeaf(
-        implies_node.clone(),
-        vec![phi.clone(), chi.clone()],
-    );
+    let phi_implies_chi =
+        factory.create_node(implies_node.clone(), vec![phi.clone(), chi.clone()])?;
 
     // Build ((φ → ψ) → (φ → χ))
-    let right_side = EnumTerm::NodeOrLeaf(
-        implies_node.clone(),
-        vec![phi_implies_psi, phi_implies_chi],
-    );
+    let right_side =
+        factory.create_node(implies_node.clone(), vec![phi_implies_psi, phi_implies_chi])?;
 
     // Build ((φ → (ψ → χ)) → ((φ → ψ) → (φ → χ)))
-    let assertion = EnumTerm::NodeOrLeaf(
-        implies_node,
-        vec![phi_implies_psi_implies_chi, right_side],
-    );
+    let assertion =
+        factory.create_node(implies_node, vec![phi_implies_psi_implies_chi, right_side])?;
 
     Statement::simple_axiom(assertion)
 }
@@ -279,14 +275,17 @@ where
 ///
 /// ```
 /// use symbolic_mgu::logic::transp;
-/// use symbolic_mgu::{MetaByte, Metavariable, NodeByte, SimpleType};
+/// use symbolic_mgu::{EnumTermFactory, MetaByte, Metavariable, NodeByte, SimpleType};
+///
+/// // Create factory for building terms
+/// let factory = EnumTermFactory::new();
 ///
 /// let mut vars = MetaByte::enumerate(SimpleType::Boolean);
 /// let phi = vars.next().unwrap();
 /// let psi = vars.next().unwrap();
 ///
 /// // Create Transp axiom (contrapositive)
-/// let axiom = transp(phi, psi, NodeByte::Not, NodeByte::Implies).unwrap();
+/// let axiom = transp(&factory, phi, psi, NodeByte::Not, NodeByte::Implies).unwrap();
 ///
 /// assert_eq!(axiom.get_n_hypotheses(), 0);
 /// ```
@@ -294,65 +293,54 @@ where
 /// # Errors
 ///
 /// Returns an error if term construction or statement validation fails.
-pub fn transp<V, N>(
+pub fn transp<Ty, V, N, T, TF>(
+    factory: &TF,
     phi_var: V,
     psi_var: V,
     not_node: N,
     implies_node: N,
-) -> Result<Statement<SimpleType, V, N, EnumTerm<SimpleType, V, N>>, MguError>
+) -> Result<Statement<Ty, V, N, T>, MguError>
 where
-    V: Metavariable<Type = SimpleType> + Default,
-    N: Node<Type = SimpleType>,
+    Ty: Type,
+    V: Metavariable<Type = Ty> + Default,
+    N: Node<Type = Ty>,
+    T: Term<Ty, V, N>,
+    TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
 {
-    // Get types of variables
-    let phi_type = phi_var.get_type()?;
-    let psi_type = psi_var.get_type()?;
-
-    // Verify both are Boolean
-    if !phi_type.is_boolean() {
-        return Err(MguError::from_found_and_expected_types(false, &phi_type, &SimpleType::Boolean));
-    }
-    if !psi_type.is_boolean() {
-        return Err(MguError::from_found_and_expected_types(false, &psi_type, &SimpleType::Boolean));
-    }
+    // Verify both variables are Boolean
+    require_var_is_boolean(&phi_var)?;
+    require_var_is_boolean(&psi_var)?;
 
     // Build terms for φ and ψ
-    let phi = EnumTerm::Leaf(phi_var);
-    let psi = EnumTerm::Leaf(psi_var);
+    let phi = factory.create_leaf(phi_var)?;
+    let psi = factory.create_leaf(psi_var)?;
 
     // Build ¬φ
-    let not_phi = EnumTerm::NodeOrLeaf(not_node.clone(), vec![phi.clone()]);
+    let not_phi = factory.create_node(not_node.clone(), vec![phi.clone()])?;
 
     // Build ¬ψ
-    let not_psi = EnumTerm::NodeOrLeaf(not_node, vec![psi.clone()]);
+    let not_psi = factory.create_node(not_node, vec![psi.clone()])?;
 
     // Build (¬φ → ¬ψ)
-    let not_phi_implies_not_psi = EnumTerm::NodeOrLeaf(
-        implies_node.clone(),
-        vec![not_phi, not_psi],
-    );
+    let not_phi_implies_not_psi =
+        factory.create_node(implies_node.clone(), vec![not_phi, not_psi])?;
 
     // Build (ψ → φ)
-    let psi_implies_phi = EnumTerm::NodeOrLeaf(
-        implies_node.clone(),
-        vec![psi, phi],
-    );
+    let psi_implies_phi = factory.create_node(implies_node.clone(), vec![psi, phi])?;
 
     // Build ((¬φ → ¬ψ) → (ψ → φ))
-    let assertion = EnumTerm::NodeOrLeaf(
-        implies_node,
-        vec![not_phi_implies_not_psi, psi_implies_phi],
-    );
+    let assertion =
+        factory.create_node(implies_node, vec![not_phi_implies_not_psi, psi_implies_phi])?;
 
     Statement::simple_axiom(assertion)
 }
 
 /// Type alias for statement dictionaries used in compact proof parsing.
-pub type Dictionary<V, N> = HashMap<String, Statement<SimpleType, V, N, EnumTerm<SimpleType, V, N>>>;
+pub type Dictionary<Ty, V, N, T> = HashMap<String, Statement<Ty, V, N, T>>;
 
 /// Build standard statement dictionary for compact proofs.
 ///
-/// Returns a HashMap mapping:
+/// Returns a `HashMap` mapping:
 /// - `"D"` → Modus Ponens (detachment)
 /// - `"1"` → Simp axiom
 /// - `"2"` → Frege axiom
@@ -366,57 +354,78 @@ pub type Dictionary<V, N> = HashMap<String, Statement<SimpleType, V, N, EnumTerm
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```
 /// use symbolic_mgu::logic::create_dict;
-/// use symbolic_mgu::{NodeByte, Metavariable, MetavariableFactory, SimpleType};
-/// # fn example<MF>(factory: &MF)
-/// # where
-/// #     MF: MetavariableFactory<MetavariableType = SimpleType>,
-/// #     MF::Metavariable: Metavariable<Type = SimpleType> + Default,
-/// # {
+/// use symbolic_mgu::{EnumTermFactory, MetaByteFactory, NodeByte, SimpleType};
 ///
-/// let dict = create_dict(factory, NodeByte::Implies, NodeByte::Not).unwrap();
+/// // Create factories
+/// let term_factory = EnumTermFactory::new();
+/// let metavar_factory = MetaByteFactory();
+///
+/// let dict = create_dict(&term_factory, &metavar_factory, NodeByte::Implies, NodeByte::Not).unwrap();
 ///
 /// assert!(dict.contains_key("D"));  // Modus Ponens
 /// assert!(dict.contains_key("1"));  // Simp
 /// assert!(dict.contains_key("2"));  // Frege
 /// assert!(dict.contains_key("3"));  // Transp
-/// # }
 /// ```
 ///
 /// # Errors
 ///
 /// Returns an error if statement construction fails or if there are insufficient
 /// metavariables of Boolean type available.
-pub fn create_dict<MF, N>(
+pub fn create_dict<TF, MF, Ty, V, N, T>(
+    term_factory: &TF,
     metavar_factory: &MF,
     implies_node: N,
     not_node: N,
-) -> Result<Dictionary<MF::Metavariable, N>, MguError>
+) -> Result<Dictionary<Ty, V, N, T>, MguError>
 where
-    MF: MetavariableFactory<MetavariableType = SimpleType>,
-    MF::Metavariable: Metavariable<Type = SimpleType> + Default,
-    N: Node<Type = SimpleType>,
+    TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermNode = N, TermMetavariable = V>,
+    MF: MetavariableFactory<MetavariableType = Ty, Metavariable = V>,
+    V: Metavariable<Type = Ty> + Default,
+    N: Node<Type = Ty>,
+    T: Term<Ty, V, N>,
+    Ty: Type,
 {
     // Get three Boolean metavariables using factory
-    let mut booleans = metavar_factory.list_metavariables_by_type(&SimpleType::Boolean);
+    let our_bool = Ty::try_boolean()?;
+    let mut booleans = metavar_factory.list_metavariables_by_type(&our_bool);
     let (phi, psi, chi) = booleans
         .next_tuple()
-        .ok_or_else(|| MguError::from_index_and_len(Some(SimpleType::Boolean), 2usize, 0usize))?;
+        .ok_or_else(|| MguError::from_index_and_len(Some(our_bool), 2usize, 0usize))?;
 
     let mut dict = HashMap::new();
 
     // D = Detachment, a.k.a. Modus Ponens
-    dict.insert("D".to_owned(), modus_ponens(phi.clone(), psi.clone(), implies_node.clone())?);
+    dict.insert(
+        "D".to_owned(),
+        modus_ponens(term_factory, phi.clone(), psi.clone(), implies_node.clone())?,
+    );
 
     // 1 = Simp
-    dict.insert("1".to_owned(), simp(phi.clone(), psi.clone(), implies_node.clone())?);
+    dict.insert(
+        "1".to_owned(),
+        simp(term_factory, phi.clone(), psi.clone(), implies_node.clone())?,
+    );
 
     // 2 = Frege
-    dict.insert("2".to_owned(), frege(phi.clone(), psi.clone(), chi, implies_node.clone())?);
+    dict.insert(
+        "2".to_owned(),
+        frege(
+            term_factory,
+            phi.clone(),
+            psi.clone(),
+            chi,
+            implies_node.clone(),
+        )?,
+    );
 
     // 3 = Transp
-    dict.insert("3".to_owned(), transp(phi, psi, not_node, implies_node)?);
+    dict.insert(
+        "3".to_owned(),
+        transp(term_factory, phi, psi, not_node, implies_node)?,
+    );
 
     Ok(dict)
 }

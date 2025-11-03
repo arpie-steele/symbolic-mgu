@@ -1,6 +1,7 @@
 //! Introduce an implementation of the [`Metavariable`] trait for [`MetaByte`].
 
 use crate::Metavariable;
+use crate::MetavariableFactory;
 use crate::MguError;
 use crate::SimpleType;
 
@@ -132,5 +133,59 @@ impl std::fmt::Display for MetaByte {
 impl From<u8> for MetaByte {
     fn from(value: u8) -> Self {
         MetaByte(value)
+    }
+}
+
+/// A very simple example of a factory for a very simple metavariable.
+#[derive(Debug)]
+pub struct MetaByteFactory();
+
+impl MetavariableFactory for MetaByteFactory {
+    type MetavariableType = <MetaByte as Metavariable>::Type;
+
+    type Metavariable = MetaByte;
+
+    type MetavariableIterator<'a> = std::vec::IntoIter<MetaByte>;
+
+    fn create_by_name(&self, name: &str) -> Result<Self::Metavariable, MguError> {
+        if name.is_ascii() && name.len() == 1 {
+            for data in [OUR_BOOLEANS, OUR_SETVARS, OUR_CLASSES] {
+                let found = OUR_BOOLEANS.find(name);
+                if let Some(index) = found {
+                    return Ok(MetaByte(data.as_bytes()[index]));
+                }
+            }
+        }
+        Err(MguError::UnknownMetavariable(
+            stringify!(MetaByte),
+            name.to_owned(),
+        ))
+    }
+
+    fn create_by_type_and_index(
+        &self,
+        the_type: &Self::MetavariableType,
+        index: usize,
+    ) -> Result<Self::Metavariable, MguError> {
+        MetaByte::try_from_type_and_index(*the_type, index)
+    }
+
+    #[allow(clippy::unnecessary_to_owned)]
+    fn list_metavariables_by_type(
+        &self,
+        the_type: &Self::MetavariableType,
+    ) -> Self::MetavariableIterator<'_> {
+        use SimpleType::*;
+        let data = match the_type {
+            Boolean => OUR_BOOLEANS,
+            Setvar => OUR_SETVARS,
+            Class => OUR_CLASSES,
+        };
+        data.as_bytes()
+            .to_vec()
+            .into_iter()
+            .map(MetaByte)
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 }

@@ -80,6 +80,7 @@ pub use error::err_type::MguErrorType;
 pub use metavariable::enums::AsciiMetaVar;
 pub use metavariable::factory::MetavariableFactory;
 pub use metavariable::meta_byte::MetaByte;
+pub use metavariable::meta_byte::MetaByteFactory;
 pub use metavariable::Metavariable;
 // pub use metavariable::wide::WideMetavariable;
 pub use mgutype::base::SimpleType;
@@ -103,13 +104,13 @@ pub use statement::Statement;
 pub use term::base::Term;
 pub use term::factory::TermFactory;
 pub use term::simple::EnumTerm;
+pub use term::simple::EnumTermFactory;
 pub use term::substitution::apply_substitution;
 pub use term::substitution::occurs_check;
 pub use term::substitution::unify;
 pub use term::substitution::NormalizingSubstitution;
 pub use term::substitution::Substitution;
 // pub use term::dbterm::DbTerm;
-// pub use term::enums::EnumTerm;
 // pub use term::veryfinite::TinyTerm;
 
 #[cfg(test)]
