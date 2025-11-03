@@ -59,8 +59,7 @@
 pub(crate) mod generated_enum;
 
 use crate::{
-    ub_prim_impl, BooleanSimpleOp, EnumTerm, Metavariable, MguError, Node, NodeByte, SimpleType,
-    Term, Type,
+    ub_prim_impl, BooleanSimpleOp, Metavariable, MguError, Node, NodeByte, SimpleType, Term, Type,
 };
 use std::collections::HashSet;
 use std::convert::TryInto;
@@ -543,6 +542,9 @@ pub fn is_supported_op(node: &NodeByte) -> bool {
 
 /// Test if a Boolean term is a tautology.
 ///
+/// This function works with any type implementing [`Term`], making it suitable for
+/// use with [`crate::EnumTerm`], database-backed terms, or custom term implementations.
+///
 /// Automatically selects the most efficient evaluation strategy based on the number
 /// of Boolean variables:
 /// - **0 variables**: Uses `bool` (1 bit)
@@ -563,15 +565,19 @@ pub fn is_supported_op(node: &NodeByte) -> bool {
 /// # Examples
 ///
 /// ```ignore
+/// use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, test_tautology};
+///
 /// // Test law of excluded middle: p ∨ ¬p
-/// let p = EnumTerm::build_metavariable(SimpleType::Boolean, 0)?;
-/// let not_p = EnumTerm::build_node(SimpleType::Boolean, NodeByte::Not, &[p.clone()])?;
-/// let law = EnumTerm::build_node(SimpleType::Boolean, NodeByte::Or, &[p, not_p])?;
+/// // Works with any Term implementation, here using EnumTerm:
+/// let p = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
+/// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
+/// let law = EnumTerm::NodeOrLeaf(NodeByte::Or, vec![p, not_p]);
 ///
 /// assert!(test_tautology(&law)?);  // Should be true
 /// ```
-pub fn test_tautology<Ty, V, No>(term: &EnumTerm<Ty, V, No>) -> Result<bool, MguError>
+pub fn test_tautology<T, Ty, V, No>(term: &T) -> Result<bool, MguError>
 where
+    T: Term<Ty, V, No>,
     Ty: Type,
     V: Metavariable<Type = Ty>,
     No: Node<Type = Ty> + TryInto<NodeByte>,
@@ -620,43 +626,43 @@ where
     match n {
         0 => {
             let result =
-                <bool as UnsignedBits<bool, 0>>::eval_boolean_term::<Ty, V, No, _>(term, &vars)?;
+                <bool as UnsignedBits<bool, 0>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
             let expected = <bool as UnsignedBits<bool, 0>>::from_bool(true);
             Ok(result == expected)
         }
         1..=3 => {
             let result =
-                <u8 as UnsignedBits<u8, 3>>::eval_boolean_term::<Ty, V, No, _>(term, &vars)?;
+                <u8 as UnsignedBits<u8, 3>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
             let expected = <u8 as UnsignedBits<u8, 3>>::from_bool(true);
             Ok(result == expected)
         }
         4 => {
             let result =
-                <u16 as UnsignedBits<u16, 4>>::eval_boolean_term::<Ty, V, No, _>(term, &vars)?;
+                <u16 as UnsignedBits<u16, 4>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
             let expected = <u16 as UnsignedBits<u16, 4>>::from_bool(true);
             Ok(result == expected)
         }
         5 => {
             let result =
-                <u32 as UnsignedBits<u32, 5>>::eval_boolean_term::<Ty, V, No, _>(term, &vars)?;
+                <u32 as UnsignedBits<u32, 5>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
             let expected = <u32 as UnsignedBits<u32, 5>>::from_bool(true);
             Ok(result == expected)
         }
         6 => {
             let result =
-                <u64 as UnsignedBits<u64, 6>>::eval_boolean_term::<Ty, V, No, _>(term, &vars)?;
+                <u64 as UnsignedBits<u64, 6>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
             let expected = <u64 as UnsignedBits<u64, 6>>::from_bool(true);
             Ok(result == expected)
         }
         7 => {
             let result =
-                <u128 as UnsignedBits<u128, 7>>::eval_boolean_term::<Ty, V, No, _>(term, &vars)?;
+                <u128 as UnsignedBits<u128, 7>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
             let expected = <u128 as UnsignedBits<u128, 7>>::from_bool(true);
             Ok(result == expected)
         }
         #[cfg(feature = "bigint")]
         8..=20 => {
-            let result = SomeBits::<20>::eval_boolean_term::<Ty, V, No, _>(term, &vars)?;
+            let result = SomeBits::<20>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
             let expected = SomeBits::<20>::from_bool(true);
             Ok(result == expected)
         }
@@ -835,93 +841,106 @@ where
         }
     }
 
-    /// Evaluate Boolean term in N variables.
+    /// Evaluate a Boolean term with N variables to a truth table representation.
+    ///
+    /// This method works with any type implementing [`Term`], recursively evaluating
+    /// the term using bit-wise operations to compute all possible truth values in parallel.
+    ///
+    /// # Parameters
+    ///
+    /// - `term`: The term to evaluate (any implementation of [`Term`])
+    /// - `vars`: Ordered list of variables appearing in the term
     ///
     /// # Errors
     ///
-    /// TODO.
-    fn eval_boolean_term<Ty, V, No, CvtErr>(
-        term: &EnumTerm<Ty, V, No>,
+    /// Returns an error if:
+    /// - A metavariable is not Boolean-typed
+    /// - A variable is not in the provided `vars` list
+    /// - The variable index exceeds the bit capacity (N)
+    /// - Node conversion fails
+    fn eval_boolean_term<T, Ty, V, No, CvtErr>(
+        term: &T,
         vars: &[V],
     ) -> Result<Self, MguError>
     where
+        T: Term<Ty, V, No>,
         Ty: Type,
         V: Metavariable<Type = Ty>,
         No: Node<Type = Ty> + TryInto<NodeByte, Error = CvtErr>,
         CvtErr: Into<MguError>,
     {
-        match term {
-            EnumTerm::Leaf(var) => {
-                let typ = var.get_type()?;
-                if !typ.is_boolean() {
-                    return Err(MguError::from_found_and_expected_types(
-                        false,
-                        &typ,
-                        &(Ty::try_boolean()?),
-                    ));
-                }
-                let index = vars
-                    .iter()
-                    .position(|v| *v == *var)
-                    .ok_or(MguError::UnknownError(702))?;
-                if index >= N {
-                    return Err(MguError::UnknownError(703));
-                }
-
-                if index >= 20 {
-                    // Reasonable limit?
-                    return Err(MguError::AllocationError(format!(
-                        "Variable index {index} exceeds maximum 19 for 2^20 bits"
-                    )));
-                }
-
-                let num_bits = 1u64 << (N as u32);
-                let period = 1_u64 << (index + 1);
-                if num_bits < period {
-                    return Err(MguError::AllocationError(format!(
-                        "num_bits ({num_bits}) must be at least 2^{} ({period}) for variable index {index}",
-                        index + 1
-                    )));
-                }
-
-                // Create alternating pattern: period = `2^(var_index+1)`, on for `2^var_index` bits
-                // Pattern repeats with period `2^(var_index+1)`, and is high for the second half of each period
-
-                let on_length = 1_u64 << index;
-
-                let mut result = Self::from_bool(false);
-                for bit_pos in 0..num_bits {
-                    // Check if this bit position is in the "on" part of its period
-                    let pos_in_period = bit_pos % period;
-                    if pos_in_period >= on_length {
-                        result.set_bit(bit_pos, true)?;
-                    }
-                }
-
-                Ok(result)
+        if term.is_metavariable() {
+            // Leaf case: extract the metavariable
+            let var = term.get_metavariable().ok_or(MguError::UnknownError(701))?;
+            let typ = var.get_type()?;
+            if !typ.is_boolean() {
+                return Err(MguError::from_found_and_expected_types(
+                    false,
+                    &typ,
+                    &(Ty::try_boolean()?),
+                ));
+            }
+            let index = vars
+                .iter()
+                .position(|v| *v == var)
+                .ok_or(MguError::UnknownError(702))?;
+            if index >= N {
+                return Err(MguError::UnknownError(703));
             }
 
-            EnumTerm::NodeOrLeaf(node, children) => {
-                let node_converted: NodeByte = (node.clone()).try_into().map_err(|e| e.into())?;
-                use NodeByte::*;
-                match node_converted {
-                    True | False | Not | Implies | Biimp | And | Or | NotAnd | ExclusiveOr
-                    | NotOr | And3 | Or3 | SumFromAdder | CarryFromAdder | LogicalIf => {
-                        let child_values = children
-                            .iter()
-                            .map(|t| Self::eval_boolean_term(t, vars))
-                            .collect::<Vec<_>>();
-                        if let Some(Err(err)) = child_values.iter().find(|x| (*x).is_err()) {
-                            return Err(err.clone());
-                        }
-                        let child_values = child_values
-                            .into_iter()
-                            .map(|x| x.unwrap())
-                            .collect::<Vec<_>>();
-                        Self::eval_boolean_node::<V>(&node_converted, &child_values)
-                    }
-                    _ => Err(MguError::UnknownError(700)),
+            if index >= 20 {
+                // Reasonable limit?
+                return Err(MguError::AllocationError(format!(
+                    "Variable index {index} exceeds maximum 19 for 2^20 bits"
+                )));
+            }
+
+            let num_bits = 1u64 << (N as u32);
+            let period = 1_u64 << (index + 1);
+            if num_bits < period {
+                return Err(MguError::AllocationError(format!(
+                    "num_bits ({num_bits}) must be at least 2^{} ({period}) for variable index {index}",
+                    index + 1
+                )));
+            }
+
+            // Create alternating pattern: period = `2^(var_index+1)`, on for `2^var_index` bits
+            // Pattern repeats with period `2^(var_index+1)`, and is high for the second half of each period
+
+            let on_length = 1_u64 << index;
+
+            let mut result = Self::from_bool(false);
+            for bit_pos in 0..num_bits {
+                // Check if this bit position is in the "on" part of its period
+                let pos_in_period = bit_pos % period;
+                if pos_in_period >= on_length {
+                    result.set_bit(bit_pos, true)?;
                 }
+            }
+
+            Ok(result)
+        } else {
+            // Node case: evaluate the node with its children
+            let node = term.get_node().ok_or(MguError::UnknownError(704))?;
+            let node_converted: NodeByte = node.try_into().map_err(|e| e.into())?;
+            use NodeByte::*;
+            match node_converted {
+                True | False | Not | Implies | Biimp | And | Or | NotAnd | ExclusiveOr
+                | NotOr | And3 | Or3 | SumFromAdder | CarryFromAdder | LogicalIf => {
+                    let child_values = term
+                        .get_children()
+                        .map(|t| Self::eval_boolean_term(t, vars))
+                        .collect::<Vec<_>>();
+                    if let Some(Err(err)) = child_values.iter().find(|x| (*x).is_err()) {
+                        return Err(err.clone());
+                    }
+                    let child_values = child_values
+                        .into_iter()
+                        .map(|x| x.unwrap())
+                        .collect::<Vec<_>>();
+                    Self::eval_boolean_node::<V>(&node_converted, &child_values)
+                }
+                _ => Err(MguError::UnknownError(700)),
             }
         }
     }
@@ -1093,9 +1112,9 @@ mod tests {
         // Test all 278 operations
         for variant in BooleanSimpleOp::VARIANTS {
             let arity = variant.get_arity();
-            let expected_code = variant.get_code3().into();
+            let expected_code: u8 = variant.get_code3();
 
-            let mut truth_table = 0;
+            let mut truth_table: u8 = 0;
             for c in [true, false] {
                 for b in [true, false] {
                     for a in [true, false] {
@@ -1334,7 +1353,7 @@ mod tests {
     /// Test law of excluded middle: p ∨ ¬p is a tautology.
     #[test]
     fn tautology_simple() {
-        use crate::{MetaByte, SimpleType};
+        use crate::{EnumTerm, MetaByte, SimpleType};
 
         // Create variable p
         let p_var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
@@ -1356,7 +1375,7 @@ mod tests {
     /// Test that p ∧ ¬p is not a tautology (it's a contradiction).
     #[test]
     fn tautology_not_tautology() {
-        use crate::{MetaByte, SimpleType};
+        use crate::{EnumTerm, MetaByte, SimpleType};
 
         // Create variable p
         let p_var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
@@ -1378,7 +1397,7 @@ mod tests {
     /// Test <span style="white-space: nowrap">De Morgan's</span> law: ¬(p ∧ q) ↔ (¬p ∨ ¬q) is a tautology.
     #[test]
     fn tautology_de_morgan() {
-        use crate::{MetaByte, SimpleType};
+        use crate::{EnumTerm, MetaByte, SimpleType};
 
         // Create variables p and q
         let p_var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
