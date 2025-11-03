@@ -5,6 +5,29 @@
 //! tautology testing and truth table evaluation using bit-wise
 //! operations on primitive unsigned integers and `BigUint`.
 //!
+//! # Primary Use Case: Tautology Testing
+//!
+//! The main purpose of this module is to verify that logical formulas
+//! are tautologies (true for all possible variable assignments). This
+//! is critical for:
+//!
+//! - **Condensed detachment**: Verifying axioms and derived theorems
+//! - **Theorem proving**: Checking that proof steps are logically valid
+//! - **Truth table generation**: Computing truth values for all input combinations
+//!
+//! The module automatically selects the most efficient evaluation strategy
+//! based on the number of Boolean variables in the formula:
+//!
+//! | Variables | Type Used | Truth Table Size | Memory |
+//! |-----------|-----------|------------------|--------|
+//! | 0         | `bool`    | 1 row            | 1 bit  |
+//! | 1-3       | `u8`      | 2-8 rows         | 8 bits |
+//! | 4         | `u16`     | 16 rows          | 16 bits |
+//! | 5         | `u32`     | 32 rows          | 32 bits |
+//! | 6         | `u64`     | 64 rows          | 64 bits |
+//! | 7         | `u128`    | 128 rows         | 128 bits |
+//! | 8-20      | `BigUint` | 256-1,048,576 rows | Variable |
+//!
 //! # Future Enhancements
 //!
 //! The evaluator could be enhanced with structural short-circuit
@@ -37,8 +60,9 @@ pub(crate) mod generated_enum;
 
 use crate::{
     ub_prim_impl, BooleanSimpleOp, EnumTerm, Metavariable, MguError, Node, NodeByte, SimpleType,
-    Type,
+    Term, Type,
 };
+use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fmt::{Debug as DebugTrait, Display};
 use std::marker::PhantomData;
@@ -515,6 +539,135 @@ pub fn is_supported_op(node: &NodeByte) -> bool {
             | CarryFromAdder // aka `Majority3`
             | LogicalIf
     )
+}
+
+/// Test if a Boolean term is a tautology.
+///
+/// Automatically selects the most efficient evaluation strategy based on the number
+/// of Boolean variables:
+/// - **0 variables**: Uses `bool` (1 bit)
+/// - **1-3 variables**: Uses `u8` (8 bits)
+/// - **4 variables**: Uses `u16` (16 bits)
+/// - **5 variables**: Uses `u32` (32 bits)
+/// - **6 variables**: Uses `u64` (64 bits)
+/// - **7 variables**: Uses `u128` (128 bits)
+/// - **8-20 variables**: Uses `BigUint` (requires `bigint` feature)
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The term contains non-Boolean variables
+/// - The term contains more than 20 variables
+/// - Evaluation fails
+///
+/// # Examples
+///
+/// ```ignore
+/// // Test law of excluded middle: p ∨ ¬p
+/// let p = EnumTerm::build_metavariable(SimpleType::Boolean, 0)?;
+/// let not_p = EnumTerm::build_node(SimpleType::Boolean, NodeByte::Not, &[p.clone()])?;
+/// let law = EnumTerm::build_node(SimpleType::Boolean, NodeByte::Or, &[p, not_p])?;
+///
+/// assert!(test_tautology(&law)?);  // Should be true
+/// ```
+pub fn test_tautology<Ty, V, No>(term: &EnumTerm<Ty, V, No>) -> Result<bool, MguError>
+where
+    Ty: Type,
+    V: Metavariable<Type = Ty>,
+    No: Node<Type = Ty> + TryInto<NodeByte>,
+    <No as TryInto<NodeByte>>::Error: Into<MguError>,
+{
+    // Collect all metavariables
+    let mut vars_set: HashSet<V> = HashSet::new();
+    term.collect_metavariables(&mut vars_set)?;
+    let vars: Vec<V> = vars_set.into_iter().collect();
+    let n = vars.len();
+
+    // Check all variables are Boolean
+    let all_bools = {
+        let mut all_bool = true;
+        for var in &vars {
+            if var.get_type()? != Ty::try_boolean()? {
+                all_bool = false;
+                break;
+            }
+        }
+        all_bool
+    };
+
+    if !all_bools {
+        // Find the first non-Boolean variable to report in error
+        let non_bool_type = {
+            let mut found_type = Ty::try_boolean()?;
+            for var in &vars {
+                let var_type = var.get_type()?;
+                if var_type != Ty::try_boolean()? {
+                    found_type = var_type;
+                    break;
+                }
+            }
+            found_type
+        };
+        let expected_type = Ty::try_boolean()?;
+        return Err(MguError::from_found_and_expected_types(
+            false,
+            &non_bool_type,
+            &expected_type,
+        ));
+    }
+
+    // Select evaluation strategy based on variable count
+    match n {
+        0 => {
+            let result =
+                <bool as UnsignedBits<bool, 0>>::eval_boolean_term::<Ty, V, No, _>(term, &vars)?;
+            let expected = <bool as UnsignedBits<bool, 0>>::from_bool(true);
+            Ok(result == expected)
+        }
+        1..=3 => {
+            let result =
+                <u8 as UnsignedBits<u8, 3>>::eval_boolean_term::<Ty, V, No, _>(term, &vars)?;
+            let expected = <u8 as UnsignedBits<u8, 3>>::from_bool(true);
+            Ok(result == expected)
+        }
+        4 => {
+            let result =
+                <u16 as UnsignedBits<u16, 4>>::eval_boolean_term::<Ty, V, No, _>(term, &vars)?;
+            let expected = <u16 as UnsignedBits<u16, 4>>::from_bool(true);
+            Ok(result == expected)
+        }
+        5 => {
+            let result =
+                <u32 as UnsignedBits<u32, 5>>::eval_boolean_term::<Ty, V, No, _>(term, &vars)?;
+            let expected = <u32 as UnsignedBits<u32, 5>>::from_bool(true);
+            Ok(result == expected)
+        }
+        6 => {
+            let result =
+                <u64 as UnsignedBits<u64, 6>>::eval_boolean_term::<Ty, V, No, _>(term, &vars)?;
+            let expected = <u64 as UnsignedBits<u64, 6>>::from_bool(true);
+            Ok(result == expected)
+        }
+        7 => {
+            let result =
+                <u128 as UnsignedBits<u128, 7>>::eval_boolean_term::<Ty, V, No, _>(term, &vars)?;
+            let expected = <u128 as UnsignedBits<u128, 7>>::from_bool(true);
+            Ok(result == expected)
+        }
+        #[cfg(feature = "bigint")]
+        8..=20 => {
+            let result = SomeBits::<20>::eval_boolean_term::<Ty, V, No, _>(term, &vars)?;
+            let expected = SomeBits::<20>::from_bool(true);
+            Ok(result == expected)
+        }
+        #[cfg(not(feature = "bigint"))]
+        8..=20 => Err(MguError::AllocationError(
+            "Support for 8-20 variables requires the 'bigint' feature".to_owned(),
+        )),
+        _ => Err(MguError::AllocationError(
+            "Too many variables to represent (maximum is 20)".to_owned(),
+        )),
+    }
 }
 
 /// Isolate the differences between various unsigned representations.
@@ -1175,6 +1328,84 @@ mod tests {
                 .eval3::<u8, u8, 3>(&a, &b, &c)
                 .unwrap(),
             majority
+        );
+    }
+
+    /// Test law of excluded middle: p ∨ ¬p is a tautology.
+    #[test]
+    fn tautology_simple() {
+        use crate::{MetaByte, SimpleType};
+
+        // Create variable p
+        let p_var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let p_term = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
+
+        // Create ¬p
+        let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p_term.clone()]);
+
+        // Create p ∨ ¬p
+        let law_of_excluded_middle = EnumTerm::NodeOrLeaf(NodeByte::Or, vec![p_term, not_p]);
+
+        // Should be a tautology
+        assert!(
+            test_tautology(&law_of_excluded_middle).unwrap(),
+            "Law of excluded middle (p ∨ ¬p) should be a tautology"
+        );
+    }
+
+    /// Test that p ∧ ¬p is not a tautology (it's a contradiction).
+    #[test]
+    fn tautology_not_tautology() {
+        use crate::{MetaByte, SimpleType};
+
+        // Create variable p
+        let p_var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let p_term = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
+
+        // Create ¬p
+        let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p_term.clone()]);
+
+        // Create p ∧ ¬p
+        let contradiction = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p_term, not_p]);
+
+        // Should NOT be a tautology (it's a contradiction)
+        assert!(
+            !test_tautology(&contradiction).unwrap(),
+            "Contradiction (p ∧ ¬p) should not be a tautology"
+        );
+    }
+
+    /// Test <span style="white-space: nowrap">De Morgan's</span> law: ¬(p ∧ q) ↔ (¬p ∨ ¬q) is a tautology.
+    #[test]
+    fn tautology_de_morgan() {
+        use crate::{MetaByte, SimpleType};
+
+        // Create variables p and q
+        let p_var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let q_var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 1).unwrap();
+        let p = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
+        let q = EnumTerm::Leaf(q_var);
+
+        // Create p ∧ q
+        let p_and_q = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p.clone(), q.clone()]);
+
+        // Create ¬(p ∧ q)
+        let not_p_and_q = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p_and_q]);
+
+        // Create ¬p and ¬q
+        let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p]);
+        let not_q = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![q]);
+
+        // Create ¬p ∨ ¬q
+        let not_p_or_not_q = EnumTerm::NodeOrLeaf(NodeByte::Or, vec![not_p, not_q]);
+
+        // Create ¬(p ∧ q) ↔ (¬p ∨ ¬q)
+        let de_morgan = EnumTerm::NodeOrLeaf(NodeByte::Biimp, vec![not_p_and_q, not_p_or_not_q]);
+
+        // Should be a tautology
+        assert!(
+            test_tautology(&de_morgan).unwrap(),
+            "De Morgan's law should be a tautology"
         );
     }
 }

@@ -1,6 +1,7 @@
 //! Very Generic Simple Term implementation.
 
-use crate::{Metavariable, Node, Term, Type};
+use crate::{Metavariable, MguError, Node, Term, Type};
+use std::collections::HashSet;
 use std::fmt::Display;
 
 /// A simple implementation of [`Term`] based straightforwardly on supplied [`Metavariable`] and [`Node`] implementations.
@@ -103,6 +104,21 @@ where
         match self {
             Self::Leaf(var) => Some(var.clone()),
             Self::NodeOrLeaf(_, _) => None,
+        }
+    }
+
+    fn collect_metavariables(&self, vars: &mut HashSet<V>) -> Result<(), MguError> {
+        match self {
+            Self::Leaf(var) => {
+                vars.insert(var.clone());
+                Ok(())
+            }
+            Self::NodeOrLeaf(_, children) => {
+                for child in children {
+                    child.collect_metavariables(vars)?;
+                }
+                Ok(())
+            }
         }
     }
 
