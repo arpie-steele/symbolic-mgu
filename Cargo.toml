@@ -2,7 +2,7 @@
 edition = "2018"
 rust-version = "1.77.0"
 name = "symbolic-mgu"
-version = "0.1.0-alpha.7"
+version = "0.1.0-alpha.8"
 authors = ["Richard Penner <richardpenner@gmail.com>"]
 build = "build.rs"
 exclude = [
@@ -64,6 +64,9 @@ thiserror = "2.0"
 
 [build-dependencies]
 version_check = "0.9"
+
+[dev-dependencies]
+proptest = "1.5.0"  # Pinned: 1.6+ requires Rust 1.82+, we target 1.77
 
 [package.metadata.spellcheck]
 config = ".cargo/spellcheck.toml"
