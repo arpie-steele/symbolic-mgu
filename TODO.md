@@ -13,7 +13,7 @@
 | Phase 4: Testing | ✅ Complete | 100% | 24 tests covering all operations |
 | Phase 5: Unification | ✅ Complete | 100% | Robinson's MGU fully backported |
 | Phase 6: Enhanced Testing API | ✅ Complete | 100% | test_term(), test_contradiction(), test_contingent() |
-| Phase 7: rustmgu Backport | 🚧 In Progress | 38% | Logic helpers, compact proofs, inclusion complete |
+| Phase 7: rustmgu Backport | 🚧 In Progress | 48% | Logic helpers, compact proofs, inclusion, refactoring complete |
 
 **Status for pre-release (v0.1.0-alpha.8):**
 - ✅ **All tests passing** - 24 tests (up from 21 in alpha.6)
@@ -445,7 +445,7 @@ pub trait BooleanNode {
 
 ---
 
-## Phase 7: rustmgu Feature Backport - 🚧 10% Complete
+## Phase 7: rustmgu Feature Backport - 🚧 48% Complete
 
 **Status**: Backporting mature features from rustmgu (edition 2024) to symbolic-mgu (edition 2018)
 
@@ -640,34 +640,32 @@ The rustmgu codebase (v0.6.0, edition 2024) contains several production-quality 
 - [ ] Add rustdoc examples from rustmgu
 - [ ] Write unit tests
 
-### 7.4: Statement Module Refactoring - ⏳ 0% Complete
+### 7.4: Statement Module Refactoring - ✅ 100% Complete
 
 **Goal**: Organize statement operations into separate files like rustmgu.
 
-**Current**: Single `src/statement/mod.rs` (530 lines)
-
-**Target Structure**:
+**Completed Structure** (v0.1.0-alpha.9):
 ```
 src/statement/
-├── mod.rs           # Module exports
-├── base.rs          # Statement struct, new(), simple_axiom(), accessors
-├── operations.rs    # apply, contract, relabel_disjoint
-├── substitution.rs  # substitute, transform_distinctness_graph
+├── mod.rs           # Module exports and documentation
+├── base.rs          # Statement struct, new(), simple_axiom(), accessors (152 lines)
+├── substitution.rs  # substitute, transform_distinctness_graph (157 lines)
+├── operations.rs    # apply, contract, relabel_disjoint, apply_multiple (353 lines)
 ├── compact_proof.rs # from_compact_proof (from 7.2)
 └── inclusion.rs     # is_included_in, is_identical (from 7.3)
 ```
 
 **Complexity**: Low (mostly moving code around)
-**Dependencies**: None (pure refactoring)
-**Priority**: ⭐⭐ **MEDIUM** (improves organization)
+**Dependencies**: None (pure refactoring) - **COMPLETE**
+**Priority**: ⭐⭐ **MEDIUM** (improves organization) - **COMPLETE**
 
 **Action Items:**
-- [ ] Create src/statement/base.rs (Statement struct + core methods)
-- [ ] Create src/statement/operations.rs (apply, contract, relabel_disjoint)
-- [ ] Create src/statement/substitution.rs (substitute, transform_distinctness_graph)
-- [ ] Update src/statement/mod.rs to re-export from submodules
-- [ ] Verify all tests still pass
-- [ ] Update rustdoc cross-references
+- [x] Create src/statement/base.rs (Statement struct + core methods)
+- [x] Create src/statement/operations.rs (apply, contract, relabel_disjoint)
+- [x] Create src/statement/substitution.rs (substitute, transform_distinctness_graph)
+- [x] Update src/statement/mod.rs to re-export from submodules
+- [x] Verify all tests still pass (41 unit tests, 35 doctests)
+- [x] No clippy warnings
 
 ### 7.5: Additional Statement Operations - ⏳ 0% Complete
 
