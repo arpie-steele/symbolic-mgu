@@ -50,7 +50,6 @@
 #![deny(invalid_doc_attributes)]
 
 pub mod bool_eval;
-pub mod bool_eval_next;
 // pub mod color;
 pub(crate) mod distinct;
 pub(crate) mod error;
@@ -67,7 +66,7 @@ pub(crate) mod term;
 // #[cfg_attr(docsrs, doc(cfg(feature = "video")))]
 // pub mod video;
 
-pub use bool_eval_next::generated_enum::BooleanSimpleOp;
+pub use bool_eval::generated_enum::BooleanSimpleOp;
 pub use distinct::pair::Pair;
 pub use distinct::simple_graph::check_clique;
 pub use distinct::simple_graph::check_decomposition;

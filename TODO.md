@@ -23,10 +23,10 @@
 
 ---
 
-## Current Status: bool_eval_next Module Complete
+## Current Status: bool_eval Module Complete
 
 ### Implementation Summary
-The `bool_eval_next` module is feature-complete and tested:
+The `bool_eval` module is feature-complete and tested:
 - ✅ `EnumTerm` type implemented in `src/term/simple.rs` (150 lines)
 - ✅ `NodeByte` enum implemented with 222+ operations in `src/node/node_byte/base.rs` (1,375 lines)
 - ✅ `BooleanSimpleOp` enum with all 278 Boolean operations on ≤3 variables (elegant u16 encoding)
@@ -113,7 +113,7 @@ The `bool_eval_next` module is feature-complete and tested:
 **Status**: All implementations complete and tested via `ub_prim_impl!` macro
 
 **What's been implemented:**
-- ✅ `UnsignedBits<U, const N: usize>` trait defined (src/bool_eval_next/mod.rs)
+- ✅ `UnsignedBits<U, const N: usize>` trait defined (src/bool_eval/mod.rs)
 - ✅ `<bool; 0>` implementation (single bit)
 - ✅ `<u8; 0..=3>` implementations (4 total: 1, 2, 4, 8 bits for 0-3 variables)
 - ✅ `<u16; 0..=4>` implementations (5 total: supports 0-4 variables)
@@ -150,7 +150,7 @@ The `bool_eval_next` module is feature-complete and tested:
 **Status**: Fully implemented, exported, and tested
 
 **What's been implemented:**
-- ✅ `BooleanSimpleOp` enum (src/bool_eval_next/generated_enum.rs) - **All 278 Boolean operations on ≤3 variables**
+- ✅ `BooleanSimpleOp` enum (src/bool_eval/generated_enum.rs) - **All 278 Boolean operations on ≤3 variables**
   - Elegant encoding: `u16 = 0x{arity}_{truth_table_code}`
   - Example: `AndAB2 = 0x2_88` (arity=2 in upper bits, code=0x88 in lower 8 bits)
   - Complete enumeration: 2 nullary + 4 unary + 16 binary + 256 ternary = 278 total
@@ -158,7 +158,7 @@ The `bool_eval_next` module is feature-complete and tested:
 - ✅ `get_code3()` method - extracts 8-bit truth table code
 - ✅ `eval0/1/2/3<B, U, const N>()` methods - generic evaluation for any `UnsignedBits<U, N>`
 - ✅ `BooleanSimpleNode<Ty>` wrapper - implements `Node` trait, generic over any `Type` system
-- ✅ **Exported from lib.rs** - `pub use bool_eval_next::generated_enum::BooleanSimpleOp;`
+- ✅ **Exported from lib.rs** - `pub use bool_eval::generated_enum::BooleanSimpleOp;`
 - ✅ **Comprehensive tests** - All 278 operations tested on bool, u8, u64, BigUint
 
 **Design Note:**
@@ -228,7 +228,7 @@ pub trait BooleanNode {
 ### Original Context (RESOLVED)
 - ~~Previous `Term` trait (in `src/term/base.rs`) exists but is not functional enough~~ ✅ NOW FUNCTIONAL
 - ~~`EnumTerm<V, NodeBytes>` concrete type was easier to work with (had `MetaLeaf`, `NodeHead` variants)~~ ✅ IMPLEMENTED
-- ~~Need trait-based abstraction for `bool_eval_next` that doesn't couple to concrete types~~ ✅ ACHIEVED with generics
+- ~~Need trait-based abstraction for `bool_eval` that doesn't couple to concrete types~~ ✅ ACHIEVED with generics
 
 ### Original Design Goals (ALL MET)
 - ✅ Support term traversal (distinguish metavariable leaves from node heads)
@@ -255,14 +255,14 @@ pub trait BooleanNode {
 **Status**: Comprehensive tests implemented and passing
 
 ### Compilation - ✅ Complete
-- ✅ All import errors fixed in `src/bool_eval_next/mod.rs`
+- ✅ All import errors fixed in `src/bool_eval/mod.rs`
 - ✅ `num-bigint` dependency properly feature-gated with `#[cfg(feature = "bigint")]`
 - ✅ Module exported in lib.rs
 - ✅ **Verified**: `cargo +1.77 build --all-features` - builds successfully
 
 ### Testing Strategy - ✅ 70% Complete
 
-**5 comprehensive tests implemented** in `src/bool_eval_next/mod.rs`:
+**5 comprehensive tests implemented** in `src/bool_eval/mod.rs`:
 
 1. ✅ **`all_variants_make_truth_tables`** - Tests all 278 operations on `bool` type
    - Verifies each operation's truth table matches its code
@@ -398,7 +398,7 @@ pub trait BooleanNode {
 - ✅ Edition 2018 compatible (all let-chains rewritten)
 
 **Documentation:**
-- ✅ Module-level documentation in bool_eval_next/mod.rs
+- ✅ Module-level documentation in bool_eval/mod.rs
 - ✅ Macro documentation in src/macros.rs (updated with correct examples)
 - ✅ NodeByteTable.md documenting Boolean operations
 - ✅ BACKPORT_PLAN.md documenting unification backport
@@ -420,7 +420,7 @@ pub trait BooleanNode {
 
 ---
 
-## Future Work (Post bool_eval_next)
+## Future Work (Post bool_eval)
 
 ### Term Trait Unification
 - ✅ ~~Merge `NewTerm` design lessons into main `Term` trait~~ - ALREADY DONE
@@ -514,7 +514,7 @@ The key insight from `EnumTerm` was the two-variant pattern:
 Convert this to trait methods:
 
 ```rust
-// In src/bool_eval_next/mod.rs (temporary location)
+// In src/bool_eval/mod.rs (temporary location)
 
 /// Trait for terms that can be evaluated as Boolean expressions
 /// This is a temporary prototype - will integrate with main Term trait later
@@ -568,7 +568,7 @@ where
 /// Trait for nodes representing Boolean operations
 ///
 /// This trait allows different node representations to be used
-/// with the bool_eval_next evaluation engine by mapping to
+/// with the bool_eval evaluation engine by mapping to
 /// standardized (code, arity) pairs from NodeBytesLogicTable.md
 pub trait BooleanNode {
     /// Returns the Boolean operation code and arity, or None if not evaluable
@@ -642,7 +642,7 @@ eval_boolean_term<V, N, T>(&T, ...) where T: NewTerm<V, N>, N: BooleanNode
 
 ```
 src/
-├── bool_eval_next/
+├── bool_eval/
 │   └── mod.rs          # Contains UnsignedBits trait + impls
 │                       # Contains NewTerm trait (temporary)
 │                       # Contains eval_boolean_* functions
@@ -702,7 +702,7 @@ Open questions:
 
 ### BigUint Special Handling - ✅ IMPLEMENTED
 ✅ `BigUint` doesn't have native `Not` trait support - implemented manually in `SomeBits<N>`:
-- ✅ Uses `mask XOR value` pattern (src/bool_eval_next/mod.rs:1494)
+- ✅ Uses `mask XOR value` pattern (src/bool_eval/mod.rs:1494)
 - ✅ Mask computed based on N: `(BigUint::from(1u32).pow(1 << N)) - 1`
 - ✅ Custom `Not` implementation for `SomeBits<N>` wrapper type
 - ✅ All bitwise ops implemented: `BitAnd`, `BitOr`, `BitXor`, `Not`
