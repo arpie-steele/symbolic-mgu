@@ -13,7 +13,7 @@
 | Phase 4: Testing | ✅ Complete | 100% | 24 tests covering all operations |
 | Phase 5: Unification | ✅ Complete | 100% | Robinson's MGU fully backported |
 | Phase 6: Enhanced Testing API | ✅ Complete | 100% | test_term(), test_contradiction(), test_contingent() |
-| Phase 7: rustmgu Backport | 🚧 In Progress | 15% | Compact proofs, statement inclusion, testing |
+| Phase 7: rustmgu Backport | 🚧 In Progress | 38% | Logic helpers, compact proofs, inclusion complete |
 
 **Status for pre-release (v0.1.0-alpha.8):**
 - ✅ **All tests passing** - 24 tests (up from 21 in alpha.6)
@@ -454,12 +454,12 @@ The rustmgu codebase (v0.6.0, edition 2024) contains several production-quality 
 - ✅ Verified edition 2018 compatibility (all let-chains can be rewritten)
 - ✅ Analysis complete: 75% of rustmgu core already backported
 
-**What's in progress:**
-- ⏳ Compact proof parsing (next priority)
+**What's completed:**
+- ✅ Logic module enhancements (Phase 7.1)
+- ✅ Compact proof parsing (Phase 7.2)
+- ✅ Statement inclusion checking (Phase 7.3)
 
 **What's planned:**
-- ⏳ Compact proof parsing (src/statement/compact_proof.rs)
-- ⏳ Statement inclusion checking (src/statement/inclusion.rs)
 - ⏳ Statement module refactoring (split mod.rs into 5 files)
 - ⏳ Additional operations (apply_multiple, condensed_detach)
 - ⏳ S-expression support (Term::to_sexp())
@@ -515,68 +515,110 @@ The rustmgu codebase (v0.6.0, edition 2024) contains several production-quality 
 - [x] Export from lib.rs (already pub mod logic)
 - [x] All tests passing (19 doctests pass)
 
-### 7.2: Compact Proof Parsing - ⏳ 0% Complete
+### 7.2: Compact Proof Parsing - ✅ 100% Complete
 
 **Goal**: Parse compact proof strings (e.g., "D__", "DD211") into Statement objects.
 
-**File to create**: `src/statement/compact_proof.rs` (~200 lines from rustmgu)
+**What's been implemented:**
 
-**Key Function**:
-```rust
-impl<T, V, N, TF> Statement<T, V, N, TF>
-where
-    T: Term<...>,
-    V: Metavariable,
-    N: Node,
-    TF: TermFactory<...>,
-{
-    /// Parse a compact proof string using a statement dictionary
-    pub fn from_compact_proof(
-        proof: &str,
-        statements: &HashMap<String, Self>,
-        term_factory: &TF,
-    ) -> Result<Self, MguError>
-}
-```
+1. ✅ **apply_multiple() Method** (src/statement/mod.rs lines 530-656)
+   - Applies multiple proofs to multiple hypotheses simultaneously
+   - Relabels all proofs to avoid variable conflicts
+   - Builds combined substitution incrementally
+   - Merges hypotheses and distinctness graphs
 
-**Algorithm**: Stack-based right-to-left processing with placeholder support ("_")
+2. ✅ **Compact Proof Parser** (src/statement/compact_proof.rs, 168 lines)
+   ```rust
+   pub fn from_compact_proof<VF, TF>(
+       proof: &str,
+       var_factory: &VF,
+       term_factory: &TF,
+       statements: &HashMap<String, Self>,
+   ) -> Result<Self, MguError>
+   ```
+   - Right-to-left stack-based processing
+   - Placeholder support ("_" for unsatisfied hypotheses)
+   - Token parsing and validation
+   - Comprehensive error messages
 
-**Complexity**: Medium (needs factory pattern integration)
-**Dependencies**: create_dict(), apply_multiple() (can work with current apply())
-**Priority**: ⭐⭐⭐ **CRITICAL** (blocking compact binary)
+3. ✅ **Test Suite** (9 unit tests + 1 doctest)
+   - ✅ test_d_with_placeholders - Placeholder semantics
+   - ✅ test_dd211_phi_implies_phi - Complete proof (φ → φ)
+   - ✅ test_empty_proof_fails - Error handling
+   - ✅ test_invalid_token_fails - Character validation
+   - ✅ test_unknown_statement_key_fails - Dictionary lookup
+   - ✅ test_stack_underflow_fails - Stack validation
+   - ✅ test_incomplete_proof_fails - Final validation
+   - ✅ test_axioms_directly - Direct axiom access
+   - ✅ test_final_placeholder_fails - None rejection
 
-**Edition 2018 Considerations**:
-- Rewrite any let-chains to nested if-let
-- Check for edition 2021-specific syntax
+**Design Decisions:**
+- Integrated with factory pattern (requires both var_factory and term_factory)
+- Uses UnificationFailure for all errors (no ParseError enum needed)
+- Placeholder (None) support for partial proofs
+- Stack-based evaluation matches mathematical convention (right-to-left)
+
+**Complexity**: Medium (~200 lines implemented)
+**Dependencies**: create_dict(), apply_multiple() - **ALL COMPLETE**
+**Priority**: ⭐⭐⭐ **CRITICAL** - **COMPLETE**
 
 **Action Items:**
-- [ ] Create src/statement/compact_proof.rs
-- [ ] Port from_compact_proof() method from rustmgu
-- [ ] Adapt for factory pattern (add TF: TermFactory parameter)
-- [ ] Rewrite let-chains for edition 2018
-- [ ] Add comprehensive rustdoc with examples
-- [ ] Write unit tests (various proof strings)
+- [x] Create src/statement/compact_proof.rs
+- [x] Implement apply_multiple() for efficient hypothesis satisfaction
+- [x] Port from_compact_proof() method with factory pattern support
+- [x] Add comprehensive rustdoc with working examples
+- [x] Write comprehensive unit tests (33 total passing)
+- [x] All tests passing (including doctests)
 
-### 7.3: Statement Inclusion - ⏳ 0% Complete
+### 7.3: Statement Inclusion - ✅ 100% Complete
 
-**Goal**: Check if one statement logically includes another (subsumption).
+**Goal**: Check if one statement logically includes another (subsumption/α-equivalence).
 
-**File to create**: `src/statement/inclusion.rs` (~200 lines from rustmgu)
+**What's been implemented:**
 
-**Key Methods**:
-```rust
-impl<T, V, N, TF> Statement<T, V, N, TF> {
-    /// Check if this statement is included in (more specific than) another
-    pub fn is_included_in(&self, other: &Self) -> Result<bool, MguError>
+1. ✅ **is_included_in() Method** (src/statement/inclusion.rs lines 97-225)
+   - Checks if `self ⊆ other` (self is included in other)
+   - **Critical relabeling** to avoid occurs-check failures
+   - Unifies assertions and extends substitution
+   - Matches hypotheses incrementally
+   - Verifies distinctness graph preservation
 
-    /// Check if two statements are identical (mutually included)
-    pub fn is_identical(&self, other: &Self) -> Result<bool, MguError>
-}
-```
+2. ✅ **is_identical() Method** (lines 278-295)
+   - Checks α-equivalence via mutual inclusion
+   - S₁ ≡ S₂ iff (S₁ ⊆ S₂ and S₂ ⊆ S₁)
 
-**Algorithm**: Uses unification to check if one statement's assertion/hypotheses match another's
+3. ✅ **transform_distinctness_graph_static() Helper** (lines 306-345)
+   - Transforms distinctness graphs under substitution
+   - Expands edges when variables map to compound terms
 
-**Complexity**: Medium (builds on existing unification)
+4. ✅ **Comprehensive Test Suite** (8 tests)
+   - ✅ axiom_included_in_itself - Reflexivity
+   - ✅ axiom_identical_to_itself - Identity reflexivity
+   - ✅ more_specific_included_in_general - Substitution specialization
+   - ✅ different_variables_same_structure_are_identical - α-equivalence
+   - ✅ hypothesis_order_doesnt_matter - Set semantics
+   - ✅ more_hypotheses_with_distinctness - Distinctness prevents collapsing
+   - ✅ unrelated_structures_not_included - Incompatible structures
+   - ✅ relabeling_prevents_occurs_check_failure - Critical relabeling test
+
+**Design Decisions:**
+- Factory-based implementation (requires var_factory and term_factory parameters)
+- Variable relabeling before unification prevents false negatives
+- Incremental substitution extension for hypothesis matching
+- Comprehensive module-level documentation explaining inclusion semantics
+
+**Complexity**: Medium (~350 lines implemented with tests)
+**Dependencies**: Unification, apply_substitution, relabel_disjoint - **ALL PRESENT**
+**Priority**: ⭐⭐⭐ **HIGH** - **COMPLETE**
+
+**Action Items:**
+- [x] Create src/statement/inclusion.rs with comprehensive docs
+- [x] Implement is_included_in() with relabeling support
+- [x] Implement is_identical() using mutual inclusion
+- [x] Implement distinctness graph transformation
+- [x] Write comprehensive unit tests (41 total passing)
+- [x] Add working doctest examples
+- [x] All tests passing (including 2 doctests)
 **Dependencies**: unify() (already present), substitute() (already present)
 **Priority**: ⭐⭐⭐ **HIGH** (fundamental for proof verification)
 
