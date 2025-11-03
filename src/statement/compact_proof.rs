@@ -15,10 +15,10 @@
 //! Given dictionary: D=Modus Ponens, 1=Simp, 2=Frege, 3=Transp
 //!
 //! Processing right-to-left:
-//! 1. Token "1": Push Simp axiom (0 hypotheses) → Stack: [Simp]
+//! 1. Token "1": Push Simp axiom (0 hypotheses) → Stack: \[Simp\]
 //! 2. Token "1": Push Simp axiom → Stack: [Simp, Simp]
-//! 3. Token "2": Pop 3 items for Frege, apply → Stack: [Frege(Simp, Simp, ...)]
-//! 4. Token "D": Pop 2 items for MP, apply → Stack: [MP(...)]
+//! 3. Token "2": Push Frege axiom → Stack: [Frege, Simp, Simp]
+//! 4. Token "D": Pop 2 items for MP, apply → Stack: [Lemma, Simp]
 //! 5. Token "D": Pop 2 items for MP, apply → Stack: [Theorem: φ → φ]
 //!
 //! ### Example: "D__"
@@ -30,7 +30,7 @@
 //!    → Stack: [MP with 2 unsatisfied hypotheses]
 
 use crate::{
-    MetavariableFactory, MguError, Node, Statement, TermFactory, Term, Type, Metavariable,
+    Metavariable, MetavariableFactory, MguError, Node, Statement, Term, TermFactory, Type,
 };
 use std::collections::HashMap;
 
@@ -77,6 +77,10 @@ where
     /// - Statement key not found in dictionary
     /// - Stack underflow or overflow
     /// - Unification fails during application
+    ///
+    /// # Panics
+    ///
+    /// Does it?? TODO.
     pub fn from_compact_proof<VF, TF>(
         proof: &str,
         var_factory: &VF,
@@ -175,7 +179,8 @@ mod tests {
     };
 
     /// Type alias for test statement
-    type TestStatement = Statement<SimpleType, MetaByte, NodeByte, EnumTerm<SimpleType, MetaByte, NodeByte>>;
+    type TestStatement =
+        Statement<SimpleType, MetaByte, NodeByte, EnumTerm<SimpleType, MetaByte, NodeByte>>;
 
     /// Helper to create standard dictionary for tests
     fn setup() -> (
@@ -185,14 +190,18 @@ mod tests {
     ) {
         let term_factory = EnumTermFactory::new();
         let metavar_factory = MetaByteFactory();
-        let dict =
-            create_dict(&term_factory, &metavar_factory, NodeByte::Implies, NodeByte::Not)
-                .unwrap();
+        let dict = create_dict(
+            &term_factory,
+            &metavar_factory,
+            NodeByte::Implies,
+            NodeByte::Not,
+        )
+        .unwrap();
         (term_factory, metavar_factory, dict)
     }
 
     #[test]
-    fn test_d_with_placeholders() {
+    fn d_with_placeholders() {
         let (term_factory, metavar_factory, dict) = setup();
 
         // Parse "D__" (Modus Ponens with 2 unsatisfied hypotheses)
@@ -204,24 +213,24 @@ mod tests {
     }
 
     #[test]
-    fn test_dd211_phi_implies_phi() {
+    fn dd211_phi_implies_phi() {
         let (term_factory, metavar_factory, dict) = setup();
 
         // Parse "DD211" (Proof of φ → φ)
-        let result = Statement::from_compact_proof("DD211", &metavar_factory, &term_factory, &dict)
-            .unwrap();
+        let result =
+            Statement::from_compact_proof("DD211", &metavar_factory, &term_factory, &dict).unwrap();
 
         // Should have no hypotheses (complete proof)
         assert_eq!(result.get_n_hypotheses(), 0);
 
         // The assertion should be of form (φ → φ)
         // We can't easily check the exact structure without more introspection,
-        // but we can verify it's a boolean sentence
+        // but we can verify it's a Boolean sentence
         assert!(result.get_assertion().is_valid_sentence().unwrap());
     }
 
     #[test]
-    fn test_empty_proof_fails() {
+    fn empty_proof_fails() {
         let (term_factory, metavar_factory, dict) = setup();
 
         // Empty proof string should fail
@@ -230,7 +239,7 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_token_fails() {
+    fn invalid_token_fails() {
         let (term_factory, metavar_factory, dict) = setup();
 
         // Invalid character should fail
@@ -239,7 +248,7 @@ mod tests {
     }
 
     #[test]
-    fn test_unknown_statement_key_fails() {
+    fn unknown_statement_key_fails() {
         let (term_factory, metavar_factory, dict) = setup();
 
         // Unknown key 'X' should fail
@@ -248,7 +257,7 @@ mod tests {
     }
 
     #[test]
-    fn test_stack_underflow_fails() {
+    fn stack_underflow_fails() {
         let (term_factory, metavar_factory, dict) = setup();
 
         // "D" needs 2 items but we only have 1 placeholder
@@ -257,7 +266,7 @@ mod tests {
     }
 
     #[test]
-    fn test_incomplete_proof_fails() {
+    fn incomplete_proof_fails() {
         let (term_factory, metavar_factory, dict) = setup();
 
         // "1" pushes an axiom, but then there's nothing to apply it to
@@ -267,7 +276,7 @@ mod tests {
     }
 
     #[test]
-    fn test_axioms_directly() {
+    fn axioms_directly() {
         let (term_factory, metavar_factory, dict) = setup();
 
         // Single axioms should work (they have 0 hypotheses)
@@ -285,7 +294,7 @@ mod tests {
     }
 
     #[test]
-    fn test_final_placeholder_fails() {
+    fn final_placeholder_fails() {
         let (term_factory, metavar_factory, dict) = setup();
 
         // Just a placeholder should fail (final result can't be None)

@@ -529,7 +529,7 @@ where
         })
     }
 
-    /// APPLY_MULTIPLE operation: Unify multiple hypotheses with multiple statements' assertions.
+    /// `APPLY_MULTIPLE` operation: Unify multiple hypotheses with multiple statements' assertions.
     ///
     /// Given S = (A; [H₀, H₁, ..., Hₙ₋₁]; D) and proofs = [P₀, P₁, ..., Pₙ₋₁]:
     /// 1. Relabel all Pᵢ to be mutually disjoint and disjoint from S
@@ -607,7 +607,7 @@ where
                         ))
                     })?;
 
-                // Extend combined substitution with all mappings from new_subst
+                // Extend combined substitution with all mappings from `new_subst`
                 for (var, term) in new_subst.iter() {
                     combined_subst.extend(var.clone(), term.clone())?;
                 }
@@ -629,13 +629,11 @@ where
         }
 
         // Add hypotheses from all proofs
-        for proof_opt in &relabeled_proofs {
-            if let Some(proof) = proof_opt {
-                let proof_subst = proof.substitute(term_factory, &combined_subst)?;
-                for hyp in &proof_subst.hypotheses {
-                    if seen.insert(hyp.clone()) {
-                        new_hypotheses.push(hyp.clone());
-                    }
+        for proof in relabeled_proofs.iter().flatten() {
+            let proof_subst = proof.substitute(term_factory, &combined_subst)?;
+            for hyp in &proof_subst.hypotheses {
+                if seen.insert(hyp.clone()) {
+                    new_hypotheses.push(hyp.clone());
                 }
             }
         }
@@ -643,11 +641,10 @@ where
         // Step 5: Merge all distinctness graphs
         let mut new_graph = self_subst.distinctness_graph.clone();
 
-        for proof_opt in &relabeled_proofs {
-            if let Some(proof) = proof_opt {
-                let proof_subst = proof.substitute(term_factory, &combined_subst)?;
-                new_graph = Self::merge_distinctness_graphs(&new_graph, &proof_subst.distinctness_graph)?;
-            }
+        for proof in relabeled_proofs.iter().flatten() {
+            let proof_subst = proof.substitute(term_factory, &combined_subst)?;
+            new_graph =
+                Self::merge_distinctness_graphs(&new_graph, &proof_subst.distinctness_graph)?;
         }
 
         Ok(Self {
