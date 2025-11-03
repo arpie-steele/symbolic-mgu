@@ -540,10 +540,15 @@ pub fn is_supported_op(node: &NodeByte) -> bool {
     )
 }
 
-/// Test if a Boolean term is a tautology.
+/// Evaluate a Boolean term to determine if it's a tautology, contradiction, or contingent.
 ///
 /// This function works with any type implementing [`Term`], making it suitable for
 /// use with [`crate::EnumTerm`], database-backed terms, or custom term implementations.
+///
+/// Returns:
+/// - `Ok(Some(true))` - Term is a **tautology** (true for all variable assignments)
+/// - `Ok(Some(false))` - Term is a **contradiction** (false for all variable assignments)
+/// - `Ok(None)` - Term is **contingent** (true for some assignments, false for others)
 ///
 /// Automatically selects the most efficient evaluation strategy based on the number
 /// of Boolean variables:
@@ -565,17 +570,28 @@ pub fn is_supported_op(node: &NodeByte) -> bool {
 /// # Examples
 ///
 /// ```ignore
-/// use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, test_tautology};
+/// use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, test_term};
 ///
 /// // Test law of excluded middle: p ∨ ¬p
-/// // Works with any Term implementation, here using EnumTerm:
 /// let p = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
 /// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
 /// let law = EnumTerm::NodeOrLeaf(NodeByte::Or, vec![p, not_p]);
 ///
-/// assert!(test_tautology(&law)?);  // Should be true
+/// assert_eq!(test_term(&law)?, Some(true));  // Tautology
+///
+/// // Test contradiction: p ∧ ¬p
+/// let p2 = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
+/// let not_p2 = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p2.clone()]);
+/// let contradiction = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p2, not_p2]);
+///
+/// assert_eq!(test_term(&contradiction)?, Some(false));  // Contradiction
+///
+/// // Test contingent formula: p
+/// let p3 = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
+///
+/// assert_eq!(test_term(&p3)?, None);  // Contingent
 /// ```
-pub fn test_tautology<T, Ty, V, No>(term: &T) -> Result<bool, MguError>
+pub fn test_term<T, Ty, V, No>(term: &T) -> Result<Option<bool>, MguError>
 where
     T: Term<Ty, V, No>,
     Ty: Type,
@@ -627,44 +643,85 @@ where
         0 => {
             let result =
                 <bool as UnsignedBits<bool, 0>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
-            let expected = <bool as UnsignedBits<bool, 0>>::from_bool(true);
-            Ok(result == expected)
+            Ok(Some(result))
         }
         1..=3 => {
             let result =
                 <u8 as UnsignedBits<u8, 3>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
-            let expected = <u8 as UnsignedBits<u8, 3>>::from_bool(true);
-            Ok(result == expected)
+            let all_true = <u8 as UnsignedBits<u8, 3>>::from_bool(true);
+            let all_false = <u8 as UnsignedBits<u8, 3>>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
         }
         4 => {
             let result =
                 <u16 as UnsignedBits<u16, 4>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
-            let expected = <u16 as UnsignedBits<u16, 4>>::from_bool(true);
-            Ok(result == expected)
+            let all_true = <u16 as UnsignedBits<u16, 4>>::from_bool(true);
+            let all_false = <u16 as UnsignedBits<u16, 4>>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
         }
         5 => {
             let result =
                 <u32 as UnsignedBits<u32, 5>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
-            let expected = <u32 as UnsignedBits<u32, 5>>::from_bool(true);
-            Ok(result == expected)
+            let all_true = <u32 as UnsignedBits<u32, 5>>::from_bool(true);
+            let all_false = <u32 as UnsignedBits<u32, 5>>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
         }
         6 => {
             let result =
                 <u64 as UnsignedBits<u64, 6>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
-            let expected = <u64 as UnsignedBits<u64, 6>>::from_bool(true);
-            Ok(result == expected)
+            let all_true = <u64 as UnsignedBits<u64, 6>>::from_bool(true);
+            let all_false = <u64 as UnsignedBits<u64, 6>>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
         }
         7 => {
             let result =
                 <u128 as UnsignedBits<u128, 7>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
-            let expected = <u128 as UnsignedBits<u128, 7>>::from_bool(true);
-            Ok(result == expected)
+            let all_true = <u128 as UnsignedBits<u128, 7>>::from_bool(true);
+            let all_false = <u128 as UnsignedBits<u128, 7>>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
         }
         #[cfg(feature = "bigint")]
         8..=20 => {
             let result = SomeBits::<20>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
-            let expected = SomeBits::<20>::from_bool(true);
-            Ok(result == expected)
+            let all_true = SomeBits::<20>::from_bool(true);
+            let all_false = SomeBits::<20>::from_bool(false);
+            if result == all_true {
+                Ok(Some(true))
+            } else if result == all_false {
+                Ok(Some(false))
+            } else {
+                Ok(None)
+            }
         }
         #[cfg(not(feature = "bigint"))]
         8..=20 => Err(MguError::AllocationError(
@@ -674,6 +731,41 @@ where
             "Too many variables to represent (maximum is 20)".to_owned(),
         )),
     }
+}
+
+/// Test if a Boolean term is a tautology.
+///
+/// This is a convenience wrapper around [`test_term`] that returns `true` if the term
+/// is a tautology (true for all variable assignments) and `false` otherwise.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The term contains non-Boolean variables
+/// - The term contains more than 20 variables
+/// - Evaluation fails
+///
+/// # Examples
+///
+/// ```ignore
+/// use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, test_tautology};
+///
+/// // Test law of excluded middle: p ∨ ¬p
+/// let p = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
+/// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
+/// let law = EnumTerm::NodeOrLeaf(NodeByte::Or, vec![p, not_p]);
+///
+/// assert!(test_tautology(&law)?);  // true - it's a tautology
+/// ```
+pub fn test_tautology<T, Ty, V, No>(term: &T) -> Result<bool, MguError>
+where
+    T: Term<Ty, V, No>,
+    Ty: Type,
+    V: Metavariable<Type = Ty>,
+    No: Node<Type = Ty> + TryInto<NodeByte>,
+    <No as TryInto<NodeByte>>::Error: Into<MguError>,
+{
+    test_term(term).map(|opt| opt == Some(true))
 }
 
 /// Isolate the differences between various unsigned representations.
@@ -858,10 +950,7 @@ where
     /// - A variable is not in the provided `vars` list
     /// - The variable index exceeds the bit capacity (N)
     /// - Node conversion fails
-    fn eval_boolean_term<T, Ty, V, No, CvtErr>(
-        term: &T,
-        vars: &[V],
-    ) -> Result<Self, MguError>
+    fn eval_boolean_term<T, Ty, V, No, CvtErr>(term: &T, vars: &[V]) -> Result<Self, MguError>
     where
         T: Term<Ty, V, No>,
         Ty: Type,
@@ -925,8 +1014,8 @@ where
             let node_converted: NodeByte = node.try_into().map_err(|e| e.into())?;
             use NodeByte::*;
             match node_converted {
-                True | False | Not | Implies | Biimp | And | Or | NotAnd | ExclusiveOr
-                | NotOr | And3 | Or3 | SumFromAdder | CarryFromAdder | LogicalIf => {
+                True | False | Not | Implies | Biimp | And | Or | NotAnd | ExclusiveOr | NotOr
+                | And3 | Or3 | SumFromAdder | CarryFromAdder | LogicalIf => {
                     let child_values = term
                         .get_children()
                         .map(|t| Self::eval_boolean_term(t, vars))
