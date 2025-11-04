@@ -11,12 +11,12 @@
 //! - [`compact_proof`]: Compact proof parsing
 //! - [`inclusion`]: Statement inclusion and α-equivalence checking
 
-// Submodules
+// Sub-modules
 mod base;
-mod substitution;
-mod operations;
 pub mod compact_proof;
 pub mod inclusion;
+mod operations;
+mod substitution;
 
 // Re-export Statement type
 pub use base::Statement;

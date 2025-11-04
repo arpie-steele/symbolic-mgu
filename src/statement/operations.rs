@@ -5,11 +5,14 @@
 //! - `relabel_disjoint`: Rename variables to avoid conflicts
 //! - `apply`: Unify a hypothesis with another statement's assertion
 //! - `apply_multiple`: Satisfy multiple hypotheses simultaneously
+//! - `condensed_detach`: Meredith's condensed detachment (modus ponens application)
 
 use super::base::Statement;
 use crate::{
-    apply_substitution, unify, DistinctnessGraph, Metavariable, MetavariableFactory, MguError,
-    Node, Substitution, Term, TermFactory, Type,
+    apply_substitution,
+    logic::{modus_ponens, MP_MAJOR_PREMISE, MP_MINOR_PREMISE},
+    unify, DistinctnessGraph, Metavariable, MetavariableFactory, MguError, Node, Substitution,
+    Term, TermFactory, Type,
 };
 use std::{collections::HashSet, marker::PhantomData};
 
@@ -395,5 +398,108 @@ where
             hypotheses: new_hypotheses,
             distinctness_graph: new_graph,
         })
+    }
+
+    /// CONDENSED DETACHMENT: Apply modus ponens to two statements.
+    ///
+    /// This is Meredith's condensed detachment operation, which applies two statements
+    /// to the hypotheses of modus ponens. Given statements `minor` and `major`:
+    ///
+    /// 1. Create fresh modus ponens: MP = (ψ; φ, (φ → ψ); ∅)
+    /// 2. Apply statements to MP's hypotheses using [`apply_multiple`](Self::apply_multiple):
+    ///    - `minor` matches φ (the minor premise at [`MP_MINOR_PREMISE`])
+    ///    - `major` matches (φ → ψ) (the major premise at [`MP_MAJOR_PREMISE`])
+    /// 3. Return the resulting statement
+    ///
+    /// # Arguments
+    ///
+    /// * `var_factory` - Factory for creating fresh metavariables
+    /// * `term_factory` - Factory for creating terms
+    /// * `minor` - Statement matching the minor premise φ
+    /// * `major` - Statement matching the major premise (φ → ψ)
+    /// * `implies_node` - Node representing the implication operator (→)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Metavariable or term creation fails
+    /// - Unification fails (statements don't match modus ponens pattern)
+    /// - Distinctness constraints are violated
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use symbolic_mgu::*;
+    ///
+    /// # fn example() -> Result<(), MguError> {
+    /// let var_factory = MetaByteFactory();
+    /// let term_factory = EnumTermFactory::new();
+    ///
+    /// // Create P and (P → Q)
+    /// let p = var_factory.create("P", &SimpleType::Boolean)?;
+    /// let q = var_factory.create("Q", &SimpleType::Boolean)?;
+    /// let p_term = term_factory.create_leaf(p)?;
+    /// let q_term = term_factory.create_leaf(q)?;
+    ///
+    /// let p_implies_q = term_factory.create_node(
+    ///     NodeByte::Implies,
+    ///     vec![p_term.clone(), q_term.clone()]
+    /// )?;
+    ///
+    /// // Build statements: minor = (P; ∅; ∅) and major = ((P → Q); ∅; ∅)
+    /// let minor = Statement::simple_axiom(p_term)?;
+    /// let major = Statement::simple_axiom(p_implies_q)?;
+    ///
+    /// // Condensed detachment: should derive Q
+    /// let result = Statement::condensed_detach(
+    ///     &var_factory,
+    ///     &term_factory,
+    ///     &minor,
+    ///     &major,
+    ///     NodeByte::Implies
+    /// )?;
+    ///
+    /// // Result should be (Q; ∅; ∅)
+    /// assert_eq!(result.get_n_hypotheses(), 0);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn condensed_detach<VF, TF>(
+        var_factory: &VF,
+        term_factory: &TF,
+        minor: &Self,
+        major: &Self,
+        implies_node: N,
+    ) -> Result<Self, MguError>
+    where
+        VF: MetavariableFactory<Metavariable = V, MetavariableType = Ty>,
+        TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermNode = N, TermMetavariable = V>,
+        V: Default,
+    {
+        // Create fresh Boolean metavariables for modus ponens
+        let phi_var = var_factory
+            .list_metavariables_by_type(&Ty::try_boolean()?)
+            .next()
+            .ok_or_else(|| {
+                MguError::AllocationError("Could not create fresh Boolean variable φ".to_string())
+            })?;
+
+        let psi_var = var_factory
+            .list_metavariables_by_type(&Ty::try_boolean()?)
+            .nth(1)
+            .ok_or_else(|| {
+                MguError::AllocationError("Could not create fresh Boolean variable ψ".to_string())
+            })?;
+
+        // Build modus ponens using the helper function
+        let mp = modus_ponens(term_factory, phi_var, psi_var, implies_node)?;
+
+        // Build proofs array using MP constants to make ordering explicit
+        let mut proofs = vec![None, None];
+        proofs[MP_MINOR_PREMISE] = Some(minor.clone());
+        proofs[MP_MAJOR_PREMISE] = Some(major.clone());
+
+        // Apply both statements to modus ponens hypotheses
+        mp.apply_multiple(var_factory, term_factory, &proofs)
     }
 }

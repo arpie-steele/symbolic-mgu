@@ -1,6 +1,6 @@
 # symbolic-mgu TODO List
 
-## 📊 Overall Progress: 99% Complete
+## 📊 Overall Progress: ~99% Complete
 
 **Summary of v010 branch status:**
 
@@ -13,7 +13,7 @@
 | Phase 4: Testing | ✅ Complete | 100% | 24 tests covering all operations |
 | Phase 5: Unification | ✅ Complete | 100% | Robinson's MGU fully backported |
 | Phase 6: Enhanced Testing API | ✅ Complete | 100% | test_term(), test_contradiction(), test_contingent() |
-| Phase 7: rustmgu Backport | 🚧 In Progress | 48% | Logic helpers, compact proofs, inclusion, refactoring complete |
+| Phase 7: rustmgu Backport | 🚧 In Progress | 79% | Logic, proofs, inclusion, refactoring, operations, binary complete |
 
 **Status for pre-release (v0.1.0-alpha.8):**
 - ✅ **All tests passing** - 24 tests (up from 21 in alpha.6)
@@ -445,7 +445,7 @@ pub trait BooleanNode {
 
 ---
 
-## Phase 7: rustmgu Feature Backport - 🚧 48% Complete
+## Phase 7: rustmgu Feature Backport - 🚧 79% Complete
 
 **Status**: Backporting mature features from rustmgu (edition 2024) to symbolic-mgu (edition 2018)
 
@@ -468,12 +468,12 @@ The rustmgu codebase (v0.6.0, edition 2024) contains several production-quality 
 - ✅ Logic module enhancements (Phase 7.1)
 - ✅ Compact proof parsing (Phase 7.2)
 - ✅ Statement inclusion checking (Phase 7.3)
+- ✅ Statement module refactoring (Phase 7.4)
+- ✅ Additional operations (Phase 7.5)
+- ✅ Compact binary (Phase 7.7)
 
 **What's planned:**
-- ⏳ Statement module refactoring (split mod.rs into 5 files)
-- ⏳ Additional operations (apply_multiple, condensed_detach)
-- ⏳ S-expression support (Term::to_sexp())
-- ⏳ Compact binary (src/bin/compact.rs)
+- ⏳ S-expression support (Term::to_sexp()) - Optional
 - ⏳ Integration tests (PM proofs, property tests)
 
 ### 7.1: Logic Module Enhancements - ✅ 100% Complete
@@ -667,30 +667,34 @@ src/statement/
 - [x] Verify all tests still pass (41 unit tests, 35 doctests)
 - [x] No clippy warnings
 
-### 7.5: Additional Statement Operations - ⏳ 0% Complete
+### 7.5: Additional Statement Operations - ✅ 100% Complete
 
 **Goal**: Add operations for efficient proof construction.
 
-**Operations to add:**
+**What's been implemented:**
 
-1. **apply_multiple** (~80 lines)
-   - Apply multiple statements to multiple hypotheses at once
+1. ✅ **apply_multiple** (src/statement/operations.rs lines 298-400)
+   - Applies multiple statements to multiple hypotheses simultaneously
+   - Relabels all proofs to avoid variable conflicts
+   - Builds combined substitution incrementally
    - More efficient than sequential apply() calls
 
-2. **condensed_detach** (~40 lines)
-   - Single-step inference: contract() then apply()
-   - Specialized for propositional logic (Meredith's condensed detachment)
+2. ✅ **condensed_detach** (src/statement/operations.rs lines 460-497)
+   - Meredith's condensed detachment operation
+   - Creates fresh modus ponens instance and applies two statements
+   - Uses MP_MINOR_PREMISE and MP_MAJOR_PREMISE constants for clarity
+   - Fully documented with working doctest
 
-**Complexity**: Low (builds on existing operations)
-**Dependencies**: apply(), contract() (already present)
-**Priority**: ⭐⭐ **MEDIUM**
+**Complexity**: Low (builds on existing operations) - **COMPLETE**
+**Dependencies**: apply(), contract(), modus_ponens() - **ALL PRESENT**
+**Priority**: ⭐⭐ **MEDIUM** - **COMPLETE**
 
 **Action Items:**
-- [ ] Add apply_multiple() to src/statement/operations.rs
-- [ ] Add condensed_detach() to src/statement/operations.rs
-- [ ] Adapt for factory pattern
-- [ ] Add rustdoc examples
-- [ ] Write unit tests
+- [x] Add apply_multiple() to src/statement/operations.rs (already done in 7.2)
+- [x] Add condensed_detach() to src/statement/operations.rs
+- [x] Adapt for factory pattern
+- [x] Add rustdoc examples with working doctest
+- [x] All tests passing (41 unit tests, 36 doctests)
 
 ### 7.6: S-Expression Support - ⏳ 0% Complete
 
@@ -717,36 +721,70 @@ pub trait Term<Ty, V, N> {
 - [ ] Implement for EnumTerm
 - [ ] Add unit tests
 
-### 7.7: Compact Binary - ⏳ 0% Complete
+### 7.7: Compact Binary - ✅ 100% Complete
 
 **Goal**: Command-line tool for processing compact proofs and verifying theorems.
 
-**File to create**: `src/bin/compact.rs` (~150 lines from rustmgu)
+**What's been implemented:**
 
-**Features**:
-- Process compact proof strings
-- Display results with Unicode operators
-- Verify tautologies using test_tautology() (already present ✓)
-- Generic over metavariable type (--long flag for WideMetavariable)
+1. ✅ **src/bin/compact.rs** (186 lines)
+   - Command-line argument parsing
+   - Help text and usage examples
+   - Compact proof processing using from_compact_proof()
+   - Display results with clear formatting
+   - Optional verification with --verify flag
 
-**Complexity**: Low (once compact_proof.rs is done)
-**Dependencies**:
-- ⭐⭐⭐ compact_proof.rs (7.2) - CRITICAL
-- ⭐⭐⭐ create_dict() (7.1) - CRITICAL
-- ⭐ to_sexp() (7.6) - Optional (can use Display)
+2. ✅ **Validity checking** (check_validity function)
+   - For theorems (no hypotheses): Verifies assertion is a tautology
+   - For inferences (has hypotheses): Verifies H₁ → (H₂ → (... → (Hₙ → A))) is a tautology
+   - Checks if all terms are Boolean type before verification
+   - Clear output messages distinguishing tautologies from valid inferences
 
-**Priority**: ⭐⭐⭐ **HIGH** (primary user-facing tool)
+3. ✅ **Exported test functions** from lib.rs
+   - test_tautology, test_contradiction, test_contingent, test_term
+   - Now available as part of public API
 
-**Cargo.toml Changes**:
-- Remove `"src/bin/"` from exclude list (line 14)
+**Features implemented:**
+- ✅ Process compact proof strings
+- ✅ Display results with clear formatting (using Display trait)
+- ✅ Verify tautologies for theorems using test_tautology()
+- ✅ Verify validity for inferences (hypotheses entail assertion)
+- ✅ Multiple proof processing in single invocation
+- ✅ Comprehensive help text with verification explanation
+
+**Complexity**: Low - **COMPLETE**
+**Dependencies**: compact_proof.rs (7.2) ✓, create_dict() (7.1) ✓ - **ALL PRESENT**
+**Priority**: ⭐⭐⭐ **HIGH** - **COMPLETE**
+
+**Testing:**
+```bash
+# Basic usage
+cargo run --bin compact -- DD211
+
+# Verify theorem is a tautology
+cargo run --bin compact -- --verify DD211
+# Output: ✓ Verified: This is a tautology
+
+# Verify inference is valid
+cargo run --bin compact -- --verify D__
+# Output: ✓ Valid: Hypotheses logically entail the assertion
+
+# Multiple proofs
+cargo run --bin compact -- D__ DD211 DD2D111
+```
+
+**Note**: `src/bin/` remains in Cargo.toml exclude list but binary builds successfully with explicit `--bin compact` flag.
 
 **Action Items:**
-- [ ] Create src/bin/compact.rs
-- [ ] Port main logic from rustmgu
-- [ ] Adapt for factory pattern
-- [ ] Add command-line help text
-- [ ] Test with sample proofs from rustmgu
-- [ ] Document usage in README.md
+- [x] Create src/bin/compact.rs
+- [x] Adapt for factory pattern (uses MetaByteFactory and EnumTermFactory)
+- [x] Add command-line help text
+- [x] Test with sample proofs (D__, DD211, DD2D111 all working)
+- [x] Export test_tautology and related functions from lib.rs
+- [x] Implement validity checking for inferences (H₁ → H₂ → ... → A)
+- [x] Enhanced help text explaining tautology vs validity verification
+- [x] All tests passing (41 unit tests, 36 doctests)
+- [ ] Document usage in README.md (future enhancement)
 
 ### 7.8: Integration Tests - ⏳ 0% Complete
 

@@ -68,6 +68,7 @@ pub(crate) mod term;
 // pub mod video;
 
 pub use bool_eval::generated_enum::BooleanSimpleOp;
+pub use bool_eval::{test_contingent, test_contradiction, test_tautology, test_term};
 pub use distinct::pair::Pair;
 pub use distinct::simple_graph::check_clique;
 pub use distinct::simple_graph::check_decomposition;
