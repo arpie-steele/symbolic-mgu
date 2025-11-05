@@ -26,6 +26,9 @@
 - ✅ **Compact binary** - Working with verification support
 - ✅ **Regression tests** - DDD111D23, DDD1D221D2D2D11 validate disjointness fix
 - ✅ **WideMetavariable** - Unlimited variable space for long proofs (Phase 7.9)
+  - ASCII mapping documentation complete with full character tables
+  - 12 Boolean, 26 Setvar, 26 Class characters documented
+  - Ready for ParametricMetavariable migration and formatter integration
 - ✅ **Quality gates pass** - clippy, doc, test all clean (zero warnings)
 - ✅ **Property testing ready** - proptest 1.5.0 added to dev-dependencies
 - ⚠️ **Documentation gaps** - Module docs exist but could be expanded
