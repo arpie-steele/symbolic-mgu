@@ -50,20 +50,226 @@ use std::fmt::Display;
 /// Lowercase Greek letters used for Boolean metavariables.
 ///
 /// Following Metamath conventions for propositional variables.
+///
+/// # Character Mapping Table
+///
+/// | Index | ASCII | Unicode | Name | Code Point |
+/// |-------|-------|---------|------|------------|
+/// | 0     | ph    | 𝜑      | MATHEMATICAL ITALIC SMALL PHI | U+1D711 |
+/// | 1     | ps    | 𝜓      | MATHEMATICAL ITALIC SMALL PSI | U+1D713 |
+/// | 2     | ch    | 𝜒      | MATHEMATICAL ITALIC SMALL CHI | U+1D712 |
+/// | 3     | th    | 𝜃      | MATHEMATICAL ITALIC SMALL THETA | U+1D703 |
+/// | 4     | ta    | 𝜏      | MATHEMATICAL ITALIC SMALL TAU | U+1D70F |
+/// | 5     | et    | 𝜂      | MATHEMATICAL ITALIC SMALL ETA | U+1D702 |
+/// | 6     | ze    | 𝜁      | MATHEMATICAL ITALIC SMALL ZETA | U+1D701 |
+/// | 7     | si    | 𝜎      | MATHEMATICAL ITALIC SMALL SIGMA | U+1D70E |
+/// | 8     | rh    | 𝜌      | MATHEMATICAL ITALIC SMALL RHO | U+1D70C |
+/// | 9     | mu    | 𝜇      | MATHEMATICAL ITALIC SMALL MU | U+1D707 |
+/// | 10    | la    | 𝜆      | MATHEMATICAL ITALIC SMALL LAMDA | U+1D706 |
+/// | 11    | ka    | 𝜅      | MATHEMATICAL ITALIC SMALL KAPPA | U+1D705 |
+///
 /// Total: 12 characters.
+///
+/// See also: [`ASCII_BOOLEANS`] for the corresponding ASCII representations.
 pub const OUR_BOOLEANS: &str = "𝜑𝜓𝜒𝜃𝜏𝜂𝜁𝜎𝜌𝜇𝜆𝜅";
+
+/// ASCII representations for Boolean metavariables.
+///
+/// These are the Metamath-standard two-letter ASCII representations
+/// that correspond 1-to-1 with [`OUR_BOOLEANS`] by index position.
+///
+/// # Usage Examples
+///
+/// The ASCII constants correspond 1-to-1 with the UTF-8 characters:
+/// - `ASCII_BOOLEANS[0]` is `"ph"` → `OUR_BOOLEANS` char 0 is `"𝜑"`
+/// - `ASCII_BOOLEANS[1]` is `"ps"` → `OUR_BOOLEANS` char 1 is `"𝜓"`
+///
+/// Note: These constants are provided for maintainer reference and will be used
+/// by the formatter system (Phase 7.10) and `ParametricMetavariable` (future).
+#[allow(dead_code)]
+pub const ASCII_BOOLEANS: &[&str] = &[
+    "ph", // 𝜑 MATHEMATICAL ITALIC SMALL PHI
+    "ps", // 𝜓 MATHEMATICAL ITALIC SMALL PSI
+    "ch", // 𝜒 MATHEMATICAL ITALIC SMALL CHI
+    "th", // 𝜃 MATHEMATICAL ITALIC SMALL THETA
+    "ta", // 𝜏 MATHEMATICAL ITALIC SMALL TAU
+    "et", // 𝜂 MATHEMATICAL ITALIC SMALL ETA
+    "ze", // 𝜁 MATHEMATICAL ITALIC SMALL ZETA
+    "si", // 𝜎 MATHEMATICAL ITALIC SMALL SIGMA
+    "rh", // 𝜌 MATHEMATICAL ITALIC SMALL RHO
+    "mu", // 𝜇 MATHEMATICAL ITALIC SMALL MU
+    "la", // 𝜆 MATHEMATICAL ITALIC SMALL LAMDA
+    "ka", // 𝜅 MATHEMATICAL ITALIC SMALL KAPPA
+];
 
 /// Italic Latin lowercase letters used for Setvar metavariables.
 ///
 /// Following Metamath conventions for set variables.
-/// Total: 24 characters.
+///
+/// # Character Mapping Table
+///
+/// | Index | ASCII | Unicode | Name | Code Point |
+/// |-------|-------|---------|------|------------|
+/// | 0     | x     | 𝑥      | MATHEMATICAL ITALIC SMALL X | U+1D465 |
+/// | 1     | y     | 𝑦      | MATHEMATICAL ITALIC SMALL Y | U+1D466 |
+/// | 2     | z     | 𝑧      | MATHEMATICAL ITALIC SMALL Z | U+1D467 |
+/// | 3     | w     | 𝑤      | MATHEMATICAL ITALIC SMALL W | U+1D464 |
+/// | 4     | v     | 𝑣      | MATHEMATICAL ITALIC SMALL V | U+1D463 |
+/// | 5     | u     | 𝑢      | MATHEMATICAL ITALIC SMALL U | U+1D462 |
+/// | 6     | t     | 𝑡      | MATHEMATICAL ITALIC SMALL T | U+1D461 |
+/// | 7     | f     | 𝑓      | MATHEMATICAL ITALIC SMALL F | U+1D453 |
+/// | 8     | g     | 𝑔      | MATHEMATICAL ITALIC SMALL G | U+1D454 |
+/// | 9     | s     | 𝑠      | MATHEMATICAL ITALIC SMALL S | U+1D460 |
+/// | 10    | e     | 𝑒      | MATHEMATICAL ITALIC SMALL E | U+1D452 |
+/// | 11    | h     | ℎ      | PLANCK CONSTANT | U+210E |
+/// | 12    | i     | 𝑖      | MATHEMATICAL ITALIC SMALL I | U+1D456 |
+/// | 13    | j     | 𝑗      | MATHEMATICAL ITALIC SMALL J | U+1D457 |
+/// | 14    | k     | 𝑘      | MATHEMATICAL ITALIC SMALL K | U+1D458 |
+/// | 15    | m     | 𝑚      | MATHEMATICAL ITALIC SMALL M | U+1D45A |
+/// | 16    | n     | 𝑛      | MATHEMATICAL ITALIC SMALL N | U+1D45B |
+/// | 17    | o     | 𝑜      | MATHEMATICAL ITALIC SMALL O | U+1D45C |
+/// | 18    | r     | 𝑟      | MATHEMATICAL ITALIC SMALL R | U+1D45F |
+/// | 19    | q     | 𝑞      | MATHEMATICAL ITALIC SMALL Q | U+1D45E |
+/// | 20    | p     | 𝑝      | MATHEMATICAL ITALIC SMALL P | U+1D45D |
+/// | 21    | a     | 𝑎      | MATHEMATICAL ITALIC SMALL A | U+1D44E |
+/// | 22    | b     | 𝑏      | MATHEMATICAL ITALIC SMALL B | U+1D44F |
+/// | 23    | c     | 𝑐      | MATHEMATICAL ITALIC SMALL C | U+1D450 |
+/// | 24    | d     | 𝑑      | MATHEMATICAL ITALIC SMALL D | U+1D451 |
+/// | 25    | l     | 𝑙      | MATHEMATICAL ITALIC SMALL L | U+1D459 |
+///
+/// Note: Index 11 uses PLANCK CONSTANT (ℎ) instead of MATHEMATICAL ITALIC SMALL H
+/// due to Unicode encoding considerations.
+///
+/// Total: 26 characters.
+///
+/// See also: [`ASCII_SETVARS`] for the corresponding ASCII representations.
 pub const OUR_SETVARS: &str = "𝑥𝑦𝑧𝑤𝑣𝑢𝑡𝑓𝑔𝑠𝑒ℎ𝑖𝑗𝑘𝑚𝑛𝑜𝑟𝑞𝑝𝑎𝑏𝑐𝑑𝑙";
+
+/// ASCII representations for Setvar metavariables.
+///
+/// These are the Metamath-standard single-letter ASCII representations
+/// that correspond 1-to-1 with [`OUR_SETVARS`] by index position.
+///
+/// # Usage Examples
+///
+/// The ASCII constants correspond 1-to-1 with the UTF-8 characters:
+/// - `ASCII_SETVARS[0]` is `"x"` → `OUR_SETVARS` char 0 is `"𝑥"`
+/// - `ASCII_SETVARS[1]` is `"y"` → `OUR_SETVARS` char 1 is `"𝑦"`
+///
+/// Note: These constants are provided for maintainer reference and will be used
+/// by the formatter system (Phase 7.10) and `ParametricMetavariable` (future).
+#[allow(dead_code)]
+pub const ASCII_SETVARS: &[&str] = &[
+    "x", // 𝑥 MATHEMATICAL ITALIC SMALL X
+    "y", // 𝑦 MATHEMATICAL ITALIC SMALL Y
+    "z", // 𝑧 MATHEMATICAL ITALIC SMALL Z
+    "w", // 𝑤 MATHEMATICAL ITALIC SMALL W
+    "v", // 𝑣 MATHEMATICAL ITALIC SMALL V
+    "u", // 𝑢 MATHEMATICAL ITALIC SMALL U
+    "t", // 𝑡 MATHEMATICAL ITALIC SMALL T
+    "f", // 𝑓 MATHEMATICAL ITALIC SMALL F
+    "g", // 𝑔 MATHEMATICAL ITALIC SMALL G
+    "s", // 𝑠 MATHEMATICAL ITALIC SMALL S
+    "e", // 𝑒 MATHEMATICAL ITALIC SMALL E
+    "h", // ℎ PLANCK CONSTANT
+    "i", // 𝑖 MATHEMATICAL ITALIC SMALL I
+    "j", // 𝑗 MATHEMATICAL ITALIC SMALL J
+    "k", // 𝑘 MATHEMATICAL ITALIC SMALL K
+    "m", // 𝑚 MATHEMATICAL ITALIC SMALL M
+    "n", // 𝑛 MATHEMATICAL ITALIC SMALL N
+    "o", // 𝑜 MATHEMATICAL ITALIC SMALL O
+    "r", // 𝑟 MATHEMATICAL ITALIC SMALL R
+    "q", // 𝑞 MATHEMATICAL ITALIC SMALL Q
+    "p", // 𝑝 MATHEMATICAL ITALIC SMALL P
+    "a", // 𝑎 MATHEMATICAL ITALIC SMALL A
+    "b", // 𝑏 MATHEMATICAL ITALIC SMALL B
+    "c", // 𝑐 MATHEMATICAL ITALIC SMALL C
+    "d", // 𝑑 MATHEMATICAL ITALIC SMALL D
+    "l", // 𝑙 MATHEMATICAL ITALIC SMALL L
+];
 
 /// Italic Latin uppercase letters used for Class metavariables.
 ///
 /// Following Metamath conventions for class variables.
-/// Total: 24 characters.
+///
+/// # Character Mapping Table
+///
+/// | Index | ASCII | Unicode | Name | Code Point |
+/// |-------|-------|---------|------|------------|
+/// | 0     | A     | 𝐴      | MATHEMATICAL ITALIC CAPITAL A | U+1D434 |
+/// | 1     | B     | 𝐵      | MATHEMATICAL ITALIC CAPITAL B | U+1D435 |
+/// | 2     | C     | 𝐶      | MATHEMATICAL ITALIC CAPITAL C | U+1D436 |
+/// | 3     | D     | 𝐷      | MATHEMATICAL ITALIC CAPITAL D | U+1D437 |
+/// | 4     | P     | 𝑃      | MATHEMATICAL ITALIC CAPITAL P | U+1D443 |
+/// | 5     | Q     | 𝑄      | MATHEMATICAL ITALIC CAPITAL Q | U+1D444 |
+/// | 6     | R     | 𝑅      | MATHEMATICAL ITALIC CAPITAL R | U+1D445 |
+/// | 7     | S     | 𝑆      | MATHEMATICAL ITALIC CAPITAL S | U+1D446 |
+/// | 8     | T     | 𝑇      | MATHEMATICAL ITALIC CAPITAL T | U+1D447 |
+/// | 9     | U     | 𝑈      | MATHEMATICAL ITALIC CAPITAL U | U+1D448 |
+/// | 10    | E     | 𝐸      | MATHEMATICAL ITALIC CAPITAL E | U+1D438 |
+/// | 11    | F     | 𝐹      | MATHEMATICAL ITALIC CAPITAL F | U+1D439 |
+/// | 12    | G     | 𝐺      | MATHEMATICAL ITALIC CAPITAL G | U+1D43A |
+/// | 13    | H     | 𝐻      | MATHEMATICAL ITALIC CAPITAL H | U+1D43B |
+/// | 14    | I     | 𝐼      | MATHEMATICAL ITALIC CAPITAL I | U+1D43C |
+/// | 15    | J     | 𝐽      | MATHEMATICAL ITALIC CAPITAL J | U+1D43D |
+/// | 16    | K     | 𝐾      | MATHEMATICAL ITALIC CAPITAL K | U+1D43E |
+/// | 17    | L     | 𝐿      | MATHEMATICAL ITALIC CAPITAL L | U+1D43F |
+/// | 18    | M     | 𝑀      | MATHEMATICAL ITALIC CAPITAL M | U+1D440 |
+/// | 19    | N     | 𝑁      | MATHEMATICAL ITALIC CAPITAL N | U+1D441 |
+/// | 20    | V     | 𝑉      | MATHEMATICAL ITALIC CAPITAL V | U+1D449 |
+/// | 21    | W     | 𝑊      | MATHEMATICAL ITALIC CAPITAL W | U+1D44A |
+/// | 22    | X     | 𝑋      | MATHEMATICAL ITALIC CAPITAL X | U+1D44B |
+/// | 23    | Y     | 𝑌      | MATHEMATICAL ITALIC CAPITAL Y | U+1D44C |
+/// | 24    | Z     | 𝑍      | MATHEMATICAL ITALIC CAPITAL Z | U+1D44D |
+/// | 25    | O     | 𝑂      | MATHEMATICAL ITALIC CAPITAL O | U+1D442 |
+///
+/// Total: 26 characters.
+///
+/// See also: [`ASCII_CLASSES`] for the corresponding ASCII representations.
 pub const OUR_CLASSES: &str = "𝐴𝐵𝐶𝐷𝑃𝑄𝑅𝑆𝑇𝑈𝐸𝐹𝐺𝐻𝐼𝐽𝐾𝐿𝑀𝑁𝑉𝑊𝑋𝑌𝑍𝑂";
+
+/// ASCII representations for Class metavariables.
+///
+/// These are the Metamath-standard single-letter ASCII representations
+/// that correspond 1-to-1 with [`OUR_CLASSES`] by index position.
+///
+/// # Usage Examples
+///
+/// The ASCII constants correspond 1-to-1 with the UTF-8 characters:
+/// - `ASCII_CLASSES[0]` is `"A"` → `OUR_CLASSES` char 0 is `"𝐴"`
+/// - `ASCII_CLASSES[1]` is `"B"` → `OUR_CLASSES` char 1 is `"𝐵"`
+///
+/// Note: These constants are provided for maintainer reference and will be used
+/// by the formatter system (Phase 7.10) and `ParametricMetavariable` (future).
+#[allow(dead_code)]
+pub const ASCII_CLASSES: &[&str] = &[
+    "A", // 𝐴 MATHEMATICAL ITALIC CAPITAL A
+    "B", // 𝐵 MATHEMATICAL ITALIC CAPITAL B
+    "C", // 𝐶 MATHEMATICAL ITALIC CAPITAL C
+    "D", // 𝐷 MATHEMATICAL ITALIC CAPITAL D
+    "P", // 𝑃 MATHEMATICAL ITALIC CAPITAL P
+    "Q", // 𝑄 MATHEMATICAL ITALIC CAPITAL Q
+    "R", // 𝑅 MATHEMATICAL ITALIC CAPITAL R
+    "S", // 𝑆 MATHEMATICAL ITALIC CAPITAL S
+    "T", // 𝑇 MATHEMATICAL ITALIC CAPITAL T
+    "U", // 𝑈 MATHEMATICAL ITALIC CAPITAL U
+    "E", // 𝐸 MATHEMATICAL ITALIC CAPITAL E
+    "F", // 𝐹 MATHEMATICAL ITALIC CAPITAL F
+    "G", // 𝐺 MATHEMATICAL ITALIC CAPITAL G
+    "H", // 𝐻 MATHEMATICAL ITALIC CAPITAL H
+    "I", // 𝐼 MATHEMATICAL ITALIC CAPITAL I
+    "J", // 𝐽 MATHEMATICAL ITALIC CAPITAL J
+    "K", // 𝐾 MATHEMATICAL ITALIC CAPITAL K
+    "L", // 𝐿 MATHEMATICAL ITALIC CAPITAL L
+    "M", // 𝑀 MATHEMATICAL ITALIC CAPITAL M
+    "N", // 𝑁 MATHEMATICAL ITALIC CAPITAL N
+    "V", // 𝑉 MATHEMATICAL ITALIC CAPITAL V
+    "W", // 𝑊 MATHEMATICAL ITALIC CAPITAL W
+    "X", // 𝑋 MATHEMATICAL ITALIC CAPITAL X
+    "Y", // 𝑌 MATHEMATICAL ITALIC CAPITAL Y
+    "Z", // 𝑍 MATHEMATICAL ITALIC CAPITAL Z
+    "O", // 𝑂 MATHEMATICAL ITALIC CAPITAL O
+];
 
 /// A metavariable implementation with unlimited index space.
 ///
