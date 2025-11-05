@@ -182,7 +182,6 @@ Begriffsschrift
 benchmarked
 benchmarking
 BigUint
-Biimp
 biimp
 biimplication
 BinaryOp
@@ -544,7 +543,6 @@ mgutype
 MinU
 MinusOneTmpReals
 MinV
-Modus
 modus
 Motta
 mp4
@@ -585,7 +583,7 @@ NotEquals
 NotOr
 NUL
 nullaries
-Nullary
+nullary
 Num
 NumCast
 NumericConversionError
@@ -641,7 +639,6 @@ pickable
 pmGenerator
 pmproofs
 polyline
-Ponens
 ponens
 PosInfinity
 PositiveIntegers
@@ -715,10 +712,8 @@ RecursiveGenerator
 RedOrange
 ReducePosRats
 RedViolet
-Reflow
 reflow
 reflown
-Reflows
 reflows
 reinen
 RelationIsometry
@@ -1133,9 +1128,7 @@ P₁
 Q}
 rect/S
 recurse/S
-Reflow's
 reflow's
-Reflow/MS
 reflow/MS
 register_database
 Ridenour's
