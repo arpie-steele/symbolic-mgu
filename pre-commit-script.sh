@@ -1,8 +1,7 @@
 #!/bin/sh
 
 # rm -f Cargo.lock
-cargo +1.77 spellcheck || exit 1
-cargo +1.77 fmt || exit 1
+scripts/normalize_dictionary.py || exit 1
 
 # Generate SVG diagrams from PlantUML sources if available
 if command -v plantuml >/dev/null 2>&1; then
@@ -16,6 +15,8 @@ else
     echo "Note: plantuml not found, skipping diagram generation"
 fi
 
+cargo +1.77 spellcheck || exit 1
+cargo +1.77 fmt || exit 1
 cargo +1.77 check --all-features --all-targets || exit 1
 cargo +1.77 clippy --all-features --all-targets || exit 1
 cargo +1.77 build --all-features --all-targets || exit 1

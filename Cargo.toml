@@ -9,14 +9,15 @@ exclude = [
     ".cargo/config.toml",
     ".claude/",
     ".github/",
-    "pmproofs_history/",
-    "pre-commit-script.sh",
-    "src/example/",
-    "src/NodeBytesLogicTable.md",
-    "TODO.md",
     "BACKPORT_PLAN.md",
     "BOOL_EVAL_BACKPORT_PLAN.md",
     "GENERIC_TAUTOLOGY_PLAN.md",
+    "pmproofs_history/",
+    "pre-commit-script.sh",
+    "scripts/",
+    "src/example/",
+    "src/NodeBytesLogicTable.md",
+    "TODO.md",
 ]
 autobins = true
 autoexamples = true

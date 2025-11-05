@@ -86,7 +86,7 @@ mod tests {
 
     #[test]
     fn factory_creates_valid_variables() {
-        use crate::metavariable::wide::{OUR_BOOLEANS, OUR_SETVARS, OUR_CLASSES};
+        use crate::metavariable::wide::{OUR_BOOLEANS, OUR_CLASSES, OUR_SETVARS};
 
         let factory = WideMetavariableFactory::new();
 
@@ -100,7 +100,9 @@ mod tests {
         assert_eq!(psi.to_string(), expected_psi);
 
         // Test with subscripts
-        let phi_1 = factory.create_by_type_and_index(&Type::Boolean, 12).unwrap();
+        let phi_1 = factory
+            .create_by_type_and_index(&Type::Boolean, 12)
+            .unwrap();
         let expected_phi_1 = OUR_BOOLEANS.chars().next().unwrap().to_string() + "₁";
         assert_eq!(phi_1.to_string(), expected_phi_1);
 
@@ -121,8 +123,15 @@ mod tests {
 
         let factory = WideMetavariableFactory::new();
 
-        let vars: Vec<_> = factory.list_metavariables_by_type(&Type::Boolean).take(5).collect();
-        let expected: Vec<_> = OUR_BOOLEANS.chars().take(5).map(|c| c.to_string()).collect();
+        let vars: Vec<_> = factory
+            .list_metavariables_by_type(&Type::Boolean)
+            .take(5)
+            .collect();
+        let expected: Vec<_> = OUR_BOOLEANS
+            .chars()
+            .take(5)
+            .map(|c| c.to_string())
+            .collect();
 
         assert_eq!(vars[0].to_string(), expected[0]);
         assert_eq!(vars[1].to_string(), expected[1]);
@@ -133,9 +142,15 @@ mod tests {
 
     #[test]
     fn metavariable_max_index_is_large() {
-        // Test max_index on the Metavariable trait, not the factory
-        assert_eq!(WideMetavariable::max_index_by_type(Type::Boolean), usize::MAX);
-        assert_eq!(WideMetavariable::max_index_by_type(Type::Setvar), usize::MAX);
+        // Test `max_index` on the Metavariable trait, not the factory
+        assert_eq!(
+            WideMetavariable::max_index_by_type(Type::Boolean),
+            usize::MAX
+        );
+        assert_eq!(
+            WideMetavariable::max_index_by_type(Type::Setvar),
+            usize::MAX
+        );
         assert_eq!(WideMetavariable::max_index_by_type(Type::Class), usize::MAX);
     }
 

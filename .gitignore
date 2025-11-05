@@ -2,9 +2,6 @@
 ### Project-specific Block
 ###
 
-# Scripts
-pre-commit-script.sh
-
 # Profiling
 *.profdata
 *.profraw

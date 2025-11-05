@@ -47,6 +47,9 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq {
     /// For implementations with unlimited variables (like [`WideMetavariable`]),
     /// this returns `usize::MAX`. For limited implementations (like [`MetaByte`]),
     /// this returns the actual maximum index.
+    ///
+    /// [`MetaByte`]: `crate::MetaByte`
+    /// [`WideMetavariable`]: `crate::WideMetavariable`
     fn max_index_by_type(typ: Self::Type) -> usize;
 
     /// Try to create a metavariable from a type and index.

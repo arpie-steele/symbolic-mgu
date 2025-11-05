@@ -12,7 +12,12 @@ fn parse_compact_proof(proof: &str) -> Result<bool, MguError> {
     let var_factory = MetaByteFactory();
     let term_factory = EnumTermFactory::new();
 
-    let dict = create_dict(&term_factory, &var_factory, NodeByte::Implies, NodeByte::Not)?;
+    let dict = create_dict(
+        &term_factory,
+        &var_factory,
+        NodeByte::Implies,
+        NodeByte::Not,
+    )?;
 
     let result = Statement::from_compact_proof(proof, &var_factory, &term_factory, &dict)?;
 
@@ -88,8 +93,13 @@ fn regression_ddd1d221d2d2d11_produces_tautology() {
 fn regression_proofs_parse_successfully() {
     let var_factory = MetaByteFactory();
     let term_factory = EnumTermFactory::new();
-    let dict = create_dict(&term_factory, &var_factory, NodeByte::Implies, NodeByte::Not)
-        .expect("Failed to create dictionary");
+    let dict = create_dict(
+        &term_factory,
+        &var_factory,
+        NodeByte::Implies,
+        NodeByte::Not,
+    )
+    .expect("Failed to create dictionary");
 
     // DDD111D23 should parse
     let result1 = Statement::from_compact_proof("DDD111D23", &var_factory, &term_factory, &dict);
@@ -120,8 +130,13 @@ fn disjointness_is_enforced_in_apply() {
     let var_factory = MetaByteFactory();
     let term_factory = EnumTermFactory::new();
 
-    let dict = create_dict(&term_factory, &var_factory, NodeByte::Implies, NodeByte::Not)
-        .expect("Failed to create dictionary");
+    let dict = create_dict(
+        &term_factory,
+        &var_factory,
+        NodeByte::Implies,
+        NodeByte::Not,
+    )
+    .expect("Failed to create dictionary");
 
     // Get Modus Ponens (has 2 hypotheses) and Simp (axiom)
     let modus_ponens = dict.get("D").expect("Modus Ponens not in dict").clone();

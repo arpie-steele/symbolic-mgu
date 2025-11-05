@@ -340,8 +340,8 @@ impl Display for WideMetavariable {
                 .chars()
                 .map(|ch| {
                     // Map ASCII digit to Unicode subscript
-                    // '0' (0x30) -> '₀' (0x2080)
-                    // '1' (0x31) -> '₁' (0x2081)
+                    // '0' (0x30) ↦ '₀' (0x2080)
+                    // '1' (0x31) ↦ '₁' (0x2081)
                     // etc.
                     char::from_u32(0x2080 + (ch as u32 - '0' as u32)).unwrap()
                 })
@@ -470,28 +470,40 @@ mod tests {
     #[test]
     fn enumerate_produces_unique_variables() {
         // Test that enumeration produces unique variables
-        let vars: Vec<_> = WideMetavariable::enumerate(Type::Boolean).take(100).collect();
+        let vars: Vec<_> = WideMetavariable::enumerate(Type::Boolean)
+            .take(100)
+            .collect();
         let unique_vars: HashSet<_> = vars.iter().cloned().collect();
 
-        assert_eq!(vars.len(), unique_vars.len(), "All enumerated variables should be unique");
+        assert_eq!(
+            vars.len(),
+            unique_vars.len(),
+            "All enumerated variables should be unique"
+        );
     }
 
     #[test]
     fn subscript_formatting() {
         // Test various subscript numbers
-        // Note: Uses Mathematical Italic characters from OUR_BOOLEANS constant
+        // Note: Uses Mathematical Italic characters from `OUR_BOOLEANS` constant
         let first_bool = OUR_BOOLEANS.chars().next().unwrap().to_string();
         let test_cases = vec![
-            (0, first_bool.clone()),                    // No subscript
-            (12, first_bool.clone() + "₁"),            // First subscript
-            (24, first_bool.clone() + "₂"),            // Second subscript
-            (120, first_bool.clone() + "₁₀"),          // Two-digit subscript
-            (1200, first_bool.clone() + "₁₀₀"),        // Three-digit subscript
+            (0, first_bool.clone()),            // No subscript
+            (12, first_bool.clone() + "₁"),     // First subscript
+            (24, first_bool.clone() + "₂"),     // Second subscript
+            (120, first_bool.clone() + "₁₀"),   // Two-digit subscript
+            (1200, first_bool.clone() + "₁₀₀"), // Three-digit subscript
         ];
 
         for (index, expected) in test_cases {
             let var = WideMetavariable(Type::Boolean, index);
-            assert_eq!(var.to_string(), expected, "Index {} should format as {}", index, expected);
+            assert_eq!(
+                var.to_string(),
+                expected,
+                "Index {} should format as {}",
+                index,
+                expected
+            );
         }
     }
 }
