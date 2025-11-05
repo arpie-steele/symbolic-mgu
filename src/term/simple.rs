@@ -1,6 +1,9 @@
 //! Very Generic Simple Term implementation.
 
-use crate::{Metavariable, Node, Term, Type};
+use crate::{
+    Metavariable, MetavariableFactory, MguError, Node, NodeFactory, Term, TermFactory, Type,
+};
+use std::collections::HashSet;
 use std::fmt::Display;
 
 /// A simple implementation of [`Term`] based straightforwardly on supplied [`Metavariable`] and [`Node`] implementations.
@@ -106,6 +109,21 @@ where
         }
     }
 
+    fn collect_metavariables(&self, vars: &mut HashSet<V>) -> Result<(), MguError> {
+        match self {
+            Self::Leaf(var) => {
+                vars.insert(var.clone());
+                Ok(())
+            }
+            Self::NodeOrLeaf(_, children) => {
+                for child in children {
+                    child.collect_metavariables(vars)?;
+                }
+                Ok(())
+            }
+        }
+    }
+
     fn get_node(&self) -> Option<N> {
         match self {
             Self::Leaf(_) => None,
@@ -146,5 +164,87 @@ where
             Self::Leaf(_) => &[],
             Self::NodeOrLeaf(_, c) => c.as_slice(),
         }
+    }
+}
+
+/// A simple factory for creating [`EnumTerm`] instances.
+///
+/// This factory creates terms directly without caching or deduplication.
+#[derive(Debug)]
+pub struct EnumTermFactory<T, V, N>
+where
+    T: Type,
+    V: Metavariable<Type = T>,
+    N: Node<Type = T>,
+{
+    /// Phantom data to hold type parameter T.
+    _phantom_t: std::marker::PhantomData<T>,
+    /// Phantom data to hold type parameter V.
+    _phantom_v: std::marker::PhantomData<V>,
+    /// Phantom data to hold type parameter N.
+    _phantom_n: std::marker::PhantomData<N>,
+}
+
+impl<T, V, N> EnumTermFactory<T, V, N>
+where
+    T: Type,
+    V: Metavariable<Type = T>,
+    N: Node<Type = T>,
+{
+    /// Create a new `EnumTermFactory`.
+    pub fn new() -> Self {
+        Self {
+            _phantom_t: std::marker::PhantomData,
+            _phantom_v: std::marker::PhantomData,
+            _phantom_n: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<T, V, N> Default for EnumTermFactory<T, V, N>
+where
+    T: Type,
+    V: Metavariable<Type = T>,
+    N: Node<Type = T>,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T, V, N> TermFactory<EnumTerm<T, V, N>, T, V, N> for EnumTermFactory<T, V, N>
+where
+    T: Type,
+    V: Metavariable<Type = T>,
+    N: Node<Type = T>,
+{
+    type TermType = T;
+    type Term = EnumTerm<T, V, N>;
+    type TermNode = N;
+    type TermMetavariable = V;
+
+    fn from_factories<VF, NF>(_vars: VF, _nodes: NF) -> Self
+    where
+        VF: MetavariableFactory<Metavariable = V>,
+        NF: NodeFactory<Node = N>,
+    {
+        Self::new()
+    }
+
+    fn create_leaf(&self, var: Self::TermMetavariable) -> Result<Self::Term, MguError> {
+        Ok(EnumTerm::Leaf(var))
+    }
+
+    fn create_node(
+        &self,
+        node: Self::TermNode,
+        children: Vec<Self::Term>,
+    ) -> Result<Self::Term, MguError> {
+        // Validate arity
+        let expected_arity = node.get_arity()?;
+        if children.len() != expected_arity {
+            return Err(MguError::SlotsMismatch(expected_arity, children.len()));
+        }
+        Ok(EnumTerm::NodeOrLeaf(node, children))
     }
 }

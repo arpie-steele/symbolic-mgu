@@ -48,9 +48,9 @@
     rustdoc::missing_doc_code_examples
 )]
 #![deny(invalid_doc_attributes)]
+#![allow(rustdoc::private_doc_tests)]
 
 pub mod bool_eval;
-pub mod bool_eval_next;
 // pub mod color;
 pub(crate) mod distinct;
 pub(crate) mod error;
@@ -67,7 +67,8 @@ pub(crate) mod term;
 // #[cfg_attr(docsrs, doc(cfg(feature = "video")))]
 // pub mod video;
 
-pub use bool_eval_next::generated_enum::BooleanSimpleOp;
+pub use bool_eval::generated_enum::BooleanSimpleOp;
+pub use bool_eval::{test_contingent, test_contradiction, test_tautology, test_term};
 pub use distinct::pair::Pair;
 pub use distinct::simple_graph::check_clique;
 pub use distinct::simple_graph::check_decomposition;
@@ -81,8 +82,10 @@ pub use error::err_type::MguErrorType;
 pub use metavariable::enums::AsciiMetaVar;
 pub use metavariable::factory::MetavariableFactory;
 pub use metavariable::meta_byte::MetaByte;
+pub use metavariable::meta_byte::MetaByteFactory;
+pub use metavariable::wide::WideMetavariable;
+pub use metavariable::wide_factory::WideMetavariableFactory;
 pub use metavariable::Metavariable;
-// pub use metavariable::wide::WideMetavariable;
 pub use mgutype::base::SimpleType;
 pub use node::base::Node;
 pub use node::factory::NodeFactory;
@@ -104,13 +107,13 @@ pub use statement::Statement;
 pub use term::base::Term;
 pub use term::factory::TermFactory;
 pub use term::simple::EnumTerm;
+pub use term::simple::EnumTermFactory;
 pub use term::substitution::apply_substitution;
 pub use term::substitution::occurs_check;
 pub use term::substitution::unify;
 pub use term::substitution::NormalizingSubstitution;
 pub use term::substitution::Substitution;
 // pub use term::dbterm::DbTerm;
-// pub use term::enums::EnumTerm;
 // pub use term::veryfinite::TinyTerm;
 
 #[cfg(test)]

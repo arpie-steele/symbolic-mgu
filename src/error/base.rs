@@ -1,6 +1,7 @@
 //! Common error handling via enum.
 
 use crate::{MguErrorType, Type, TypeCore};
+use std::convert::Infallible;
 use std::hash::Hash;
 use std::mem::discriminant;
 use std::ptr::addr_eq;
@@ -492,6 +493,17 @@ impl PartialEq for MguError {
 }
 
 impl Eq for MguError {}
+
+/// Convert from Infallible (which can never be constructed).
+///
+/// This impl exists to satisfy trait bounds like `Error: Into<MguError>` when
+/// `Error = Infallible`. Since `Infallible` can never be instantiated, this
+/// method can never actually be called.
+impl From<Infallible> for MguError {
+    fn from(x: Infallible) -> Self {
+        match x {}
+    }
+}
 
 impl Hash for MguError {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

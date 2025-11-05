@@ -304,7 +304,7 @@ impl SimpleType {
     /// [`Setvar`]: `SimpleType::Setvar`
     /// [`Class`]: `SimpleType::Class`
     pub fn may_assign_tree_to_this_var(&self, tree_type: &Self) -> bool {
-        *self == *tree_type || (*self == SimpleType::Class && *tree_type == SimpleType::Setvar)
+        *self == *tree_type || (self.is_class() && tree_type.is_setvar())
     }
 
     /// Return associated HTML color, based on [Metamath] conventions.

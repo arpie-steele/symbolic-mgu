@@ -1,32 +1,46 @@
 # symbolic-mgu TODO List
 
-## 📊 Overall Progress: 95% Complete
+## 📊 Overall Progress: ~85% Complete
 
-**Summary of v010 branch status:**
+**Summary of v010 branch status (as of v0.1.0-alpha.10):**
 
 | Phase | Status | Completion | Notes |
 |-------|--------|------------|-------|
-| Phase 0: Factory Pattern | ⚠️ Partial | 50% | Working, needs documentation |
-| Phase 1: UnsignedBits | ✅ Complete | 95% | All types implemented and tested |
-| Phase 2: BooleanSimpleOp | ✅ Complete | 90% | Fully implemented, exported, tested |
-| Phase 3: Term Abstraction | ✅ Complete | 90% | Minor polish possible |
-| Phase 4: Testing | ✅ Good | 70% | 5 tests covering all 278 operations |
-| **Phase 5: Unification** | ✅ **Complete** | **100%** | **Robinson's MGU fully backported** |
+| Phase 0: Factory Pattern | ✅ Complete | 100% | Comprehensive documentation added |
+| Phase 1: UnsignedBits | ✅ Complete | 100% | All types implemented and tested |
+| Phase 2: BooleanSimpleOp | ✅ Complete | 100% | Fully implemented, exported, tested |
+| Phase 3: Term Abstraction | ✅ Complete | 100% | Generic Term trait support |
+| Phase 4: Testing | ✅ Complete | 100% | 24 tests covering all operations |
+| Phase 5: Unification | ✅ Complete | 100% | Robinson's MGU fully backported |
+| Phase 6: Enhanced Testing API | ✅ Complete | 100% | test_term(), test_contradiction(), test_contingent() |
+| Phase 7: rustmgu Backport | 🚧 In Progress | 85% | Logic, proofs, inclusion, operations, binary, regression, WideMetavariable complete |
 
-**Status for pre-release (v0.1.0-alpha.6):**
-- ✅ **All tests passing** - 21 tests (up from 12)
+**Status for v0.1.0 final release (~1 week away):**
+- ✅ **All tests passing** - 93 tests total (50 unit + 4 integration + 39 doctests)
+  - 50 lib unit tests
+  - 4 integration tests (regression_compact_proofs.rs)
+  - 39 doctests
 - ✅ **All UnsignedBits types** - bool, u8, u16, u32, u64, u128, BigUint
 - ✅ **Unification algorithm** - Substitution, MGU, occurs check
 - ✅ **Statement operations** - substitute, apply, contract
-- ✅ **Quality gates pass** - clippy, doc, test all clean
+- ✅ **Compact binary** - Working with verification support
+- ✅ **Regression tests** - DDD111D23, DDD1D221D2D2D11 validate disjointness fix
+- ✅ **WideMetavariable** - Unlimited variable space for long proofs (Phase 7.9)
+  - ASCII mapping documentation complete with full character tables
+  - 12 Boolean, 26 Setvar, 26 Class characters documented
+  - Ready for ParametricMetavariable migration and formatter integration
+- ✅ **Quality gates pass** - clippy, doc, test all clean (zero warnings)
+- ✅ **Property testing ready** - proptest 1.5.0 added to dev-dependencies
 - ⚠️ **Documentation gaps** - Module docs exist but could be expanded
+- 🚧 **Backporting from rustmgu** - See Phase 7 below
+- 🚧 **Output formatters** - Design complete, implementation pending (Phase 7.10)
 
 ---
 
-## Current Status: bool_eval_next Module Complete
+## Current Status: bool_eval Module Complete
 
 ### Implementation Summary
-The `bool_eval_next` module is feature-complete and tested:
+The `bool_eval` module is feature-complete and tested:
 - ✅ `EnumTerm` type implemented in `src/term/simple.rs` (150 lines)
 - ✅ `NodeByte` enum implemented with 222+ operations in `src/node/node_byte/base.rs` (1,375 lines)
 - ✅ `BooleanSimpleOp` enum with all 278 Boolean operations on ≤3 variables (elegant u16 encoding)
@@ -46,16 +60,17 @@ The `bool_eval_next` module is feature-complete and tested:
 
 ---
 
-## Phase 0: Document Factory Pattern Use - ⚠️ 50% Complete
+## Phase 0: Document Factory Pattern Use - ✅ 100% Complete
 
-**Status**: Implementation complete, documentation missing
+**Status**: Implementation and documentation complete
 
 **What's been implemented:**
-- ✅ `NodeFactory` trait in `src/node/factory.rs`
-- ✅ `MetavariableFactory` trait in `src/metavariable/factory.rs`
-- ✅ `TermFactory` trait in `src/term/factory.rs`
-- ✅ `NodeByteFactory` concrete implementation (174 lines, stateless with PhantomData)
-- ✅ Factory methods demonstrated in metavariable/meta_byte.rs
+- ✅ `NodeFactory` trait in `src/node/factory.rs` with comprehensive documentation
+- ✅ `MetavariableFactory` trait in `src/metavariable/factory.rs` with comprehensive documentation
+- ✅ `TermFactory` trait in `src/term/factory.rs` with comprehensive documentation
+- ✅ `NodeByteFactory` concrete implementation (stateless example)
+- ✅ `MetaByteFactory` concrete implementation (stateless example)
+- ✅ `EnumTermFactory` concrete implementation (stateless example)
 
 **Type System Examples**:
 
@@ -84,15 +99,24 @@ The `bool_eval_next` module is feature-complete and tested:
    - Lattice theory: custom type hierarchies
    - Can ignore Boolean/Setvar/Class if not needed
 
+**Documentation added (v0.1.0-alpha.9):**
+- ✅ NodeFactory module-level docs: 180 lines of rationale, examples, and patterns
+- ✅ MetavariableFactory module-level docs: 190 lines covering variable management
+- ✅ TermFactory module-level docs: 290 lines on term construction and caching
+- ✅ All examples tested as doctests (35 doctests passing)
+- ✅ Stateful vs stateless factory patterns explained with examples
+- ✅ Different backend examples (testing, production, database) documented
+- ✅ Usage patterns for all three factory types
+
 ---
 
-### Action Items
+### Action Items - All Complete
 
-#### Documentation (0% Complete)
-- [ ] Document factory pattern rationale in module-level docs
-- [ ] Provide examples of stateful vs. stateless factory implementations
-- [ ] Document how factories enable different construction strategies
-- [ ] Add examples showing factory usage for different backends (testing, production, database)
+#### Documentation (100% Complete)
+- [x] Document factory pattern rationale in module-level docs
+- [x] Provide examples of stateful vs. stateless factory implementations
+- [x] Document how factories enable different construction strategies
+- [x] Add examples showing factory usage for different backends (testing, production, database)
 
 #### Design Considerations for Later (Not Blocking)
 - [ ] Consider `StatementFactory` trait (Statements are serialized for long-term storage)
@@ -113,7 +137,7 @@ The `bool_eval_next` module is feature-complete and tested:
 **Status**: All implementations complete and tested via `ub_prim_impl!` macro
 
 **What's been implemented:**
-- ✅ `UnsignedBits<U, const N: usize>` trait defined (src/bool_eval_next/mod.rs)
+- ✅ `UnsignedBits<U, const N: usize>` trait defined (src/bool_eval/mod.rs)
 - ✅ `<bool; 0>` implementation (single bit)
 - ✅ `<u8; 0..=3>` implementations (4 total: 1, 2, 4, 8 bits for 0-3 variables)
 - ✅ `<u16; 0..=4>` implementations (5 total: supports 0-4 variables)
@@ -150,7 +174,7 @@ The `bool_eval_next` module is feature-complete and tested:
 **Status**: Fully implemented, exported, and tested
 
 **What's been implemented:**
-- ✅ `BooleanSimpleOp` enum (src/bool_eval_next/generated_enum.rs) - **All 278 Boolean operations on ≤3 variables**
+- ✅ `BooleanSimpleOp` enum (src/bool_eval/generated_enum.rs) - **All 278 Boolean operations on ≤3 variables**
   - Elegant encoding: `u16 = 0x{arity}_{truth_table_code}`
   - Example: `AndAB2 = 0x2_88` (arity=2 in upper bits, code=0x88 in lower 8 bits)
   - Complete enumeration: 2 nullary + 4 unary + 16 binary + 256 ternary = 278 total
@@ -158,7 +182,7 @@ The `bool_eval_next` module is feature-complete and tested:
 - ✅ `get_code3()` method - extracts 8-bit truth table code
 - ✅ `eval0/1/2/3<B, U, const N>()` methods - generic evaluation for any `UnsignedBits<U, N>`
 - ✅ `BooleanSimpleNode<Ty>` wrapper - implements `Node` trait, generic over any `Type` system
-- ✅ **Exported from lib.rs** - `pub use bool_eval_next::generated_enum::BooleanSimpleOp;`
+- ✅ **Exported from lib.rs** - `pub use bool_eval::generated_enum::BooleanSimpleOp;`
 - ✅ **Comprehensive tests** - All 278 operations tested on bool, u8, u64, BigUint
 
 **Design Note:**
@@ -228,7 +252,7 @@ pub trait BooleanNode {
 ### Original Context (RESOLVED)
 - ~~Previous `Term` trait (in `src/term/base.rs`) exists but is not functional enough~~ ✅ NOW FUNCTIONAL
 - ~~`EnumTerm<V, NodeBytes>` concrete type was easier to work with (had `MetaLeaf`, `NodeHead` variants)~~ ✅ IMPLEMENTED
-- ~~Need trait-based abstraction for `bool_eval_next` that doesn't couple to concrete types~~ ✅ ACHIEVED with generics
+- ~~Need trait-based abstraction for `bool_eval` that doesn't couple to concrete types~~ ✅ ACHIEVED with generics
 
 ### Original Design Goals (ALL MET)
 - ✅ Support term traversal (distinguish metavariable leaves from node heads)
@@ -255,14 +279,14 @@ pub trait BooleanNode {
 **Status**: Comprehensive tests implemented and passing
 
 ### Compilation - ✅ Complete
-- ✅ All import errors fixed in `src/bool_eval_next/mod.rs`
+- ✅ All import errors fixed in `src/bool_eval/mod.rs`
 - ✅ `num-bigint` dependency properly feature-gated with `#[cfg(feature = "bigint")]`
 - ✅ Module exported in lib.rs
 - ✅ **Verified**: `cargo +1.77 build --all-features` - builds successfully
 
 ### Testing Strategy - ✅ 70% Complete
 
-**5 comprehensive tests implemented** in `src/bool_eval_next/mod.rs`:
+**5 comprehensive tests implemented** in `src/bool_eval/mod.rs`:
 
 1. ✅ **`all_variants_make_truth_tables`** - Tests all 278 operations on `bool` type
    - Verifies each operation's truth table matches its code
@@ -370,9 +394,659 @@ pub trait BooleanNode {
 
 ---
 
-## Summary - v010 Branch Ready for v0.1.0-alpha.6 Release
+## Phase 6: Enhanced Boolean Testing API - ✅ 100% Complete
 
-**Branch status**: Feature-complete and ready for alpha.6 pre-release
+**Status**: Comprehensive API for testing Boolean term properties (v0.1.0-alpha.7)
+
+**What's been implemented:**
+- ✅ `test_term<T>(term: &T) -> Result<Option<bool>, MguError>` - Core evaluation function
+  - Returns `Ok(Some(true))` for **tautologies** (true for all assignments)
+  - Returns `Ok(Some(false))` for **contradictions** (false for all assignments)
+  - Returns `Ok(None)` for **contingent** formulas (mixed truth values)
+  - Generic over any `T: Term<Ty, V, No>` implementation
+  - Automatic type selection based on variable count (0-20 vars)
+
+- ✅ `test_tautology<T>(term: &T) -> Result<bool, MguError>` - Convenience wrapper
+  - Returns `true` if term is a tautology
+  - Implemented as: `test_term(term).map(|opt| opt == Some(true))`
+
+- ✅ `test_contradiction<T>(term: &T) -> Result<bool, MguError>` - Contradiction checker
+  - Returns `true` if term is always false
+  - Implemented as: `test_term(term).map(|opt| opt == Some(false))`
+
+- ✅ `test_contingent<T>(term: &T) -> Result<bool, MguError>` - Contingency checker
+  - Returns `true` if term is neither tautology nor contradiction
+  - Implemented as: `test_term(term).map(|opt| opt.is_none())`
+
+**Key Improvements:**
+- **Generic Term support**: Works with any `Term` implementation, not just `EnumTerm`
+- **More information**: Single evaluation distinguishes tautologies, contradictions, and contingent formulas
+- **Memory efficiency**: Optimized for 8-19 variables (uses appropriate SomeBits<N> size)
+- **Clean API**: Core function + three simple wrappers
+- **Comprehensive documentation**: Parallel documentation for all helper functions
+
+**Architecture Benefits:**
+- Single implementation serves multiple use cases
+- Easy to add new helpers (e.g., `test_satisfiable()`)
+- Aligns with "trait abstractions first" principle
+- Zero runtime overhead (generic monomorphization)
+
+### Test Coverage
+
+**3 integration tests** in `src/bool_eval/mod.rs`:
+1. ✅ `tautology_simple()` - Law of excluded middle: `p ∨ ¬p` → Some(true)
+2. ✅ `tautology_not_tautology()` - Contradiction: `p ∧ ¬p` → Some(false)
+3. ✅ `tautology_de_morgan()` - De Morgan's law → Some(true)
+
+**Quality Gates**: ✅ All passing
+- All 24 tests pass
+- No clippy warnings
+- Documentation builds successfully
+- Edition 2018 compatible (Rust 1.77+)
+
+### Action Items
+
+✅ **All Complete** - No remaining work
+
+**Future Enhancements (Optional):**
+- [ ] Add `test_satisfiable()` helper: `test_term(term).map(|opt| opt != Some(false))`
+- [ ] Add examples testing contingent formulas
+- [ ] Consider adding truth table extraction function
+
+---
+
+## Phase 7: rustmgu Feature Backport - 🚧 85% Complete
+
+**Status**: Backporting mature features from rustmgu (edition 2024) to symbolic-mgu (edition 2018)
+
+### Overview
+
+The rustmgu codebase (v0.6.0, edition 2024) contains several production-quality features that should be backported to symbolic-mgu. This includes theorem proving infrastructure (compact proof parsing, statement inclusion), enhanced statement operations, comprehensive testing, and the compact binary for proof verification.
+
+**Key Architectural Difference**: symbolic-mgu's factory pattern is a superior design NOT present in rustmgu. We will adapt rustmgu code to work with our factory-based architecture rather than adopting rustmgu's direct construction approach.
+
+**Design Decision**: We will NOT implement rustmgu's `InfallibleMetavariable` and `InfallibleNodeCore` traits. These traits provide panic-on-error versions of fallible operations, but we prefer to plan for failure using Result types consistently throughout the codebase.
+
+### Backport Progress
+
+**What's been completed:**
+- ✅ proptest 1.5.0 added to dev-dependencies (compatible with Rust 1.77+/edition 2018)
+- ✅ Verified edition 2018 compatibility (all let-chains can be rewritten)
+- ✅ Analysis complete: 75% of rustmgu core already backported
+
+**What's completed:**
+- ✅ Logic module enhancements (Phase 7.1)
+- ✅ Compact proof parsing (Phase 7.2)
+- ✅ Statement inclusion checking (Phase 7.3)
+- ✅ Statement module refactoring (Phase 7.4)
+- ✅ Additional operations (Phase 7.5)
+- ✅ Compact binary (Phase 7.7)
+
+**What's planned:**
+- ⏳ S-expression support (Term::to_sexp()) - Optional
+- ⏳ Integration tests (PM proofs, property tests)
+
+### 7.1: Logic Module Enhancements - ✅ 100% Complete
+
+**Goal**: Add helper functions and constants for working with fundamental logical statements.
+
+**What's been implemented:**
+
+1. ✅ **Modus Ponens Constants** (src/logic/mod.rs lines 14-19)
+   ```rust
+   /// Index of minor premise (φ) in Modus Ponens hypotheses
+   pub const MP_MINOR_PREMISE: usize = 0;
+
+   /// Index of major premise (φ → ψ) in Modus Ponens hypotheses
+   pub const MP_MAJOR_PREMISE: usize = 1;
+   ```
+
+2. ✅ **Statement Dictionary Builder** (src/logic/mod.rs lines 388-419)
+   ```rust
+   /// Build standard statement dictionary for compact proofs
+   /// Uses MetavariableFactory for flexible metavariable creation
+   pub fn create_dict<MF, N>(
+       metavar_factory: &MF,
+       implies_node: N,
+       not_node: N,
+   ) -> Result<Dictionary<MF::Metavariable, N>, MguError>
+   where
+       MF: MetavariableFactory<MetavariableType = SimpleType>,
+       MF::Metavariable: Metavariable<Type = SimpleType> + Default,
+       N: Node<Type = SimpleType>,
+   ```
+
+3. ✅ **Generic helper functions** - modus_ponens(), simp(), frege(), transp() (already existed)
+
+**Design Decisions:**
+- Used MetavariableFactory pattern instead of requiring enumerate() method
+- Made create_dict() fully generic over factory and node types
+- Dictionary type alias for cleaner signatures
+- Comprehensive rustdoc with examples
+
+**Complexity**: Low (60 lines implemented)
+**Dependencies**: None (uses existing statement builders)
+**Priority**: ⭐⭐⭐ **HIGH** (blocking compact proof parsing) - **COMPLETE**
+
+**Action Items:**
+- [x] Add MP_MINOR_PREMISE and MP_MAJOR_PREMISE constants to src/logic/mod.rs
+- [x] Implement create_dict() function using MetavariableFactory
+- [x] Add rustdoc with examples
+- [x] Export from lib.rs (already pub mod logic)
+- [x] All tests passing (19 doctests pass)
+
+### 7.2: Compact Proof Parsing - ✅ 100% Complete
+
+**Goal**: Parse compact proof strings (e.g., "D__", "DD211") into Statement objects.
+
+**What's been implemented:**
+
+1. ✅ **apply_multiple() Method** (src/statement/mod.rs lines 530-656)
+   - Applies multiple proofs to multiple hypotheses simultaneously
+   - Relabels all proofs to avoid variable conflicts
+   - Builds combined substitution incrementally
+   - Merges hypotheses and distinctness graphs
+
+2. ✅ **Compact Proof Parser** (src/statement/compact_proof.rs, 168 lines)
+   ```rust
+   pub fn from_compact_proof<VF, TF>(
+       proof: &str,
+       var_factory: &VF,
+       term_factory: &TF,
+       statements: &HashMap<String, Self>,
+   ) -> Result<Self, MguError>
+   ```
+   - Right-to-left stack-based processing
+   - Placeholder support ("_" for unsatisfied hypotheses)
+   - Token parsing and validation
+   - Comprehensive error messages
+
+3. ✅ **Test Suite** (9 unit tests + 1 doctest)
+   - ✅ test_d_with_placeholders - Placeholder semantics
+   - ✅ test_dd211_phi_implies_phi - Complete proof (φ → φ)
+   - ✅ test_empty_proof_fails - Error handling
+   - ✅ test_invalid_token_fails - Character validation
+   - ✅ test_unknown_statement_key_fails - Dictionary lookup
+   - ✅ test_stack_underflow_fails - Stack validation
+   - ✅ test_incomplete_proof_fails - Final validation
+   - ✅ test_axioms_directly - Direct axiom access
+   - ✅ test_final_placeholder_fails - None rejection
+
+**Design Decisions:**
+- Integrated with factory pattern (requires both var_factory and term_factory)
+- Uses UnificationFailure for all errors (no ParseError enum needed)
+- Placeholder (None) support for partial proofs
+- Stack-based evaluation matches mathematical convention (right-to-left)
+
+**Complexity**: Medium (~200 lines implemented)
+**Dependencies**: create_dict(), apply_multiple() - **ALL COMPLETE**
+**Priority**: ⭐⭐⭐ **CRITICAL** - **COMPLETE**
+
+**Action Items:**
+- [x] Create src/statement/compact_proof.rs
+- [x] Implement apply_multiple() for efficient hypothesis satisfaction
+- [x] Port from_compact_proof() method with factory pattern support
+- [x] Add comprehensive rustdoc with working examples
+- [x] Write comprehensive unit tests (33 total passing)
+- [x] All tests passing (including doctests)
+
+### 7.3: Statement Inclusion - ✅ 100% Complete
+
+**Goal**: Check if one statement logically includes another (subsumption/α-equivalence).
+
+**What's been implemented:**
+
+1. ✅ **is_included_in() Method** (src/statement/inclusion.rs lines 97-225)
+   - Checks if `self ⊆ other` (self is included in other)
+   - **Critical relabeling** to avoid occurs-check failures
+   - Unifies assertions and extends substitution
+   - Matches hypotheses incrementally
+   - Verifies distinctness graph preservation
+
+2. ✅ **is_identical() Method** (lines 278-295)
+   - Checks α-equivalence via mutual inclusion
+   - S₁ ≡ S₂ iff (S₁ ⊆ S₂ and S₂ ⊆ S₁)
+
+3. ✅ **transform_distinctness_graph_static() Helper** (lines 306-345)
+   - Transforms distinctness graphs under substitution
+   - Expands edges when variables map to compound terms
+
+4. ✅ **Comprehensive Test Suite** (8 tests)
+   - ✅ axiom_included_in_itself - Reflexivity
+   - ✅ axiom_identical_to_itself - Identity reflexivity
+   - ✅ more_specific_included_in_general - Substitution specialization
+   - ✅ different_variables_same_structure_are_identical - α-equivalence
+   - ✅ hypothesis_order_doesnt_matter - Set semantics
+   - ✅ more_hypotheses_with_distinctness - Distinctness prevents collapsing
+   - ✅ unrelated_structures_not_included - Incompatible structures
+   - ✅ relabeling_prevents_occurs_check_failure - Critical relabeling test
+
+**Design Decisions:**
+- Factory-based implementation (requires var_factory and term_factory parameters)
+- Variable relabeling before unification prevents false negatives
+- Incremental substitution extension for hypothesis matching
+- Comprehensive module-level documentation explaining inclusion semantics
+
+**Complexity**: Medium (~350 lines implemented with tests)
+**Dependencies**: Unification, apply_substitution, relabel_disjoint - **ALL PRESENT**
+**Priority**: ⭐⭐⭐ **HIGH** - **COMPLETE**
+
+**Action Items:**
+- [x] Create src/statement/inclusion.rs with comprehensive docs
+- [x] Implement is_included_in() with relabeling support
+- [x] Implement is_identical() using mutual inclusion
+- [x] Implement distinctness graph transformation
+- [x] Write comprehensive unit tests (41 total passing)
+- [x] Add working doctest examples
+- [x] All tests passing (including 2 doctests)
+**Dependencies**: unify() (already present), substitute() (already present)
+**Priority**: ⭐⭐⭐ **HIGH** (fundamental for proof verification)
+
+**Action Items:**
+- [ ] Create src/statement/inclusion.rs
+- [ ] Port is_included_in() from rustmgu
+- [ ] Port is_identical() from rustmgu
+- [ ] Adapt for factory pattern if needed
+- [ ] Add rustdoc examples from rustmgu
+- [ ] Write unit tests
+
+### 7.4: Statement Module Refactoring - ✅ 100% Complete
+
+**Goal**: Organize statement operations into separate files like rustmgu.
+
+**Completed Structure** (v0.1.0-alpha.9):
+```
+src/statement/
+├── mod.rs           # Module exports and documentation
+├── base.rs          # Statement struct, new(), simple_axiom(), accessors (152 lines)
+├── substitution.rs  # substitute, transform_distinctness_graph (157 lines)
+├── operations.rs    # apply, contract, relabel_disjoint, apply_multiple (353 lines)
+├── compact_proof.rs # from_compact_proof (from 7.2)
+└── inclusion.rs     # is_included_in, is_identical (from 7.3)
+```
+
+**Complexity**: Low (mostly moving code around)
+**Dependencies**: None (pure refactoring) - **COMPLETE**
+**Priority**: ⭐⭐ **MEDIUM** (improves organization) - **COMPLETE**
+
+**Action Items:**
+- [x] Create src/statement/base.rs (Statement struct + core methods)
+- [x] Create src/statement/operations.rs (apply, contract, relabel_disjoint)
+- [x] Create src/statement/substitution.rs (substitute, transform_distinctness_graph)
+- [x] Update src/statement/mod.rs to re-export from submodules
+- [x] Verify all tests still pass (41 unit tests, 35 doctests)
+- [x] No clippy warnings
+
+### 7.5: Additional Statement Operations - ✅ 100% Complete
+
+**Goal**: Add operations for efficient proof construction.
+
+**What's been implemented:**
+
+1. ✅ **apply_multiple** (src/statement/operations.rs lines 298-400)
+   - Applies multiple statements to multiple hypotheses simultaneously
+   - Relabels all proofs to avoid variable conflicts
+   - Builds combined substitution incrementally
+   - More efficient than sequential apply() calls
+
+2. ✅ **condensed_detach** (src/statement/operations.rs lines 460-497)
+   - Meredith's condensed detachment operation
+   - Creates fresh modus ponens instance and applies two statements
+   - Uses MP_MINOR_PREMISE and MP_MAJOR_PREMISE constants for clarity
+   - Fully documented with working doctest
+
+**Complexity**: Low (builds on existing operations) - **COMPLETE**
+**Dependencies**: apply(), contract(), modus_ponens() - **ALL PRESENT**
+**Priority**: ⭐⭐ **MEDIUM** - **COMPLETE**
+
+**Action Items:**
+- [x] Add apply_multiple() to src/statement/operations.rs (already done in 7.2)
+- [x] Add condensed_detach() to src/statement/operations.rs
+- [x] Adapt for factory pattern
+- [x] Add rustdoc examples with working doctest
+- [x] All tests passing (41 unit tests, 36 doctests)
+
+### 7.6: S-Expression Support - ⏳ 0% Complete
+
+**Goal**: Add human-readable serialization format for terms.
+
+**File to create**: `src/term/sexp.rs` (~50 lines)
+
+**Key Method**:
+```rust
+pub trait Term<Ty, V, N> {
+    /// Convert term to S-expression string
+    /// Example: (→ (∧ p q) r)
+    fn to_sexp(&self) -> String;
+}
+```
+
+**Complexity**: Low (pure formatting)
+**Dependencies**: None
+**Priority**: ⭐ **LOW** (nice-to-have for compact binary output)
+
+**Action Items:**
+- [ ] Create src/term/sexp.rs
+- [ ] Add to_sexp() trait method to Term
+- [ ] Implement for EnumTerm
+- [ ] Add unit tests
+
+### 7.7: Compact Binary - ✅ 100% Complete
+
+**Goal**: Command-line tool for processing compact proofs and verifying theorems.
+
+**What's been implemented:**
+
+1. ✅ **src/bin/compact.rs** (186 lines)
+   - Command-line argument parsing
+   - Help text and usage examples
+   - Compact proof processing using from_compact_proof()
+   - Display results with clear formatting
+   - Optional verification with --verify flag
+
+2. ✅ **Validity checking** (check_validity function)
+   - For theorems (no hypotheses): Verifies assertion is a tautology
+   - For inferences (has hypotheses): Verifies H₁ → (H₂ → (... → (Hₙ → A))) is a tautology
+   - Checks if all terms are Boolean type before verification
+   - Clear output messages distinguishing tautologies from valid inferences
+
+3. ✅ **Exported test functions** from lib.rs
+   - test_tautology, test_contradiction, test_contingent, test_term
+   - Now available as part of public API
+
+**Features implemented:**
+- ✅ Process compact proof strings
+- ✅ Display results with clear formatting (using Display trait)
+- ✅ Verify tautologies for theorems using test_tautology()
+- ✅ Verify validity for inferences (hypotheses entail assertion)
+- ✅ Multiple proof processing in single invocation
+- ✅ Comprehensive help text with verification explanation
+
+**Complexity**: Low - **COMPLETE**
+**Dependencies**: compact_proof.rs (7.2) ✓, create_dict() (7.1) ✓ - **ALL PRESENT**
+**Priority**: ⭐⭐⭐ **HIGH** - **COMPLETE**
+
+**Testing:**
+```bash
+# Basic usage
+cargo run --bin compact -- DD211
+
+# Verify theorem is a tautology
+cargo run --bin compact -- --verify DD211
+# Output: ✓ Verified: This is a tautology
+
+# Verify inference is valid
+cargo run --bin compact -- --verify D__
+# Output: ✓ Valid: Hypotheses logically entail the assertion
+
+# Multiple proofs
+cargo run --bin compact -- D__ DD211 DD2D111
+```
+
+**Note**: `src/bin/` remains in Cargo.toml exclude list but binary builds successfully with explicit `--bin compact` flag.
+
+**Action Items:**
+- [x] Create src/bin/compact.rs
+- [x] Adapt for factory pattern (uses MetaByteFactory and EnumTermFactory)
+- [x] Add command-line help text
+- [x] Test with sample proofs (D__, DD211, DD2D111 all working)
+- [x] Export test_tautology and related functions from lib.rs
+- [x] Implement validity checking for inferences (H₁ → H₂ → ... → A)
+- [x] Enhanced help text explaining tautology vs validity verification
+- [x] All tests passing (41 unit tests, 36 doctests)
+- [ ] Document usage in README.md (future enhancement)
+
+### 7.8: Integration Tests - ⏳ 0% Complete
+
+**Goal**: Add comprehensive integration tests from rustmgu.
+
+**Test Files to Create**:
+
+1. **tests/pmproofs_validation.rs** (~500 lines)
+   - Validate Principia Mathematica proofs
+   - Real-world theorem proving examples
+   - Tests compact proof parsing end-to-end
+
+2. **tests/property_tests.rs** (~200 lines)
+   - Property-based testing using proptest (✓ already added)
+   - Generate random terms/statements
+   - Test unification properties (idempotence, commutativity)
+
+3. **tests/apply_equivalence_test.rs** (~100 lines)
+   - Verify apply() behavior
+
+4. **tests/test_condensed_detach.rs** (~100 lines)
+   - Test condensed_detach() vs apply(contract())
+
+**Complexity**: Low-Medium (mostly data + test harness)
+**Dependencies**:
+- compact_proof.rs for PM tests
+- proptest for property tests (✓ ready)
+- condensed_detach() for equivalence tests
+
+**Priority**: ⭐⭐⭐ **HIGH** (validates backported code)
+
+**Action Items:**
+- [ ] Create tests/pmproofs_validation.rs
+- [ ] Port PM proof data from rustmgu
+- [x] Add regression tests for DDD111D23 and DDD1D221D2D2D11 (disjointness bug) - **COMPLETE**
+  - Created tests/regression_compact_proofs.rs with 4 tests
+  - Validates both proofs parse and produce tautologies
+  - Verifies disjointness bug fix (relabel_disjoint before unification)
+  - TODO: Exact canonical form comparison deferred to statement equivalence
+- [ ] Create tests/property_tests.rs
+- [ ] Define proptest strategies for Term, Statement
+- [ ] Create tests/apply_equivalence_test.rs
+- [ ] Create tests/test_condensed_detach.rs (if operation ported)
+- [ ] Integrate subproofs.json tests (verify each produces tautology)
+
+### 7.9: WideMetavariable Backport - ✅ 100% Complete
+
+**Goal**: Backport WideMetavariable from rustmgu to support long proofs with >256 variables.
+
+**Source**: `~/projects/rustmgu/src/metavariable/wide.rs` (251 lines)
+
+**What's been implemented:**
+
+1. ✅ **WideMetavariable Struct** (src/metavariable/wide.rs - 292 lines)
+   ```rust
+   /// Metavariable with unlimited index space (Type, usize)
+   /// Display: main UTF-8 char (𝜑, 𝑥, 𝐴) + optional subscript (₁₂₃)
+   #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+   pub struct WideMetavariable(Type, usize);
+   ```
+
+2. ✅ **WideMetavariableFactory** (src/metavariable/wide_factory.rs - 152 lines)
+   - Follows factory pattern (no class methods)
+   - Stateless implementation
+   - Boxed iterator for unlimited enumeration
+
+3. ✅ **Character Constants**
+   - `OUR_BOOLEANS`: 𝜑𝜓𝜒𝜃𝜏𝜂𝜁𝜎𝜌𝜇𝜆𝜅 (12 Mathematical Italic Greek letters)
+   - `OUR_SETVARS`: 𝑥𝑦𝑧𝑤𝑣𝑢𝑡𝑓𝑔𝑠𝑒ℎ𝑖𝑗𝑘𝑚𝑛𝑜𝑟𝑞𝑝𝑎𝑏𝑐𝑑𝑙 (24 italic Latin lowercase)
+   - `OUR_CLASSES`: 𝐴𝐵𝐶𝐷𝑃𝑄𝑅𝑆𝑇𝑈𝐸𝐹𝐺𝐻𝐼𝐽𝐾𝐿𝑀𝑁𝑉𝑊𝑋𝑌𝑍𝑂 (24 italic Latin uppercase)
+
+4. ✅ **Display Implementation**
+   - Main char from appropriate constant array
+   - Subscript digits in Unicode: 0→₀, 1→₁, etc. (U+2080 + digit)
+   - Example: index 0 → 𝜑, index 12 → 𝜑₁, index 153 → 𝜅₁₂
+
+5. ✅ **Integration**
+   - Added to src/metavariable/mod.rs
+   - Exported from lib.rs
+   - Comprehensive tests ported and passing
+
+**Enhanced Metavariable Trait:**
+- ✅ Added `max_index_by_type(Type) -> usize` method
+- ✅ Added `try_from_type_and_index(Type, usize) -> Result<Self>` method
+- ✅ Added `enumerate(Type) -> impl Iterator<Item = Self>` method
+
+**Key Differences from rustmgu:**
+- ❌ NO `InfallibleMetavariable` trait (we use Result types)
+- ✅ ADD `WideMetavariableFactory` (factory pattern)
+- ✅ Uses Mathematical Italic Unicode characters (U+1D6xx) not ASCII Greek
+
+**Test Results:**
+- ✅ 93 tests passing (50 unit + 4 integration + 39 doctests)
+- ✅ All quality gates pass (clippy, doc, test)
+- ✅ Zero clippy warnings in new code
+
+**Complexity**: Low (~444 lines including factory + tests)
+**Dependencies**: None (pure addition)
+**Priority**: ⭐⭐⭐ **HIGH** (blocking long proof tests) - **COMPLETE**
+
+**Action Items:**
+- [x] Create src/metavariable/wide.rs
+- [x] Port WideMetavariable struct and implementation
+- [x] Create src/metavariable/wide_factory.rs
+- [x] Implement WideMetavariableFactory trait
+- [x] Add character constants (OUR_BOOLEANS, OUR_SETVARS, OUR_CLASSES)
+- [x] Implement Display with subscript digits
+- [x] Port unit tests from rustmgu
+- [x] Add to mod.rs and lib.rs exports
+- [x] Fix Unicode character mismatches in tests
+- [x] Fix clippy warnings (backticks, .nth(0) → .next())
+- [ ] Test with compact binary on long proofs (deferred to user testing)
+
+### 7.10: Output Formatter System - ⏳ 0% Complete
+
+**Goal**: Implement extensible output formatters for multiple target formats.
+
+**Design Document**: See `docs/FORMATTER_DESIGN.md` for full specification
+
+**What needs to be implemented:**
+
+1. **Core Formatter Trait** (src/formatter/mod.rs)
+   - `OutputFormatter` trait with format_metavar/node/term methods
+   - Delegation pattern: formatters call back to Metavariable/Node
+
+2. **Type-Color Registry** (src/formatter/type_colors.rs)
+   - Simple `Color` struct (xterm256 + HTML hex)
+   - Global `TYPE_COLOR_REGISTRY` with lazy_static
+   - Default colors: Boolean→Blue, Setvar→Green, Class→Red
+   - `register_type_color()` API for extensibility
+
+3. **Global Formatter Registry** (src/formatter/registry.rs)
+   - `GLOBAL_FORMATTER_REGISTRY` with Arc<dyn OutputFormatter>
+   - Built-in formatters: ascii, utf8, utf8-color, html-color, latex, display
+   - `register_formatter()` and `get_formatter()` API
+
+4. **Enhanced Metavariable Trait** (src/metavariable/mod.rs)
+   - Add `format_with(&dyn OutputFormatter) -> String` method
+   - Add `to_ascii()` and `to_utf8()` helper methods
+   - Default implementation delegates to Display
+
+5. **Enhanced Node Trait** (src/node/base.rs)
+   - Add `format_with(&dyn OutputFormatter) -> String` method
+   - Add `to_ascii_symbol()`, `to_utf8_symbol()`, `to_latex_symbol()` methods
+   - Implement for NodeByte (→, ¬, ∧, ∨, ↔, ⊕)
+
+6. **Built-in Formatters** (src/formatter/*)
+   - `AsciiFormatter`: Metamath baseline (ph, ps, ch; ->, -, /\, \/)
+   - `Utf8Formatter`: Plain Unicode (φ, ψ, χ; →, ¬, ∧, ∨)
+   - `Utf8ColorFormatter`: ANSI 256-color terminal
+   - `HtmlColorFormatter`: Inline styles for web
+   - `LatexFormatter`: LaTeX math mode
+   - `DisplayFormatter`: Fallback to existing Display trait
+
+7. **std::fmt Integration** (src/formatter/display_wrapper.rs)
+   - `Formatted<T>` wrapper type
+   - `Formattable` extension trait with `.formatted("name")` method
+   - Enable `format!("{}", term.formatted("latex"))` syntax
+
+8. **Compact Binary Integration**
+   - Add `--format=<name>` flag
+   - Examples: `--format=ascii`, `--format=utf8-color`, `--format=html`
+   - Update help text with formatter list
+
+**Dependencies**: lazy_static crate (check if already in Cargo.toml)
+
+**Complexity**: Medium (~800 lines total across all files)
+
+**Priority**: ⭐⭐⭐ **HIGH** (user-facing feature, enables 0.2.0 WASM)
+
+**Action Items:**
+- [ ] Add lazy_static dependency if needed
+- [ ] Create src/formatter/ module hierarchy
+- [ ] Implement Color and TYPE_COLOR_REGISTRY
+- [ ] Implement GLOBAL_FORMATTER_REGISTRY
+- [ ] Add format_with() to Metavariable trait
+- [ ] Add format_with() + symbol methods to Node trait
+- [ ] Implement MetaByte ASCII names (ph, ps, ch, th, ta...)
+- [ ] Implement MetaByte formatter support
+- [ ] Implement WideMetavariable formatter support
+- [ ] Implement NodeByte symbol methods and formatter support
+- [ ] Implement 6 built-in formatters
+- [ ] Implement Formatted<T> wrapper and Formattable trait
+- [ ] Add --format flag to compact binary
+- [ ] Write comprehensive formatter tests
+- [ ] Document formatter API in module docs
+- [ ] Export formatter API from lib.rs
+
+**Design Principles (from CLAUDE.md):**
+- Only metavariables colored by Type
+- Avoid elaborate color theory (no CIE XYZ/Lab)
+- Statement layout is application-controlled
+- HTML uses inline styles (no CSS assumptions)
+- Delegation to Node/Metavariable format_with() methods
+
+### Dependencies Graph
+
+```
+7.1 create_dict()
+  └─> 7.2 compact_proof.rs
+       └─> 7.7 compact binary
+       └─> 7.8 PM tests
+
+7.3 inclusion.rs ───> 7.8 PM tests
+
+7.4 refactoring (independent)
+
+7.5 operations ───> 7.8 equivalence tests
+
+7.6 sexp (optional for 7.7)
+
+proptest ✓ ───> 7.8 property tests
+```
+
+**Critical Path for v0.1.0-alpha.8**:
+1. 7.1 (create_dict) → 2. 7.2 (compact_proof) → 3. 7.7 (compact binary)
+
+**Suggested Implementation Order**:
+1. ✅ Add proptest dev-dependency (DONE)
+2. 🚧 7.1: Logic enhancements (MP constants, create_dict)
+3. 7.2: Compact proof parsing
+4. 7.3: Statement inclusion
+5. 7.7: Compact binary (depends on 7.1, 7.2)
+6. 7.8: Integration tests (PM proofs, property tests)
+7. 7.4: Refactoring (cleanup)
+8. 7.5: Additional operations (polish)
+9. 7.6: S-expressions (polish)
+
+### Estimated Effort
+
+**Week 1**: Logic enhancements (7.1) + Compact proofs (7.2) + Inclusion (7.3)
+**Week 2**: Compact binary (7.7) + Property tests (7.8 partial)
+**Week 3**: PM tests (7.8) + Additional operations (7.5)
+**Week 4**: Refactoring (7.4) + Polish + Documentation
+
+**Total**: ~4 weeks for complete Phase 7
+
+### Quality Gates
+
+All backported code must meet:
+- ✅ `cargo +1.77 check --all-features --all-targets`
+- ✅ `cargo +1.77 clippy --all-features --all-targets` (no warnings)
+- ✅ `cargo +1.77 doc --all-features` (builds successfully)
+- ✅ `cargo +1.77 test --all-features` (all tests pass)
+- ✅ Edition 2018 compatible (no let-chains, no edition 2021 syntax)
+- ✅ Rust 1.77+ compatible
+
+---
+
+## Summary - v010 Branch Ready for v0.1.0-alpha.8 Release
+
+**Branch status**: Feature-complete and ready for alpha.8 pre-release
 
 ### Key Accomplishments
 
@@ -398,13 +1072,16 @@ pub trait BooleanNode {
 - ✅ Edition 2018 compatible (all let-chains rewritten)
 
 **Documentation:**
-- ✅ Module-level documentation in bool_eval_next/mod.rs
+- ✅ Module-level documentation in bool_eval/mod.rs
 - ✅ Macro documentation in src/macros.rs (updated with correct examples)
 - ✅ NodeByteTable.md documenting Boolean operations
-- ✅ BACKPORT_PLAN.md documenting unification backport
+- ✅ Archived planning documents in docs/archive/
+  - BACKPORT_PLAN.md (unification backport)
+  - BOOL_EVAL_BACKPORT_PLAN.md (tautology testing)
+  - GENERIC_TAUTOLOGY_PLAN.md (generic Term support)
 - ⚠️ Factory pattern usage could be better documented
 
-### Pre-Release Readiness (alpha.6)
+### Pre-Release Readiness (alpha.8)
 
 **Ready to merge:**
 - ✅ Math correctness verified (comprehensive tests)
@@ -420,7 +1097,7 @@ pub trait BooleanNode {
 
 ---
 
-## Future Work (Post bool_eval_next)
+## Future Work (Post bool_eval)
 
 ### Term Trait Unification
 - ✅ ~~Merge `NewTerm` design lessons into main `Term` trait~~ - ALREADY DONE
@@ -514,7 +1191,7 @@ The key insight from `EnumTerm` was the two-variant pattern:
 Convert this to trait methods:
 
 ```rust
-// In src/bool_eval_next/mod.rs (temporary location)
+// In src/bool_eval/mod.rs (temporary location)
 
 /// Trait for terms that can be evaluated as Boolean expressions
 /// This is a temporary prototype - will integrate with main Term trait later
@@ -568,7 +1245,7 @@ where
 /// Trait for nodes representing Boolean operations
 ///
 /// This trait allows different node representations to be used
-/// with the bool_eval_next evaluation engine by mapping to
+/// with the bool_eval evaluation engine by mapping to
 /// standardized (code, arity) pairs from NodeBytesLogicTable.md
 pub trait BooleanNode {
     /// Returns the Boolean operation code and arity, or None if not evaluable
@@ -642,7 +1319,7 @@ eval_boolean_term<V, N, T>(&T, ...) where T: NewTerm<V, N>, N: BooleanNode
 
 ```
 src/
-├── bool_eval_next/
+├── bool_eval/
 │   └── mod.rs          # Contains UnsignedBits trait + impls
 │                       # Contains NewTerm trait (temporary)
 │                       # Contains eval_boolean_* functions
@@ -702,7 +1379,7 @@ Open questions:
 
 ### BigUint Special Handling - ✅ IMPLEMENTED
 ✅ `BigUint` doesn't have native `Not` trait support - implemented manually in `SomeBits<N>`:
-- ✅ Uses `mask XOR value` pattern (src/bool_eval_next/mod.rs:1494)
+- ✅ Uses `mask XOR value` pattern (src/bool_eval/mod.rs:1494)
 - ✅ Mask computed based on N: `(BigUint::from(1u32).pow(1 << N)) - 1`
 - ✅ Custom `Not` implementation for `SomeBits<N>` wrapper type
 - ✅ All bitwise ops implemented: `BitAnd`, `BitOr`, `BitXor`, `Not`

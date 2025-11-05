@@ -1,6 +1,20 @@
 #!/bin/sh
 
 # rm -f Cargo.lock
+scripts/normalize_dictionary.py || exit 1
+
+# Generate SVG diagrams from PlantUML sources if available
+if command -v plantuml >/dev/null 2>&1; then
+    if [ -d "docs/diagrams" ]; then
+        echo "Generating SVG diagrams from PlantUML sources..."
+        plantuml --progress-bar -f svg docs/diagrams || exit 1
+    else
+        echo "Note: docs/diagrams directory not found, skipping diagram generation"
+    fi
+else
+    echo "Note: plantuml not found, skipping diagram generation"
+fi
+
 cargo +1.77 spellcheck || exit 1
 cargo +1.77 fmt || exit 1
 cargo +1.77 check --all-features --all-targets || exit 1
