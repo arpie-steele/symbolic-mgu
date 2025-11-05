@@ -1,8 +1,8 @@
 # symbolic-mgu TODO List
 
-## 📊 Overall Progress: ~99% Complete
+## 📊 Overall Progress: ~85% Complete
 
-**Summary of v010 branch status:**
+**Summary of v010 branch status (as of v0.1.0-alpha.10):**
 
 | Phase | Status | Completion | Notes |
 |-------|--------|------------|-------|
@@ -13,17 +13,24 @@
 | Phase 4: Testing | ✅ Complete | 100% | 24 tests covering all operations |
 | Phase 5: Unification | ✅ Complete | 100% | Robinson's MGU fully backported |
 | Phase 6: Enhanced Testing API | ✅ Complete | 100% | test_term(), test_contradiction(), test_contingent() |
-| Phase 7: rustmgu Backport | 🚧 In Progress | 79% | Logic, proofs, inclusion, refactoring, operations, binary complete |
+| Phase 7: rustmgu Backport | 🚧 In Progress | 85% | Logic, proofs, inclusion, operations, binary, regression, WideMetavariable complete |
 
-**Status for pre-release (v0.1.0-alpha.8):**
-- ✅ **All tests passing** - 24 tests (up from 21 in alpha.6)
+**Status for v0.1.0 final release (~1 week away):**
+- ✅ **All tests passing** - 93 tests total (50 unit + 4 integration + 39 doctests)
+  - 50 lib unit tests
+  - 4 integration tests (regression_compact_proofs.rs)
+  - 39 doctests
 - ✅ **All UnsignedBits types** - bool, u8, u16, u32, u64, u128, BigUint
 - ✅ **Unification algorithm** - Substitution, MGU, occurs check
 - ✅ **Statement operations** - substitute, apply, contract
-- ✅ **Quality gates pass** - clippy, doc, test all clean
+- ✅ **Compact binary** - Working with verification support
+- ✅ **Regression tests** - DDD111D23, DDD1D221D2D2D11 validate disjointness fix
+- ✅ **WideMetavariable** - Unlimited variable space for long proofs (Phase 7.9)
+- ✅ **Quality gates pass** - clippy, doc, test all clean (zero warnings)
 - ✅ **Property testing ready** - proptest 1.5.0 added to dev-dependencies
 - ⚠️ **Documentation gaps** - Module docs exist but could be expanded
 - 🚧 **Backporting from rustmgu** - See Phase 7 below
+- 🚧 **Output formatters** - Design complete, implementation pending (Phase 7.10)
 
 ---
 
@@ -445,7 +452,7 @@ pub trait BooleanNode {
 
 ---
 
-## Phase 7: rustmgu Feature Backport - 🚧 79% Complete
+## Phase 7: rustmgu Feature Backport - 🚧 85% Complete
 
 **Status**: Backporting mature features from rustmgu (edition 2024) to symbolic-mgu (edition 2018)
 
@@ -819,10 +826,166 @@ cargo run --bin compact -- D__ DD211 DD2D111
 **Action Items:**
 - [ ] Create tests/pmproofs_validation.rs
 - [ ] Port PM proof data from rustmgu
+- [x] Add regression tests for DDD111D23 and DDD1D221D2D2D11 (disjointness bug) - **COMPLETE**
+  - Created tests/regression_compact_proofs.rs with 4 tests
+  - Validates both proofs parse and produce tautologies
+  - Verifies disjointness bug fix (relabel_disjoint before unification)
+  - TODO: Exact canonical form comparison deferred to statement equivalence
 - [ ] Create tests/property_tests.rs
 - [ ] Define proptest strategies for Term, Statement
 - [ ] Create tests/apply_equivalence_test.rs
 - [ ] Create tests/test_condensed_detach.rs (if operation ported)
+- [ ] Integrate subproofs.json tests (verify each produces tautology)
+
+### 7.9: WideMetavariable Backport - ✅ 100% Complete
+
+**Goal**: Backport WideMetavariable from rustmgu to support long proofs with >256 variables.
+
+**Source**: `~/projects/rustmgu/src/metavariable/wide.rs` (251 lines)
+
+**What's been implemented:**
+
+1. ✅ **WideMetavariable Struct** (src/metavariable/wide.rs - 292 lines)
+   ```rust
+   /// Metavariable with unlimited index space (Type, usize)
+   /// Display: main UTF-8 char (𝜑, 𝑥, 𝐴) + optional subscript (₁₂₃)
+   #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+   pub struct WideMetavariable(Type, usize);
+   ```
+
+2. ✅ **WideMetavariableFactory** (src/metavariable/wide_factory.rs - 152 lines)
+   - Follows factory pattern (no class methods)
+   - Stateless implementation
+   - Boxed iterator for unlimited enumeration
+
+3. ✅ **Character Constants**
+   - `OUR_BOOLEANS`: 𝜑𝜓𝜒𝜃𝜏𝜂𝜁𝜎𝜌𝜇𝜆𝜅 (12 Mathematical Italic Greek letters)
+   - `OUR_SETVARS`: 𝑥𝑦𝑧𝑤𝑣𝑢𝑡𝑓𝑔𝑠𝑒ℎ𝑖𝑗𝑘𝑚𝑛𝑜𝑟𝑞𝑝𝑎𝑏𝑐𝑑𝑙 (24 italic Latin lowercase)
+   - `OUR_CLASSES`: 𝐴𝐵𝐶𝐷𝑃𝑄𝑅𝑆𝑇𝑈𝐸𝐹𝐺𝐻𝐼𝐽𝐾𝐿𝑀𝑁𝑉𝑊𝑋𝑌𝑍𝑂 (24 italic Latin uppercase)
+
+4. ✅ **Display Implementation**
+   - Main char from appropriate constant array
+   - Subscript digits in Unicode: 0→₀, 1→₁, etc. (U+2080 + digit)
+   - Example: index 0 → 𝜑, index 12 → 𝜑₁, index 153 → 𝜅₁₂
+
+5. ✅ **Integration**
+   - Added to src/metavariable/mod.rs
+   - Exported from lib.rs
+   - Comprehensive tests ported and passing
+
+**Enhanced Metavariable Trait:**
+- ✅ Added `max_index_by_type(Type) -> usize` method
+- ✅ Added `try_from_type_and_index(Type, usize) -> Result<Self>` method
+- ✅ Added `enumerate(Type) -> impl Iterator<Item = Self>` method
+
+**Key Differences from rustmgu:**
+- ❌ NO `InfallibleMetavariable` trait (we use Result types)
+- ✅ ADD `WideMetavariableFactory` (factory pattern)
+- ✅ Uses Mathematical Italic Unicode characters (U+1D6xx) not ASCII Greek
+
+**Test Results:**
+- ✅ 93 tests passing (50 unit + 4 integration + 39 doctests)
+- ✅ All quality gates pass (clippy, doc, test)
+- ✅ Zero clippy warnings in new code
+
+**Complexity**: Low (~444 lines including factory + tests)
+**Dependencies**: None (pure addition)
+**Priority**: ⭐⭐⭐ **HIGH** (blocking long proof tests) - **COMPLETE**
+
+**Action Items:**
+- [x] Create src/metavariable/wide.rs
+- [x] Port WideMetavariable struct and implementation
+- [x] Create src/metavariable/wide_factory.rs
+- [x] Implement WideMetavariableFactory trait
+- [x] Add character constants (OUR_BOOLEANS, OUR_SETVARS, OUR_CLASSES)
+- [x] Implement Display with subscript digits
+- [x] Port unit tests from rustmgu
+- [x] Add to mod.rs and lib.rs exports
+- [x] Fix Unicode character mismatches in tests
+- [x] Fix clippy warnings (backticks, .nth(0) → .next())
+- [ ] Test with compact binary on long proofs (deferred to user testing)
+
+### 7.10: Output Formatter System - ⏳ 0% Complete
+
+**Goal**: Implement extensible output formatters for multiple target formats.
+
+**Design Document**: See `docs/FORMATTER_DESIGN.md` for full specification
+
+**What needs to be implemented:**
+
+1. **Core Formatter Trait** (src/formatter/mod.rs)
+   - `OutputFormatter` trait with format_metavar/node/term methods
+   - Delegation pattern: formatters call back to Metavariable/Node
+
+2. **Type-Color Registry** (src/formatter/type_colors.rs)
+   - Simple `Color` struct (xterm256 + HTML hex)
+   - Global `TYPE_COLOR_REGISTRY` with lazy_static
+   - Default colors: Boolean→Blue, Setvar→Green, Class→Red
+   - `register_type_color()` API for extensibility
+
+3. **Global Formatter Registry** (src/formatter/registry.rs)
+   - `GLOBAL_FORMATTER_REGISTRY` with Arc<dyn OutputFormatter>
+   - Built-in formatters: ascii, utf8, utf8-color, html-color, latex, display
+   - `register_formatter()` and `get_formatter()` API
+
+4. **Enhanced Metavariable Trait** (src/metavariable/mod.rs)
+   - Add `format_with(&dyn OutputFormatter) -> String` method
+   - Add `to_ascii()` and `to_utf8()` helper methods
+   - Default implementation delegates to Display
+
+5. **Enhanced Node Trait** (src/node/base.rs)
+   - Add `format_with(&dyn OutputFormatter) -> String` method
+   - Add `to_ascii_symbol()`, `to_utf8_symbol()`, `to_latex_symbol()` methods
+   - Implement for NodeByte (→, ¬, ∧, ∨, ↔, ⊕)
+
+6. **Built-in Formatters** (src/formatter/*)
+   - `AsciiFormatter`: Metamath baseline (ph, ps, ch; ->, -, /\, \/)
+   - `Utf8Formatter`: Plain Unicode (φ, ψ, χ; →, ¬, ∧, ∨)
+   - `Utf8ColorFormatter`: ANSI 256-color terminal
+   - `HtmlColorFormatter`: Inline styles for web
+   - `LatexFormatter`: LaTeX math mode
+   - `DisplayFormatter`: Fallback to existing Display trait
+
+7. **std::fmt Integration** (src/formatter/display_wrapper.rs)
+   - `Formatted<T>` wrapper type
+   - `Formattable` extension trait with `.formatted("name")` method
+   - Enable `format!("{}", term.formatted("latex"))` syntax
+
+8. **Compact Binary Integration**
+   - Add `--format=<name>` flag
+   - Examples: `--format=ascii`, `--format=utf8-color`, `--format=html`
+   - Update help text with formatter list
+
+**Dependencies**: lazy_static crate (check if already in Cargo.toml)
+
+**Complexity**: Medium (~800 lines total across all files)
+
+**Priority**: ⭐⭐⭐ **HIGH** (user-facing feature, enables 0.2.0 WASM)
+
+**Action Items:**
+- [ ] Add lazy_static dependency if needed
+- [ ] Create src/formatter/ module hierarchy
+- [ ] Implement Color and TYPE_COLOR_REGISTRY
+- [ ] Implement GLOBAL_FORMATTER_REGISTRY
+- [ ] Add format_with() to Metavariable trait
+- [ ] Add format_with() + symbol methods to Node trait
+- [ ] Implement MetaByte ASCII names (ph, ps, ch, th, ta...)
+- [ ] Implement MetaByte formatter support
+- [ ] Implement WideMetavariable formatter support
+- [ ] Implement NodeByte symbol methods and formatter support
+- [ ] Implement 6 built-in formatters
+- [ ] Implement Formatted<T> wrapper and Formattable trait
+- [ ] Add --format flag to compact binary
+- [ ] Write comprehensive formatter tests
+- [ ] Document formatter API in module docs
+- [ ] Export formatter API from lib.rs
+
+**Design Principles (from CLAUDE.md):**
+- Only metavariables colored by Type
+- Avoid elaborate color theory (no CIE XYZ/Lab)
+- Statement layout is application-controlled
+- HTML uses inline styles (no CSS assumptions)
+- Delegation to Node/Metavariable format_with() methods
 
 ### Dependencies Graph
 

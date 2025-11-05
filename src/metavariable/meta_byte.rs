@@ -95,6 +95,8 @@ impl Default for MetaByte {
 }
 
 impl Metavariable for MetaByte {
+    type Type = SimpleType;
+
     /// Describe ASCII metavariable as ordered pairs of a type and an arbitrary index.
     ///
     /// Some implementations will include values that do no map to a metavariable,
@@ -121,7 +123,17 @@ impl Metavariable for MetaByte {
         Ok((our_type, data.find(self.0 as char).unwrap()))
     }
 
-    type Type = SimpleType;
+    fn max_index_by_type(typ: SimpleType) -> usize {
+        Self::max_index_by_type(typ)
+    }
+
+    fn try_from_type_and_index(my_type: SimpleType, my_index: usize) -> Result<Self, MguError> {
+        Self::try_from_type_and_index(my_type, my_index)
+    }
+
+    fn enumerate(for_type: SimpleType) -> impl Iterator<Item = Self> {
+        Self::enumerate(for_type)
+    }
 }
 
 impl std::fmt::Display for MetaByte {
