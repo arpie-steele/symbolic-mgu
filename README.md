@@ -89,6 +89,42 @@ cargo build --all-features
 cargo build --features bigint,serde
 ```
 
+## Binary Tools
+
+### compact - Compact Proof Processor
+
+Process and verify compact proof strings using standard propositional calculus axioms:
+
+```bash
+# Process a compact proof (uses MetaByte by default)
+cargo run --bin compact -- "DD211"
+
+# Process multiple proofs
+cargo run --bin compact -- "D__" "DD211" "DD2D111"
+
+# Verify that a theorem is a tautology
+cargo run --bin compact -- --verify "DD211"
+
+# Use WideMetavariable for unlimited variables (with Unicode subscripts)
+cargo run --bin compact -- --wide "DD211"
+
+# Force MetaByte (32 variable limit, compact ASCII)
+cargo run --bin compact -- --byte "DD211"
+```
+
+**Options:**
+- `--verify`, `-v`: Verify that theorems are tautologies or inferences are valid
+- `--wide`, `-w`, `--no-byte`: Use WideMetavariable (unlimited variables)
+- `--byte`, `-b`, `--no-wide`: Use MetaByte (32 variables, default)
+- `--help`, `-h`: Show usage information
+
+**Dictionary:**
+- `D` = Modus Ponens
+- `1` = Simp: φ → (ψ → φ)
+- `2` = Frege: (φ → (ψ → χ)) → ((φ → ψ) → (φ → χ))
+- `3` = Transp: (¬φ → ¬ψ) → (ψ → φ)
+- `_` = Placeholder (unsatisfied hypothesis)
+
 ## Minimum Rust Version
 
 This crate requires Rust 1.77 or later and uses edition 2018 for maximum compatibility.

@@ -22,11 +22,10 @@ That separation of concerns—between symbolic correctness and procedural heuris
 
 ## Mathematical References and Books for Further Reading
 
-### Philosophical & Historical Foundations
+### Historical & Philosophical Foundations
 
 - **Marcus Aurelius** (167). *Meditations*
-
-### Math as Symbolic Manipulation
+  Stoic philosophy emphasizing rational analysis—a precursor to treating mathematical reasoning as procedure rather than intuition.
 
 - **Frege, G.** (1879). *Begriffsschrift, eine der arithmetischen nachgebildete Formelsprache des reinen Denkens*
   (Concept Script, a formal language of pure thought modelled upon that of arithmetic).
@@ -43,7 +42,7 @@ That separation of concerns—between symbolic correctness and procedural heuris
 
 - **Smith, P.** (2020). *An Introduction to Formal Logic*, 2nd ed.
 
-### Condensed Detachment and Propositional Logic
+### Condensed Detachment
 
 - **Meredith, C. A.** (1953). *Single axioms for the systems (C,N), (C,O) and (A,N) of the two-valued propositional calculus.*
   *The Journal of Computing Systems, 3*, 155–164.
@@ -57,8 +56,7 @@ That separation of concerns—between symbolic correctness and procedural heuris
   *Studia Logica, 42*(4), 443–451.
   Available at <https://www.jstor.org/stable/20015133>
 
-
-### Unification and Automated Deduction
+### Unification Theory and Algorithms
 
 - **Robinson, J. A.** (1965). *A Machine-Oriented Logic Based on the Resolution Principle.*
   *Journal of the ACM, 12*(1), 23–41.
@@ -67,25 +65,24 @@ That separation of concerns—between symbolic correctness and procedural heuris
 - **Plotkin, G. D.** (1972). *Building-in Equational Theories.*
   *Machine Intelligence 7*, Edinburgh University Press, 73–90.
 
-- **Chang & Lee** (1973). *Symbolic Logic and Mechanical Theorem Proving*
-
 - **Martelli, A., & Montanari, U.** (1982). *An Efficient Unification Algorithm.*
   *ACM Transactions on Programming Languages and Systems, 4*(2), 258–282.
   Available at <https://dl.acm.org/doi/abs/10.1145/357162.357169>
 
+### Automated Theorem Proving: Textbooks
+
+- **Chang & Lee** (1973). *Symbolic Logic and Mechanical Theorem Proving*
+
+- **Wos, L., Overbeek, R., Lusk, E., & Boyle, J.** (1992). *Automated Reasoning: Introduction and Applications* (2nd ed.).
+  McGraw-Hill, Inc., New York.
+
 - **Fitting, M.** (1996). *First-Order Logic and Automated Theorem Proving*
 
-- **McCune, W.** (2005–2010). *Prover9 and Mace4.*
-  <http://www.cs.unm.edu/~mccune/prover9/>
-
-### Computational Implementations
+### Automated Theorem Proving: Systems and Implementations
 
 - **Wos, L., Robinson, G., & Carson, D.** (1965). *Efficiency and Completeness of the Set of Support Strategy in Theorem Proving.*
   *Journal of the ACM, 12*(4), 536–541.
   Available at <https://dl.acm.org/doi/abs/10.1145/321296.321302>
-
-- **Wos, L., Overbeek, R., Lusk, E., & Boyle, J.** (1992). *Automated Reasoning: Introduction and Applications* (2nd ed.).
-  McGraw-Hill, Inc., New York.
 
 - **Beckert, B., & Posegga, J.** (1994). *LeanT<sup>A</sup>P: Lean tableau-based deduction.*
   In *CADE-12*, Lecture Notes in Computer Science 814, pp. 793–797. Springer-Verlag.
@@ -104,6 +101,9 @@ That separation of concerns—between symbolic correctness and procedural heuris
   In *Automated Reasoning, IJCAR 2016*,  Lecture Notes in Computer Science, LNAI 9706, pp. 302–312. Springer.
   DOI: <https://doi.org/10.1007/978-3-319-40229-1_21>
 
+- **McCune, W.** (2005–2010). *Prover9 and Mace4.*
+  <http://www.cs.unm.edu/~mccune/prover9/>
+
 - **Megill, N. and Wheeler, D. A.** (2019) *Metamath: A Computer Language for Mathematical Proofs*. Lulu Press.
   Available at: <https://us.metamath.org/downloads/metamath.pdf>
   There is an errata page at: <https://github.com/metamath/metamath-book/blob/master/errata.md>
@@ -113,7 +113,7 @@ That separation of concerns—between symbolic correctness and procedural heuris
 
 - **Hofstadter, D.** (1980). *Gödel, Escher, Bach: An Eternal Golden Braid*
 
-- **Stillwell, J.** (2022). *First-Order Logic and Automated Theorem Proving*
+- **Stillwell, J.** (2022). *The Story of Proof: Logic and the History of Mathematics*
 
 ## Citation and Scholarly Use
 
