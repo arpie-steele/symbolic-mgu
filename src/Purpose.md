@@ -106,28 +106,3 @@ higher-level reasoning systems in Rust.
   over heavyweight theorem provers.
 
 ---
-
-## Books for Further Reading
-
-### Philosophical & Historical Foundations
-
-- Marcus Aurelius, *Meditations*, 167 — quoted above.
-- Gottlob Frege, *Begriffsschrift, eine der arithmetischen nachgebildete Formelsprache des reinen Denkens* (Concept Script, a formal language of pure thought modelled upon that of arithmetic), 1879 — difficult but seminal; worth at least looking at translations or commentaries.
-- Jean van Heijenoort (ed.), *From Frege to Gödel, a source book in mathematical logic, 1879–1931*, 1967 — a classic anthology of primary texts in modern logic, including Frege and Meredith.
-
-### Classical Logic & Proof Theory
-
-- Peter Smith, *An Introduction to Formal Logic*, 2nd ed., 2020 — accessible, with good coverage of propositional and predicate logic.
-- Raymond Smullyan, *First-Order Logic*, 1995 (Dover Publications reprint of 1968 book) — engaging and puzzle-like, a gentle way into formal systems.
-- Kurt Schütte, *Proof Theory*, 1977 — a denser classic if the reader wants to see how proof systems are analyzed mathematically.
-
-### Automated Reasoning & Unification
-
-- John Alan Robinson, "A Machine-Oriented Logic Based on the Resolution Principle" (1965, *Journal of the ACM*, 12, pp. 23–41) — foundational for unification and automated theorem proving.
-- Melvin Fitting, *First-Order Logic and Automated Theorem Proving*, 1996 — a great textbook that bridges proof theory and computer-based methods.
-- Chang & Lee, *Symbolic Logic and Mechanical Theorem Proving*, 1973 — an older but very clear introduction to unification, resolution, and automated proof strategies.
-
-### Broader Perspectives
-
-- Douglas Hofstadter, *Gödel, Escher, Bach: An Eternal Golden Braid*, 1980 — inspirational rather than technical, but excellent for motivating why formal systems matter.
-- John Stillwell, *The Story of Proof: Logic and the History of Mathematics*, 2022 — historical survey of how proof evolved, tying philosophy, math, and computation together.

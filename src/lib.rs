@@ -9,6 +9,8 @@
 //!
 #![cfg_attr(doc, doc = include_str!("FormalSpec.md"))]
 //!
+#![cfg_attr(doc, doc = include_str!("../docs/SCHOLARLY_CONTEXT.md"))]
+//!
 #![cfg_attr(doc, doc = include_str!("Hyperlinks.md"))]
 #![cfg_attr(nightly, feature(doc_cfg))]
 #![allow(unknown_lints)]

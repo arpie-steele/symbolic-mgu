@@ -15,6 +15,8 @@ objects and applying unification operations for automated theorem proving.
 The implementation follows Robinson's unification algorithm and supports
 Meredith's condensed detachment principle.
 
+**Academic Context:** This crate implements typed symbolic unification based on Robinson (1965) and Meredith's condensed detachment (1953). For detailed mathematical background, references, and citation information, see [docs/SCHOLARLY_CONTEXT.md](docs/SCHOLARLY_CONTEXT.md).
+
 ### Key Features
 
 **Core Unification:**
@@ -90,4 +92,13 @@ cargo build --features bigint,serde
 ## Minimum Rust Version
 
 This crate requires Rust 1.77 or later and uses edition 2018 for maximum compatibility.
+
+## Citation
+
+If you use symbolic-mgu in published research, please cite it as:
+
+> *symbolic-mgu (v0.1.x)* — a Rust library for typed symbolic unification and condensed detachment.
+> Available at [crates.io/crates/symbolic-mgu](https://crates.io/crates/symbolic-mgu).
+
+For foundational references (Robinson 1965, Meredith 1953, etc.), see [docs/SCHOLARLY_CONTEXT.md](docs/SCHOLARLY_CONTEXT.md).
 
