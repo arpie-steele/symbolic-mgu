@@ -37,7 +37,7 @@ fn check_validity<Ty, V, N, T, TF>(
 where
     Ty: Type,
     V: Metavariable<Type = Ty>,
-    N: Node<Type = Ty> + Into<NodeByte>,
+    N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
     TF: TermFactory<T, Ty, V, N, TermNode = N>,
 {

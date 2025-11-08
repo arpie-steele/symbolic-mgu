@@ -1355,6 +1355,37 @@ impl Node for NodeByte {
             ))
         }
     }
+
+    fn to_boolean_op(&self) -> Option<crate::BooleanSimpleOp> {
+        use crate::BooleanSimpleOp::*;
+        match self {
+            // Nullary (0-arity) Boolean operations
+            NodeByte::False => Some(False0),
+            NodeByte::True => Some(True0),
+
+            // Unary (1-arity) Boolean operations
+            NodeByte::Not => Some(NotA1),
+
+            // Binary (2-arity) Boolean operations
+            NodeByte::And => Some(AndAB2),
+            NodeByte::Or => Some(OrAB2),
+            NodeByte::Implies => Some(ImpliesAB2),
+            NodeByte::Biimp => Some(BiimpAB2),
+            NodeByte::ExclusiveOr => Some(XorAB2),
+            NodeByte::NotAnd => Some(NotAndAB2),
+            NodeByte::NotOr => Some(NotOrAB2),
+
+            // Ternary (3-arity) Boolean operations
+            NodeByte::And3 => Some(And3ABC3),
+            NodeByte::Or3 => Some(Or3ABC3),
+            NodeByte::LogicalIf => Some(IfABC3),
+            NodeByte::CarryFromAdder => Some(Majority3ABC3),
+            NodeByte::SumFromAdder => Some(Xor3ABC3),
+
+            // All other nodes are not Boolean operations
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
