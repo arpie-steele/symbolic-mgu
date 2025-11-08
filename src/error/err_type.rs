@@ -36,6 +36,12 @@ pub enum MguErrorType {
     /// Unification failure with descriptive message.
     UnificationFailure,
 
+    /// Argument Error with descriptive message.
+    ArgumentError,
+
+    /// Verification failure with descriptive message.
+    VerificationFailure,
+
     /// Distinctness constraint violation.
     DistinctnessViolation,
 

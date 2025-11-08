@@ -68,6 +68,14 @@ pub enum MguError {
     #[error("Unification failed: {0}")]
     UnificationFailure(String), // msg
 
+    /// Argument Error with descriptive message.
+    #[error("Argument error: {0}")]
+    ArgumentError(String),
+
+    /// Verification failure with descriptive message.
+    #[error("Verification failed: {0}")]
+    VerificationFailure(String), // msg
+
     /// Distinctness constraint violation.
     #[error("Distinctness violation: {0}")]
     DistinctnessViolation(String), // msg
@@ -224,6 +232,10 @@ impl MguError {
     {
         match err_type {
             MguErrorType::UnificationFailure => MguError::UnificationFailure(msg.into().to_owned()),
+            MguErrorType::ArgumentError => MguError::ArgumentError(msg.into().to_owned()),
+            MguErrorType::VerificationFailure => {
+                MguError::VerificationFailure(msg.into().to_owned())
+            }
             MguErrorType::DistinctnessViolation => {
                 MguError::DistinctnessViolation(msg.into().to_owned())
             }
@@ -275,6 +287,8 @@ impl MguError {
             MguError::UnsignedValueUnsupported(_, _) => MguErrorType::UnsignedValueUnsupported,
             MguError::PairValidationFailure(_, _) => MguErrorType::PairValidationFailure,
             MguError::UnificationFailure(_) => MguErrorType::UnificationFailure,
+            MguError::ArgumentError(_) => MguErrorType::ArgumentError,
+            MguError::VerificationFailure(_) => MguErrorType::VerificationFailure,
             MguError::DistinctnessViolation(_) => MguErrorType::DistinctnessViolation,
             MguError::SubstitutionCycle(_) => MguErrorType::SubstitutionCycle,
             MguError::CliqueOrderingError => MguErrorType::CliqueOrderingError,
@@ -555,6 +569,8 @@ impl Hash for MguError {
                 b.hash(state);
             }
             MguError::UnificationFailure(msg)
+            | MguError::ArgumentError(msg)
+            | MguError::VerificationFailure(msg)
             | MguError::DistinctnessViolation(msg)
             | MguError::SubstitutionCycle(msg)
             | MguError::AllocationError(msg)

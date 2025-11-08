@@ -17,34 +17,44 @@
 //! ```
 
 use symbolic_mgu::{
-    logic::create_dict, test_tautology, EnumTermFactory, MetaByteFactory, MguError, NodeByte,
-    SimpleType, Statement, Term, TermFactory, TypeCore,
+    logic::create_dict, test_tautology, EnumTermFactory, MetaByte, MetaByteFactory, Metavariable,
+    MetavariableFactory, MguError, MguErrorType, Node, NodeByte, SimpleType, Statement, Term,
+    TermFactory, Type, WideMetavariable, WideMetavariableFactory,
 };
 
-/// Check if a statement with hypotheses is valid.
+/// Check if a statement with possible hypotheses is valid.
 ///
 /// Builds the nested implication H₁ → (H₂ → (... → (Hₙ → A))) and tests if it's a tautology.
 /// This checks **validity**: whether the conclusion logically follows from the premises.
-fn check_validity(
-    statement: &Statement<
-        SimpleType,
-        symbolic_mgu::MetaByte,
-        NodeByte,
-        symbolic_mgu::EnumTerm<SimpleType, symbolic_mgu::MetaByte, NodeByte>,
-    >,
-    term_factory: &EnumTermFactory<SimpleType, symbolic_mgu::MetaByte, NodeByte>,
-) -> Result<bool, MguError> {
+///
+/// This still can work if `implies_node` is `None` when there are zero hypotheses,
+/// but in general it should be a Boolean operator with semantics identical to material implication.
+fn check_validity<Ty, V, N, T, TF>(
+    statement: &Statement<Ty, V, N, TF::Term>,
+    term_factory: &TF,
+    implies_node: &Option<N>,
+) -> Result<bool, MguError>
+where
+    Ty: Type,
+    V: Metavariable<Type = Ty>,
+    N: Node<Type = Ty> + Into<NodeByte>,
+    T: Term<Ty, V, N>,
+    TF: TermFactory<T, Ty, V, N, TermNode = N>,
+{
+    use MguErrorType::VerificationFailure;
     // Check if all hypotheses and assertion are Boolean
     if !statement.get_assertion().get_type()?.is_boolean() {
-        return Err(MguError::UnificationFailure(
-            "Assertion is not Boolean type".to_string(),
+        return Err(MguError::from_err_type_and_message(
+            VerificationFailure,
+            "Assertion is not Boolean type",
         ));
     }
 
     for hyp in statement.get_hypotheses() {
         if !hyp.get_type()?.is_boolean() {
-            return Err(MguError::UnificationFailure(
-                "Not all hypotheses are Boolean type".to_string(),
+            return Err(MguError::from_err_type_and_message(
+                VerificationFailure,
+                "Not all hypotheses are Boolean type",
             ));
         }
     }
@@ -52,10 +62,17 @@ fn check_validity(
     // Build nested implication: H₁ → (H₂ → (... → (Hₙ → A)))
     let mut implication = statement.get_assertion().clone();
 
-    // Build from right to left (innermost to outermost)
+    // Build from right to left (innermost to outermost), but usually order does not matter.
     for hyp in statement.get_hypotheses().iter().rev() {
-        implication =
-            term_factory.create_node(NodeByte::Implies, vec![hyp.clone(), implication])?;
+        if let Some(actual_implies) = implies_node {
+            implication =
+                term_factory.create_node(actual_implies.clone(), vec![hyp.clone(), implication])?;
+        } else {
+            return Err(MguError::from_err_type_and_message(
+            VerificationFailure,
+                "Unable to produce a single-term Statement without being supplied an implication Node."
+                ));
+        }
     }
 
     // Test if the nested implication is a tautology
@@ -80,6 +97,7 @@ fn run() -> Result<(), MguError> {
     // Parse arguments
     let mut verify = false;
     let mut proofs = Vec::new();
+    let mut short_vars: Option<bool> = None;
 
     for arg in args.iter().skip(1) {
         match arg.as_str() {
@@ -90,11 +108,32 @@ fn run() -> Result<(), MguError> {
             "--verify" | "-v" => {
                 verify = true;
             }
+            "--no-byte" | "--wide" | "-w" => {
+                let goal = Some(false);
+                if short_vars.is_some() && short_vars != goal {
+                    return Err(MguError::from_err_type_and_message(
+                        MguErrorType::ArgumentError,
+                        "The --wide and --byte flags may not be used together.",
+                    ));
+                }
+                short_vars = goal;
+            }
+            "--byte" | "--no-wide" | "-b" => {
+                let goal = Some(true);
+                if short_vars.is_some() && short_vars != goal {
+                    return Err(MguError::from_err_type_and_message(
+                        MguErrorType::ArgumentError,
+                        "The --wide and --byte flags may not be used together.",
+                    ));
+                }
+                short_vars = goal;
+            }
             proof => {
                 proofs.push(proof);
             }
         }
     }
+    let short_vars = short_vars.unwrap_or(true);
 
     if proofs.is_empty() {
         eprintln!("No proof strings provided.");
@@ -102,17 +141,27 @@ fn run() -> Result<(), MguError> {
         return Ok(());
     }
 
-    // Create factories
-    let var_factory = MetaByteFactory();
-    let term_factory = EnumTermFactory::new();
+    // Create factory
+    if short_vars {
+        let var_factory = MetaByteFactory();
+        run_by_factory::<MetaByte, MetaByteFactory>(&var_factory, &proofs, verify)?;
+    } else {
+        let var_factory = WideMetavariableFactory();
+        run_by_factory::<WideMetavariable, WideMetavariableFactory>(&var_factory, &proofs, verify)?;
+    }
+
+    Ok(())
+}
+
+fn run_by_factory<V, VF>(var_factory: &VF, proofs: &[&str], verify: bool) -> Result<(), MguError>
+where
+    V: Metavariable<Type = SimpleType> + Default,
+    VF: MetavariableFactory<MetavariableType = SimpleType, Metavariable = V>,
+{
+    let term_factory: EnumTermFactory<SimpleType, V, NodeByte> = EnumTermFactory::new();
 
     // Create standard dictionary
-    let dict = create_dict(
-        &term_factory,
-        &var_factory,
-        NodeByte::Implies,
-        NodeByte::Not,
-    )?;
+    let dict = create_dict(&term_factory, var_factory, NodeByte::Implies, NodeByte::Not)?;
 
     println!("Compact Proof Processor");
     println!("=======================\n");
@@ -124,11 +173,11 @@ fn run() -> Result<(), MguError> {
     println!("  _ = Placeholder (unsatisfied hypothesis)\n");
 
     // Process each proof
-    for (i, proof_str) in proofs.iter().enumerate() {
+    for (i, proof_str) in proofs.iter().copied().enumerate() {
         println!("Proof {}: \"{}\"", i + 1, proof_str);
         println!("{}", "─".repeat(50));
 
-        match Statement::from_compact_proof(proof_str, &var_factory, &term_factory, &dict) {
+        match Statement::from_compact_proof(proof_str, var_factory, &term_factory, &dict) {
             Ok(result) => {
                 println!("✓ Parsed successfully");
                 println!("  Assertion: {}", result.get_assertion());
@@ -151,7 +200,7 @@ fn run() -> Result<(), MguError> {
                         }
                     } else {
                         // Has hypotheses: check if all terms are Boolean, then verify validity
-                        match check_validity(&result, &term_factory) {
+                        match check_validity(&result, &term_factory, &Some(NodeByte::Implies)) {
                             Ok(true) => {
                                 println!("  ✓ Valid: Hypotheses logically entail the assertion")
                             }
@@ -169,7 +218,6 @@ fn run() -> Result<(), MguError> {
         }
         println!();
     }
-
     Ok(())
 }
 
@@ -180,6 +228,8 @@ fn print_usage(program: &str) {
     println!();
     println!("OPTIONS:");
     println!("  -h, --help     Show this help message");
+    println!("  -b, --byte     Use a small subset of ASCII letters for variables");
+    println!("  -w, --wide     Use a large library of UTF-8 symbols for variables");
     println!("  -v, --verify   Verify tautologies (theorems) or validity (inferences)");
     println!();
     println!("VERIFICATION:");
