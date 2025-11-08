@@ -983,6 +983,28 @@ cargo run --bin compact -- D__ DD211 DD2D111
 - [ ] Document formatter API in module docs
 - [ ] Export formatter API from lib.rs
 
+**Post-Implementation Example:**
+- [ ] **Meredith Paper Parser Example** - Demonstrate parsing/verifying historical logic papers
+  - Parse Meredith's 1953 (A,N) system paper examples in Polish notation
+  - Verify all theorems using `test_tautology()`
+  - Display in multiple formats: Polish, infix, UTF-8, LaTeX
+  - Example: `CCpqCCqrCpr` → verified tautology → displayed as:
+    - Polish: `CCpqCCqrCpr`
+    - Infix: `((p → q) → ((q → r) → (p → r)))`
+    - UTF-8: `((φ → ψ) → ((ψ → χ) → (φ → χ)))`
+    - LaTeX: `((\varphi \to \psi) \to ((\psi \to \chi) \to (\varphi \to \chi)))`
+  - Shows how modern tooling can illuminate historical papers
+  - Educational fair use (brief quotes + independent verification)
+  - Reference: https://en.wikipedia.org/wiki/Polish_notation
+  - See also: Łukasiewicz (1929) *Elementy logiki matematycznej* and Bocheński's 16-connective system
+
+**Documentation Updates:**
+- [ ] Add Polish notation reference to `BooleanSimpleOp` module docs
+  - Link to https://en.wikipedia.org/wiki/Polish_notation
+  - Document correspondence: Cpq (implication), Npq (negation), Apq (or), Kpq (and), Epq (equivalence)
+  - Note Łukasiewicz (1929) as original source
+  - Mention Bocheński's systematic 16-connective extension organized by truth value frequency
+
 **Design Principles (from CLAUDE.md):**
 - Only metavariables colored by Type
 - Avoid elaborate color theory (no CIE XYZ/Lab)
