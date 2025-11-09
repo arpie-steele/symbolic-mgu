@@ -166,7 +166,12 @@ fn run() -> Result<(), MguError> {
         run_by_factory::<MetaByte, MetaByteFactory>(&var_factory, &proofs, verify, format)?;
     } else {
         let var_factory = WideMetavariableFactory();
-        run_by_factory::<WideMetavariable, WideMetavariableFactory>(&var_factory, &proofs, verify, format)?;
+        run_by_factory::<WideMetavariable, WideMetavariableFactory>(
+            &var_factory,
+            &proofs,
+            verify,
+            format,
+        )?;
     }
 
     Ok(())

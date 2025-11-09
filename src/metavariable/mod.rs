@@ -102,7 +102,7 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq {
     /// # Default Implementation
     ///
     /// The default implementation delegates to the Display trait.
-    /// Concrete implementations (like MetaByte) should override to provide
+    /// Concrete implementations (like `MetaByte`) should override to provide
     /// appropriate ASCII names (e.g., "ph", "ps", "ch").
     ///
     /// # Examples
@@ -120,7 +120,7 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq {
     /// Get UTF-8 representation of this metavariable.
     ///
     /// This provides a Unicode rendering with mathematical symbols
-    /// (e.g., φ, ψ, χ for Boolean variables; x, y, z for setvars).
+    /// (e.g., φ, ψ, χ for Boolean variables; x, y, z for Setvars).
     ///
     /// # Default Implementation
     ///

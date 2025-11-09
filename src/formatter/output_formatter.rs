@@ -1,4 +1,4 @@
-//! Core OutputFormatter trait for formatting logical objects.
+//! Core `OutputFormatter` trait for formatting logical objects.
 
 use super::color::Color;
 
@@ -10,7 +10,7 @@ use super::color::Color;
 ///
 /// # Design Pattern
 ///
-/// The OutputFormatter uses a delegation pattern:
+/// The `OutputFormatter` uses a delegation pattern:
 /// 1. Formatter provides its name via `name()`
 /// 2. Metavariable/Node/Term implementations check the name and format accordingly
 /// 3. Each type knows how to format itself for different formatters
@@ -37,6 +37,10 @@ use super::color::Color;
 /// let output = my_var.format_with(&*formatter);
 /// println!("{}", output);
 /// ```
+///
+/// [`Metavariable`]: `crate::Metavariable`
+/// [`Node`]: `crate::Node`
+/// [`Term`]: `crate::Term`
 pub trait OutputFormatter: Send + Sync {
     /// Returns the name of this formatter.
     ///
@@ -51,6 +55,10 @@ pub trait OutputFormatter: Send + Sync {
     /// - `"html-color"` - HTML with inline color styles
     /// - `"latex"` - LaTeX math mode (\to, \land, \varphi)
     /// - `"display"` - Fallback using Display trait
+    ///
+    /// [`Metavariable`]: `crate::Metavariable`
+    /// [`Node`]: `crate::Node`
+    /// [`Term`]: `crate::Term`
     fn name(&self) -> &str;
 
     /// Get color code for Boolean type (if this formatter supports colors).

@@ -3,7 +3,7 @@
 /// Simple color representation supporting both terminal and HTML output.
 ///
 /// Colors are specified using xterm256 color codes (0-255) and HTML hex colors.
-/// This avoids complex color theory (RGB→XYZ→Lab conversions) while providing
+/// This avoids complex color theory (RGB → XYZ → Lab conversions) while providing
 /// practical color support for formatters.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Color {

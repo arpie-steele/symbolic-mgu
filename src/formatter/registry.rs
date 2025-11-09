@@ -1,4 +1,4 @@
-//! Global formatter registry for managing OutputFormatter implementations.
+//! Global formatter registry for managing `OutputFormatter` implementations.
 
 use super::output_formatter::OutputFormatter;
 use std::collections::HashMap;
@@ -10,9 +10,8 @@ type FormatterBox = Arc<dyn OutputFormatter>;
 /// Global formatter registry.
 ///
 /// Initialized with built-in formatters on first access.
-/// Applications can register custom formatters at runtime.
-static GLOBAL_FORMATTER_REGISTRY: OnceLock<RwLock<HashMap<String, FormatterBox>>> =
-    OnceLock::new();
+/// Applications can register custom formatters at run-time.
+static GLOBAL_FORMATTER_REGISTRY: OnceLock<RwLock<HashMap<String, FormatterBox>>> = OnceLock::new();
 
 /// Get or initialize the global formatter registry.
 ///
@@ -31,13 +30,28 @@ fn formatter_registry() -> &'static RwLock<HashMap<String, FormatterBox>> {
         let mut map = HashMap::new();
 
         // Register built-in formatters
-        map.insert("ascii".to_string(), Arc::new(AsciiFormatter) as FormatterBox);
+        map.insert(
+            "ascii".to_string(),
+            Arc::new(AsciiFormatter) as FormatterBox,
+        );
         map.insert("utf8".to_string(), Arc::new(Utf8Formatter) as FormatterBox);
-        map.insert("utf8-color".to_string(), Arc::new(Utf8ColorFormatter) as FormatterBox);
+        map.insert(
+            "utf8-color".to_string(),
+            Arc::new(Utf8ColorFormatter) as FormatterBox,
+        );
         map.insert("html".to_string(), Arc::new(HtmlFormatter) as FormatterBox);
-        map.insert("html-color".to_string(), Arc::new(HtmlColorFormatter) as FormatterBox);
-        map.insert("latex".to_string(), Arc::new(LatexFormatter) as FormatterBox);
-        map.insert("display".to_string(), Arc::new(DisplayFormatter) as FormatterBox);
+        map.insert(
+            "html-color".to_string(),
+            Arc::new(HtmlColorFormatter) as FormatterBox,
+        );
+        map.insert(
+            "latex".to_string(),
+            Arc::new(LatexFormatter) as FormatterBox,
+        );
+        map.insert(
+            "display".to_string(),
+            Arc::new(DisplayFormatter) as FormatterBox,
+        );
 
         RwLock::new(map)
     })
@@ -63,6 +77,12 @@ fn formatter_registry() -> &'static RwLock<HashMap<String, FormatterBox>> {
 ///
 /// register_formatter("my-format", MyFormatter);
 /// ```
+///
+/// # Panics
+///
+/// Can panic
+/// - if `RwLock` is poisoned because a writer panics while holding an exclusive lock, or
+/// - if the lock is already held by the current thread.
 pub fn register_formatter(name: impl Into<String>, formatter: impl OutputFormatter + 'static) {
     formatter_registry()
         .write()
@@ -86,6 +106,12 @@ pub fn register_formatter(name: impl Into<String>, formatter: impl OutputFormatt
 /// let formatter = get_formatter("utf8-color");
 /// let output = formatter.format_term(&my_term);
 /// ```
+///
+/// # Panics
+///
+/// Can panic
+/// - if `RwLock` is poisoned because a writer panics while holding an exclusive lock, or
+/// - if the lock is already held by the current thread.
 pub fn get_formatter(name: &str) -> FormatterBox {
     formatter_registry()
         .read()
@@ -94,7 +120,7 @@ pub fn get_formatter(name: &str) -> FormatterBox {
         .cloned()
         .unwrap_or_else(|| {
             // Fallback to display formatter
-            // Will be replaced with actual DisplayFormatter implementation
+            // Will be replaced with actual `DisplayFormatter` implementation
             Arc::new(DisplayFormatter)
         })
 }

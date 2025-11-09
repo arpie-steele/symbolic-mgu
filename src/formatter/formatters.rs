@@ -7,7 +7,7 @@ use super::output_formatter::OutputFormatter;
 ///
 /// Uses ASCII operators and Metamath-style variable names:
 /// - Operators: `->`, `/\`, `\/`, `-.` etc.
-/// - Variables: `ph`, `ps`, `ch` for Booleans; `x`, `y`, `z` for setvars
+/// - Variables: `ph`, `ps`, `ch` for Booleans; `x`, `y`, `z` for Setvars
 pub struct AsciiFormatter;
 
 impl OutputFormatter for AsciiFormatter {
@@ -20,7 +20,7 @@ impl OutputFormatter for AsciiFormatter {
 ///
 /// Uses Unicode mathematical operators:
 /// - Operators: `→`, `∧`, `∨`, `¬` etc.
-/// - Variables: `φ`, `ψ`, `χ` for Booleans; `𝑥`, `𝑦`, `𝑧` for setvars
+/// - Variables: `φ`, `ψ`, `χ` for Booleans; `𝑥`, `𝑦`, `𝑧` for Setvars
 pub struct Utf8Formatter;
 
 impl OutputFormatter for Utf8Formatter {
@@ -99,7 +99,7 @@ impl OutputFormatter for HtmlColorFormatter {
 ///
 /// Uses LaTeX commands:
 /// - Operators: `\to`, `\land`, `\lor`, `\neg` etc.
-/// - Variables: `\varphi`, `\psi`, `\chi` for Booleans; `x`, `y`, `z` for setvars
+/// - Variables: `\varphi`, `\psi`, `\chi` for Booleans; `x`, `y`, `z` for Setvars
 pub struct LatexFormatter;
 
 impl OutputFormatter for LatexFormatter {

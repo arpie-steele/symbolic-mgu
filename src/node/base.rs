@@ -114,7 +114,7 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
     /// # Default Implementation
     ///
     /// The default implementation delegates to the Display trait.
-    /// Concrete implementations (like NodeByte) should override to provide
+    /// Concrete implementations (like `NodeByte`) should override to provide
     /// appropriate ASCII symbols (e.g., "->", "/\\", "\\/").
     ///
     /// # Examples

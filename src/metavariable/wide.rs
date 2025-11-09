@@ -356,7 +356,7 @@ impl Metavariable for WideMetavariable {
 
 impl WideMetavariable {
     /// Get LaTeX representation.
-    fn to_latex(&self) -> String {
+    fn to_latex(self) -> String {
         use Type::*;
 
         let data = match self.0 {
@@ -386,11 +386,13 @@ impl WideMetavariable {
             '𝜆' => r"\lambda",
             '𝜅' => r"\kappa",
             // Setvar / Class (Latin) - just use the plain letter
-            _ => return if subscript != 0 {
-                format!("{}_{{{}}}", main_char, subscript)
-            } else {
-                main_char.to_string()
-            },
+            _ => {
+                return if subscript != 0 {
+                    format!("{}_{{{}}}", main_char, subscript)
+                } else {
+                    main_char.to_string()
+                }
+            }
         };
 
         if subscript != 0 {
@@ -401,7 +403,7 @@ impl WideMetavariable {
     }
 
     /// Get HTML representation with optional coloring.
-    fn to_html(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn to_html(self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
         let (main_char, subscript_opt) = self.get_display_parts();
 
         let color_opt = match self.0 {
@@ -419,7 +421,12 @@ impl WideMetavariable {
         if let Some(sub) = subscript_opt {
             // Use proper HTML <sub> tag with normal digits
             if let Some(color) = color_opt {
-                format!("{}<sub style='color:{}'>{}</sub>", main_html, color.to_html(), sub)
+                format!(
+                    "{}<sub style='color:{}'>{}</sub>",
+                    main_html,
+                    color.to_html(),
+                    sub
+                )
             } else {
                 format!("{}<sub>{}</sub>", main_html, sub)
             }
@@ -429,7 +436,7 @@ impl WideMetavariable {
     }
 
     /// Get UTF-8 representation with ANSI color codes.
-    fn to_utf8_color(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn to_utf8_color(self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
         let (main_char, subscript_opt) = self.get_display_parts();
 
         let color_opt = match self.0 {

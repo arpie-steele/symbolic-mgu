@@ -55,6 +55,4 @@ pub(crate) mod type_colors;
 pub use color::Color;
 pub use output_formatter::OutputFormatter;
 pub use registry::{get_formatter, register_formatter};
-pub use type_colors::{
-    get_type_color, get_type_color_from_trait, register_type_color,
-};
+pub use type_colors::{get_type_color, get_type_color_from_trait, register_type_color};

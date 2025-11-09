@@ -173,7 +173,7 @@ impl Metavariable for MetaByte {
 
 impl MetaByte {
     /// Get LaTeX representation.
-    fn to_latex(&self) -> String {
+    fn to_latex(self) -> String {
         match self.0 as char {
             // Boolean variables: Greek letters in LaTeX
             'P' => r"\varphi".to_string(),
@@ -195,7 +195,7 @@ impl MetaByte {
     }
 
     /// Get HTML representation with optional coloring.
-    fn to_html(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn to_html(self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
         let char_str = self.to_str();
 
         if let Ok((typ, _)) = self.get_type_and_index() {
@@ -215,7 +215,7 @@ impl MetaByte {
     }
 
     /// Get UTF-8 representation with ANSI color codes.
-    fn to_utf8_color(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn to_utf8_color(self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
         let char_str = self.to_str();
 
         if let Ok((typ, _)) = self.get_type_and_index() {

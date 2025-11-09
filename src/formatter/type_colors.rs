@@ -37,7 +37,7 @@ fn type_color_registry() -> &'static RwLock<HashMap<String, Color>> {
 ///
 /// # Arguments
 ///
-/// * `type_name` - Name of the type (e.g., "Boolean", "RealNumber")
+/// * `type_name` - Name of the type (e.g., "Boolean", "Real")
 /// * `color` - Color to associate with this type
 ///
 /// # Examples
@@ -48,6 +48,12 @@ fn type_color_registry() -> &'static RwLock<HashMap<String, Color>> {
 /// // Register a custom color for a new type
 /// register_type_color("RealNumber", Color::new(220, "#ffaa00"));
 /// ```
+///
+/// # Panics
+///
+/// Can panic
+/// - if `RwLock` is poisoned because a writer panics while holding an exclusive lock, or
+/// - if the lock is already held by the current thread.
 pub fn register_type_color(type_name: impl Into<String>, color: Color) {
     type_color_registry()
         .write()
@@ -76,6 +82,12 @@ pub fn register_type_color(type_name: impl Into<String>, color: Color) {
 /// let unknown = get_type_color("UnknownType");
 /// assert_eq!(unknown, None);
 /// ```
+///
+/// # Panics
+///
+/// Can panic
+/// - if `RwLock` is poisoned because a writer panics while holding an exclusive lock, or
+/// - if the lock is already held by the current thread.
 pub fn get_type_color(type_name: &str) -> Option<Color> {
     type_color_registry()
         .read()
