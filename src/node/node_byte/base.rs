@@ -1386,6 +1386,155 @@ impl Node for NodeByte {
             _ => None,
         }
     }
+
+    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+        match formatter.name() {
+            "ascii" => self.to_ascii_symbol().to_string(),
+            "latex" => self.to_latex_symbol().to_string(),
+            "html" | "html-color" => {
+                let sym = self.to_utf8_symbol();
+                format!("<span class='op'>{}</span>", sym)
+            }
+            "utf8-color" => {
+                let sym = self.to_utf8_symbol();
+                // Operators get fixed orange color
+                format!("\x1b[38;5;208m{}\x1b[0m", sym)
+            }
+            _ => self.to_utf8_symbol().to_string(), // Default: UTF-8
+        }
+    }
+
+    fn to_ascii_symbol(&self) -> &str {
+        match self {
+            // Basic logical operators
+            NodeByte::Not => "-.",
+            NodeByte::Implies => "->",
+            NodeByte::Biimp => "<->",
+            NodeByte::And => "/\\",
+            NodeByte::Or => "\\/",
+            NodeByte::ExclusiveOr => "(+)",
+            NodeByte::NotAnd => "-./\\",
+            NodeByte::NotOr => "-.\\/",
+
+            // Set operations
+            NodeByte::IsElementOf => " e. ",
+            NodeByte::NotElementOf => " e/. ",
+            NodeByte::Equals => " = ",
+            NodeByte::NotEquals => " =/= ",
+            NodeByte::Subset => " C_ ",
+            NodeByte::ProperSubset => " C. ",
+
+            // Quantifiers
+            NodeByte::ForAll => "A.",
+            NodeByte::Exists => "E.",
+            NodeByte::ExistsAtMostOne => "E*",
+            NodeByte::ExistsExactlyOne => "E!",
+
+            // Ternary operators
+            NodeByte::And3 => "/\\3",
+            NodeByte::Or3 => "\\/3",
+            NodeByte::LogicalIf => "if-",
+
+            // Constants
+            NodeByte::True => "T.",
+            NodeByte::False => "F.",
+
+            // Default: use Display
+            _ => "?",
+        }
+    }
+
+    fn to_utf8_symbol(&self) -> &str {
+        match self {
+            // Basic logical operators
+            NodeByte::Not => "¬",
+            NodeByte::Implies => "→",
+            NodeByte::Biimp => "↔",
+            NodeByte::And => "∧",
+            NodeByte::Or => "∨",
+            NodeByte::ExclusiveOr => "⊻",
+            NodeByte::NotAnd => "⊼",
+            NodeByte::NotOr => "⊽",
+
+            // Set operations
+            NodeByte::IsElementOf => " ∈ ",
+            NodeByte::NotElementOf => " ∉ ",
+            NodeByte::Equals => " = ",
+            NodeByte::NotEquals => " ≠ ",
+            NodeByte::Subset => " ⊆ ",
+            NodeByte::ProperSubset => " ⊊ ",
+
+            // Quantifiers
+            NodeByte::ForAll => "∀",
+            NodeByte::Exists => "∃",
+            NodeByte::ExistsAtMostOne => "∃*",
+            NodeByte::ExistsExactlyOne => "∃!",
+
+            // Ternary operators
+            NodeByte::And3 => "∧₃",
+            NodeByte::Or3 => "∨₃",
+            NodeByte::LogicalIf => "if",
+
+            // Constants
+            NodeByte::True => "⊤",
+            NodeByte::False => "⊥",
+
+            // Class operations
+            NodeByte::UnionOp => " ∪ ",
+            NodeByte::IntersectionOp => " ∩ ",
+            NodeByte::DiffOp => " ∖ ",
+            NodeByte::SymDiffOp => " △ ",
+
+            // Default: use Display
+            _ => "?",
+        }
+    }
+
+    fn to_latex_symbol(&self) -> &str {
+        match self {
+            // Basic logical operators
+            NodeByte::Not => r"\neg ",
+            NodeByte::Implies => r"\to ",
+            NodeByte::Biimp => r"\leftrightarrow ",
+            NodeByte::And => r"\land ",
+            NodeByte::Or => r"\lor ",
+            NodeByte::ExclusiveOr => r"\oplus ",
+            NodeByte::NotAnd => r"\barwedge ",
+            NodeByte::NotOr => r"\veebar ",
+
+            // Set operations
+            NodeByte::IsElementOf => r"\in ",
+            NodeByte::NotElementOf => r"\notin ",
+            NodeByte::Equals => " = ",
+            NodeByte::NotEquals => r"\neq ",
+            NodeByte::Subset => r"\subseteq ",
+            NodeByte::ProperSubset => r"\subset ",
+
+            // Quantifiers
+            NodeByte::ForAll => r"\forall ",
+            NodeByte::Exists => r"\exists ",
+            NodeByte::ExistsAtMostOne => r"\exists^{*}",
+            NodeByte::ExistsExactlyOne => r"\exists!",
+
+            // Ternary operators
+            NodeByte::And3 => r"\land_{3}",
+            NodeByte::Or3 => r"\lor_{3}",
+            NodeByte::LogicalIf => r"\text{if}",
+
+            // Constants
+            NodeByte::True => r"\top ",
+            NodeByte::False => r"\bot ",
+
+            // Class operations
+            NodeByte::UnionOp => r"\cup ",
+            NodeByte::IntersectionOp => r"\cap ",
+            NodeByte::DiffOp => r"\setminus ",
+            NodeByte::SymDiffOp => r"\triangle ",
+
+            // Default: use Display
+            _ => "?",
+        }
+    }
 }
 
 #[cfg(test)]

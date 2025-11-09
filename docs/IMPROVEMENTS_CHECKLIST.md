@@ -23,6 +23,17 @@ This document tracks potential improvements to code quality, testing, and docume
 
 ## Testing Improvements
 
+### Formatter Tests (Phase 7.10) - ✅ COMPLETE
+- [x] Test all 6 formatters with basic terms
+- [x] Test metavariable formatting (MetaByte, WideMetavariable)
+- [x] Test node formatting (NodeByte operators)
+- [x] Test recursive term formatting (complex nested expressions)
+- [x] Test color capability detection
+- [x] Verify subscript handling (UTF-8 Unicode, HTML tags)
+- [ ] Future: Test with very long proofs (1000+ variables)
+- [ ] Future: Test custom formatter registration
+- [ ] Future: Test formatter extensibility API
+
 ### Property-Based Tests
 - [ ] Verify `ASCII_BOOLEANS.len() == OUR_BOOLEANS.chars().count()` at compile time
 - [ ] Verify `ASCII_SETVARS.len() == OUR_SETVARS.chars().count()` at compile time
@@ -89,11 +100,16 @@ This document tracks potential improvements to code quality, testing, and docume
 - [ ] Consider feature flags for experimental functionality
 - [ ] Plan extension points: where should users expect to add custom implementations?
 
-### Formatter System Integration (Phase 7.10)
-- [ ] Design how `ASCII_*` constants will be used by formatters
-- [ ] Plan backward compatibility if formatter interface changes
-- [ ] Consider `format_with()` method signatures for `WideMetavariable`
-- [ ] Document formatter trait requirements in advance
+### Formatter System Integration (Phase 7.10) - ✅ COMPLETE
+- [x] Design how `ASCII_*` constants will be used by formatters
+- [x] Plan backward compatibility if formatter interface changes
+- [x] Implement `format_with()` method for `WideMetavariable`
+- [x] Document formatter trait requirements
+- [x] Implement 6 built-in formatters (ASCII, UTF-8, UTF-8-color, HTML, HTML-color, LaTeX)
+- [x] Integrate with compact binary (--format flag)
+- [x] Fix subscript coloring bugs (UTF-8 ANSI escapes, HTML <sub> tags)
+- [ ] Future: Add more formatters (Polish notation, S-expression, etc.)
+- [ ] Future: Implement Formatted<T> wrapper for ergonomic syntax
 
 ### ParametricMetavariable Migration
 - [ ] Plan migration path from `WideMetavariable` to `ParametricMetavariable`

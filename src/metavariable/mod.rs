@@ -63,4 +63,80 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq {
     /// For implementations with unlimited variables, this iterator is infinite.
     /// For limited implementations, it terminates at the maximum index.
     fn enumerate(for_type: Self::Type) -> impl Iterator<Item = Self>;
+
+    /// Format this metavariable with the given formatter.
+    ///
+    /// This method allows metavariables to customize their representation
+    /// based on the formatter being used. Different formatters support
+    /// different output formats (ASCII, UTF-8, LaTeX, HTML, etc.).
+    ///
+    /// # Default Implementation
+    ///
+    /// The default implementation delegates to the Display trait.
+    /// Concrete implementations should override this to provide
+    /// formatter-specific rendering.
+    ///
+    /// # Arguments
+    ///
+    /// * `formatter` - The formatter to use for rendering
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use symbolic_mgu::{Metavariable, OutputFormatter, get_formatter};
+    ///
+    /// let var = /* some metavariable */;
+    /// let formatter = get_formatter("utf8-color");
+    /// let output = var.format_with(&*formatter);
+    /// ```
+    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+        let _ = formatter; // Suppress unused warning
+        format!("{}", self) // Default: use Display
+    }
+
+    /// Get ASCII representation of this metavariable.
+    ///
+    /// This provides a pure ASCII rendering suitable for environments
+    /// that don't support Unicode (e.g., Metamath compatibility, plain text).
+    ///
+    /// # Default Implementation
+    ///
+    /// The default implementation delegates to the Display trait.
+    /// Concrete implementations (like MetaByte) should override to provide
+    /// appropriate ASCII names (e.g., "ph", "ps", "ch").
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use symbolic_mgu::Metavariable;
+    ///
+    /// let var = /* some metavariable */;
+    /// let ascii = var.to_ascii(); // e.g., "ph" for φ
+    /// ```
+    fn to_ascii(&self) -> String {
+        format!("{}", self) // Default: use Display
+    }
+
+    /// Get UTF-8 representation of this metavariable.
+    ///
+    /// This provides a Unicode rendering with mathematical symbols
+    /// (e.g., φ, ψ, χ for Boolean variables; x, y, z for setvars).
+    ///
+    /// # Default Implementation
+    ///
+    /// The default implementation delegates to the Display trait.
+    /// Concrete implementations should override to provide appropriate
+    /// Unicode symbols.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use symbolic_mgu::Metavariable;
+    ///
+    /// let var = /* some metavariable */;
+    /// let utf8 = var.to_utf8(); // e.g., "φ" for Boolean var 0
+    /// ```
+    fn to_utf8(&self) -> String {
+        format!("{}", self) // Default: use Display
+    }
 }

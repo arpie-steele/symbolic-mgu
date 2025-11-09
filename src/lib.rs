@@ -56,6 +56,7 @@ pub mod bool_eval;
 // pub mod color;
 pub(crate) mod distinct;
 pub(crate) mod error;
+pub(crate) mod formatter;
 pub mod logic;
 pub(crate) mod macros;
 pub(crate) mod metavariable;
@@ -80,6 +81,10 @@ pub use distinct::simple_graph::SimpleGraph;
 pub use distinct::DistinctnessGraph;
 pub use error::base::MguError;
 pub use error::err_type::MguErrorType;
+pub use formatter::{
+    get_formatter, get_type_color, get_type_color_from_trait, register_formatter,
+    register_type_color, Color, OutputFormatter,
+};
 // pub use metavariable::InfallibleMetavariable;
 pub use metavariable::enums::AsciiMetaVar;
 pub use metavariable::factory::MetavariableFactory;

@@ -17,9 +17,9 @@
 //! ```
 
 use symbolic_mgu::{
-    logic::create_dict, test_tautology, EnumTermFactory, MetaByte, MetaByteFactory, Metavariable,
-    MetavariableFactory, MguError, MguErrorType, Node, NodeByte, SimpleType, Statement, Term,
-    TermFactory, Type, WideMetavariable, WideMetavariableFactory,
+    get_formatter, logic::create_dict, test_tautology, EnumTermFactory, MetaByte, MetaByteFactory,
+    Metavariable, MetavariableFactory, MguError, MguErrorType, Node, NodeByte, SimpleType,
+    Statement, Term, TermFactory, Type, WideMetavariable, WideMetavariableFactory,
 };
 
 /// Check if a statement with possible hypotheses is valid.
@@ -98,8 +98,15 @@ fn run() -> Result<(), MguError> {
     let mut verify = false;
     let mut proofs = Vec::new();
     let mut short_vars: Option<bool> = None;
+    let mut format = "utf8"; // Default format
+    let mut skip_next = false;
 
-    for arg in args.iter().skip(1) {
+    for (idx, arg) in args.iter().skip(1).enumerate() {
+        if skip_next {
+            skip_next = false;
+            continue;
+        }
+
         match arg.as_str() {
             "--help" | "-h" => {
                 print_usage(&args[0]);
@@ -107,6 +114,18 @@ fn run() -> Result<(), MguError> {
             }
             "--verify" | "-v" => {
                 verify = true;
+            }
+            "--format" | "-f" => {
+                // Get next argument as format name
+                if let Some(fmt) = args.get(idx + 2) {
+                    format = fmt.as_str();
+                    skip_next = true;
+                } else {
+                    return Err(MguError::from_err_type_and_message(
+                        MguErrorType::ArgumentError,
+                        "--format requires a format name (ascii, utf8, utf8-color, latex, html, html-color)",
+                    ));
+                }
             }
             "--no-byte" | "--wide" | "-w" => {
                 let goal = Some(false);
@@ -144,16 +163,21 @@ fn run() -> Result<(), MguError> {
     // Create factory
     if short_vars {
         let var_factory = MetaByteFactory();
-        run_by_factory::<MetaByte, MetaByteFactory>(&var_factory, &proofs, verify)?;
+        run_by_factory::<MetaByte, MetaByteFactory>(&var_factory, &proofs, verify, format)?;
     } else {
         let var_factory = WideMetavariableFactory();
-        run_by_factory::<WideMetavariable, WideMetavariableFactory>(&var_factory, &proofs, verify)?;
+        run_by_factory::<WideMetavariable, WideMetavariableFactory>(&var_factory, &proofs, verify, format)?;
     }
 
     Ok(())
 }
 
-fn run_by_factory<V, VF>(var_factory: &VF, proofs: &[&str], verify: bool) -> Result<(), MguError>
+fn run_by_factory<V, VF>(
+    var_factory: &VF,
+    proofs: &[&str],
+    verify: bool,
+    format: &str,
+) -> Result<(), MguError>
 where
     V: Metavariable<Type = SimpleType> + Default,
     VF: MetavariableFactory<MetavariableType = SimpleType, Metavariable = V>,
@@ -163,8 +187,12 @@ where
     // Create standard dictionary
     let dict = create_dict(&term_factory, var_factory, NodeByte::Implies, NodeByte::Not)?;
 
+    // Get formatter
+    let formatter = get_formatter(format);
+
     println!("Compact Proof Processor");
-    println!("=======================\n");
+    println!("=======================");
+    println!("Format: {}\n", format);
     println!("Dictionary:");
     println!("  D = Modus Ponens: (ψ; φ, (φ → ψ); ∅)");
     println!("  1 = Simp: ((φ → (ψ → φ)); ∅; ∅)");
@@ -180,12 +208,15 @@ where
         match Statement::from_compact_proof(proof_str, var_factory, &term_factory, &dict) {
             Ok(result) => {
                 println!("✓ Parsed successfully");
-                println!("  Assertion: {}", result.get_assertion());
+                println!(
+                    "  Assertion: {}",
+                    result.get_assertion().format_with(&*formatter)
+                );
                 println!("  Hypotheses: {}", result.get_n_hypotheses());
 
                 if result.get_n_hypotheses() > 0 {
                     for (j, hyp) in result.get_hypotheses().iter().enumerate() {
-                        println!("    {}: {}", j, hyp);
+                        println!("    {}: {}", j, hyp.format_with(&*formatter));
                     }
                 }
 
@@ -227,10 +258,19 @@ fn print_usage(program: &str) {
     println!("Process compact proof strings using standard propositional calculus axioms.");
     println!();
     println!("OPTIONS:");
-    println!("  -h, --help     Show this help message");
-    println!("  -b, --byte     Use a small subset of ASCII letters for variables");
-    println!("  -w, --wide     Use a large library of UTF-8 symbols for variables");
-    println!("  -v, --verify   Verify tautologies (theorems) or validity (inferences)");
+    println!("  -h, --help              Show this help message");
+    println!("  -b, --byte              Use a small subset of ASCII letters for variables");
+    println!("  -w, --wide              Use a large library of UTF-8 symbols for variables");
+    println!("  -v, --verify            Verify tautologies (theorems) or validity (inferences)");
+    println!("  -f, --format <FORMAT>   Output format (default: utf8)");
+    println!();
+    println!("FORMATS:");
+    println!("  ascii        ASCII operators (->, /\\, \\/, -.)");
+    println!("  utf8         Unicode operators (→, ∧, ∨, ¬)");
+    println!("  utf8-color   Unicode with ANSI terminal colors");
+    println!("  latex        LaTeX math mode (\\to, \\land, \\lor, \\neg)");
+    println!("  html         HTML with Unicode symbols");
+    println!("  html-color   HTML with inline color styles");
     println!();
     println!("VERIFICATION:");
     println!("  For theorems (no hypotheses): Checks if assertion is a tautology");
@@ -240,13 +280,25 @@ fn print_usage(program: &str) {
     );
     println!();
     println!("EXAMPLES:");
-    println!("  {} DD211              # Prove φ → φ", program);
+    println!("  {} DD211                        # Prove φ → φ", program);
     println!(
-        "  {} --verify DD211     # Prove and verify φ → φ is a tautology",
+        "  {} --verify DD211               # Prove and verify φ → φ is a tautology",
         program
     );
     println!(
-        "  {} --verify D__       # Check if modus ponens is valid",
+        "  {} --format ascii DD211         # Display using ASCII operators",
+        program
+    );
+    println!(
+        "  {} --format utf8-color DD211    # Display with colors",
+        program
+    );
+    println!(
+        "  {} --format latex --verify DD211  # LaTeX output with verification",
+        program
+    );
+    println!(
+        "  {} --verify D__                 # Check if modus ponens is valid",
         program
     );
     println!("  {} D__ DD211          # Process multiple proofs", program);

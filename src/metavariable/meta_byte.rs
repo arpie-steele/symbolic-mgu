@@ -134,6 +134,105 @@ impl Metavariable for MetaByte {
     fn enumerate(for_type: SimpleType) -> impl Iterator<Item = Self> {
         Self::enumerate(for_type)
     }
+
+    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+        match formatter.name() {
+            "ascii" => self.to_ascii(),
+            "latex" => self.to_latex(),
+            "html" | "html-color" => self.to_html(formatter),
+            "utf8-color" => self.to_utf8_color(formatter),
+            _ => self.to_utf8(), // Default: UTF-8
+        }
+    }
+
+    fn to_ascii(&self) -> String {
+        // Metamath-style ASCII names
+        match self.0 as char {
+            // Boolean variables: ph, ps, ch, th, ta, et, ze, si, rh, mu, la
+            'P' => "ph".to_string(),
+            'Q' => "ps".to_string(),
+            'R' => "ch".to_string(),
+            'S' => "th".to_string(),
+            'T' => "ta".to_string(),
+            'U' => "et".to_string(),
+            'V' => "ze".to_string(),
+            'W' => "si".to_string(),
+            'X' => "rh".to_string(),
+            'Y' => "mu".to_string(),
+            'Z' => "la".to_string(),
+            // Setvar and Class: use character as-is
+            c => format!("{}", c),
+        }
+    }
+
+    fn to_utf8(&self) -> String {
+        // Same as Display implementation for now
+        self.to_str()
+    }
+}
+
+impl MetaByte {
+    /// Get LaTeX representation.
+    fn to_latex(&self) -> String {
+        match self.0 as char {
+            // Boolean variables: Greek letters in LaTeX
+            'P' => r"\varphi".to_string(),
+            'Q' => r"\psi".to_string(),
+            'R' => r"\chi".to_string(),
+            'S' => r"\theta".to_string(),
+            'T' => r"\tau".to_string(),
+            'U' => r"\eta".to_string(),
+            'V' => r"\zeta".to_string(),
+            'W' => r"\sigma".to_string(),
+            'X' => r"\rho".to_string(),
+            'Y' => r"\mu".to_string(),
+            'Z' => r"\lambda".to_string(),
+            // Setvar: lowercase variables
+            c if c.is_ascii_lowercase() => format!("{}", c),
+            // Class: uppercase variables
+            c => format!("{}", c),
+        }
+    }
+
+    /// Get HTML representation with optional coloring.
+    fn to_html(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+        let char_str = self.to_str();
+
+        if let Ok((typ, _)) = self.get_type_and_index() {
+            use SimpleType::*;
+            let color = match typ {
+                Boolean => formatter.get_boolean_color(),
+                Setvar => formatter.get_setvar_color(),
+                Class => formatter.get_class_color(),
+            };
+
+            if let Some(color) = color {
+                return format!("<i style='color:{}'>{}</i>", color.to_html(), char_str);
+            }
+        }
+
+        format!("<i>{}</i>", char_str)
+    }
+
+    /// Get UTF-8 representation with ANSI color codes.
+    fn to_utf8_color(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+        let char_str = self.to_str();
+
+        if let Ok((typ, _)) = self.get_type_and_index() {
+            use SimpleType::*;
+            let color = match typ {
+                Boolean => formatter.get_boolean_color(),
+                Setvar => formatter.get_setvar_color(),
+                Class => formatter.get_class_color(),
+            };
+
+            if let Some(color) = color {
+                return format!("\x1b[38;5;{}m{}\x1b[0m", color.to_xterm256(), char_str);
+            }
+        }
+
+        char_str
+    }
 }
 
 impl std::fmt::Display for MetaByte {

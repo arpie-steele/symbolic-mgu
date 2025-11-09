@@ -75,4 +75,102 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
     /// assert_eq!(element_of.to_boolean_op(), None);
     /// ```
     fn to_boolean_op(&self) -> Option<crate::BooleanSimpleOp>;
+
+    /// Format this node with the given formatter.
+    ///
+    /// This method allows nodes to customize their representation
+    /// based on the formatter being used. Different formatters support
+    /// different output formats (ASCII, UTF-8, LaTeX, HTML, etc.).
+    ///
+    /// # Default Implementation
+    ///
+    /// The default implementation delegates to the Display trait.
+    /// Concrete implementations should override this to provide
+    /// formatter-specific rendering.
+    ///
+    /// # Arguments
+    ///
+    /// * `formatter` - The formatter to use for rendering
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use symbolic_mgu::{Node, OutputFormatter, get_formatter};
+    ///
+    /// let node = /* some node */;
+    /// let formatter = get_formatter("utf8-color");
+    /// let output = node.format_with(&*formatter);
+    /// ```
+    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+        let _ = formatter; // Suppress unused warning
+        format!("{}", self) // Default: use Display
+    }
+
+    /// Get ASCII operator symbol for this node.
+    ///
+    /// This provides a pure ASCII rendering suitable for environments
+    /// that don't support Unicode (e.g., Metamath compatibility, plain text).
+    ///
+    /// # Default Implementation
+    ///
+    /// The default implementation delegates to the Display trait.
+    /// Concrete implementations (like NodeByte) should override to provide
+    /// appropriate ASCII symbols (e.g., "->", "/\\", "\\/").
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use symbolic_mgu::Node;
+    ///
+    /// let node = /* some node */;
+    /// let ascii = node.to_ascii_symbol(); // e.g., "->" for implies
+    /// ```
+    fn to_ascii_symbol(&self) -> &str {
+        "?" // Default: unknown operator
+    }
+
+    /// Get UTF-8 operator symbol for this node.
+    ///
+    /// This provides a Unicode rendering with mathematical symbols
+    /// (e.g., →, ∧, ∨, ¬).
+    ///
+    /// # Default Implementation
+    ///
+    /// The default implementation delegates to the Display trait.
+    /// Concrete implementations should override to provide appropriate
+    /// Unicode symbols.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use symbolic_mgu::Node;
+    ///
+    /// let node = /* some node */;
+    /// let utf8 = node.to_utf8_symbol(); // e.g., "→" for implies
+    /// ```
+    fn to_utf8_symbol(&self) -> &str {
+        "?" // Default: unknown operator
+    }
+
+    /// Get LaTeX operator symbol for this node.
+    ///
+    /// This provides a LaTeX math mode rendering
+    /// (e.g., \\to, \\land, \\lor, \\neg).
+    ///
+    /// # Default Implementation
+    ///
+    /// Returns a placeholder. Concrete implementations should override
+    /// to provide appropriate LaTeX commands.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use symbolic_mgu::Node;
+    ///
+    /// let node = /* some node */;
+    /// let latex = node.to_latex_symbol(); // e.g., "\\to" for implies
+    /// ```
+    fn to_latex_symbol(&self) -> &str {
+        "?" // Default: unknown operator
+    }
 }

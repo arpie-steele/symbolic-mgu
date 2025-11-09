@@ -165,6 +165,39 @@ where
             Self::NodeOrLeaf(_, c) => c.as_slice(),
         }
     }
+
+    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+        match self {
+            Self::Leaf(v) => v.format_with(formatter),
+            Self::NodeOrLeaf(n, children) => {
+                if children.is_empty() {
+                    // Nullary operator (e.g., True, False)
+                    n.format_with(formatter)
+                } else if children.len() == 1 {
+                    // Unary operator (e.g., Not)
+                    let child = children[0].format_with(formatter);
+                    format!("{}({})", n.format_with(formatter), child)
+                } else {
+                    // Binary or n-ary operator (e.g., And, Or, Implies)
+                    let formatted_children: Vec<_> = children
+                        .iter()
+                        .map(|c| c.format_with(formatter))
+                        .collect();
+
+                    if formatter.is_infix() {
+                        // Infix notation: (a ∧ b) or (a → b)
+                        let op = n.format_with(formatter);
+                        let inner = formatted_children.join(&format!(" {} ", op));
+                        format!("({})", inner)
+                    } else {
+                        // Prefix notation: [And, a, b]
+                        let op = n.format_with(formatter);
+                        format!("[{}, {}]", op, formatted_children.join(", "))
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// A simple factory for creating [`EnumTerm`] instances.
