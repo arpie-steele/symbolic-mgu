@@ -1,5 +1,11 @@
 # symbolic-mgu
 
+[![Crates.io Version](https://img.shields.io/crates/v/symbolic-mgu)](https://crates.io/crates/symbolic-mgu)
+[![docs.rs](https://img.shields.io/docsrs/symbolic-mgu)](https://docs.rs/symbolic-mgu/latest/symbolic_mgu/)
+![Crates.io License](https://img.shields.io/crates/l/symbolic-mgu)
+![Crates.io Downloads](https://img.shields.io/crates/d/symbolic-mgu)
+
+
 A Rust library for symbolic logic unification using Most General Unifiers (MGU).
 
 ## Overview
@@ -9,37 +15,126 @@ objects and applying unification operations for automated theorem proving.
 The implementation follows Robinson's unification algorithm and supports
 Meredith's condensed detachment principle.
 
-Key features:
-- Type-safe representation of logical terms (Boolean, Set, Class)
-- Unification algorithm with occurs checking
-- Statement operations (CONTRACT, APPLY) for theorem derivation
-- Automatic canonicalization for consistent variable naming
+**Academic Context:** This crate implements typed symbolic unification based on Robinson (1965) and Meredith's condensed detachment (1953). For detailed mathematical background, references, and citation information, see [docs/SCHOLARLY_CONTEXT.md](docs/SCHOLARLY_CONTEXT.md).
+
+### Key Features
+
+**Core Unification:**
+- Robinson's unification algorithm with occurs check
+- Type-safe substitutions (prevents cycles like x ↦ f(x))
+- Type-aware matching (Boolean, Setvar, Class hierarchy)
+- Normal form maintenance (no variable chains)
+
+**Theorem Proving:**
+- Statement operations: SUBSTITUTE, APPLY, CONTRACT
+- Meredith's condensed detachment for propositional logic
 - Distinctness graphs to prevent invalid substitutions
-- Multiple compact representations for efficiency
+
+**Boolean Expression Evaluation:**
+- Truth table generation for formulas with up to 7+ variables
+- Support for arbitrary variable counts with `bigint` feature
+- Efficient bit-wise operations on compact representations
 
 ## Quick Start
 
-Build and test:
-    cargo build
-    cargo test
+### Building and Testing
 
-Build and view documentation:
-    cargo doc --open
+```bash
+# Build the library
+cargo build
 
-Run examples:
-    cargo run --bin demo_graph
+# Run all tests
+cargo test
+
+# Build with all features (including bigint for 7+ variables)
+cargo build --all-features
+
+# Build and view documentation
+cargo doc --open
+```
+
+### Usage Example
+
+The library provides trait-based abstractions for terms, substitutions, and unification:
+
+```rust
+use symbolic_mgu::{unify, Substitution, EnumTerm, MetaByte, NodeByte, SimpleType};
+
+// Create terms representing logical formulas
+// Unify terms to find most general unifiers
+// Apply substitutions to derive new theorems
+```
+
+See the [full API documentation](https://docs.rs/symbolic-mgu) for detailed usage.
 
 ## Documentation
 
-Full API documentation is embedded in the source code and available via `cargo doc`.
-
-For the formal mathematical specification, see src/FormalSpec.md.
+- **API Reference**: Full documentation embedded in source code, available via `cargo doc`
+- **Mathematical Specification**: See `src/FormalSpec.md` for formal definitions
+- **System Overview**: See `src/SystemOverview.md` for architecture
+- **Boolean Operations**: See `src/NodeBytesLogicTable.md` for operation reference
 
 ## Optional Features
 
-- `serde`: JSON serialization support (stable Rust)
-- `f16`, `f128`: Extended floating point types (nightly Rust only)
+- **`bigint`**: Support for Boolean logic with more than 7 variables (requires `num-bigint`)
+- **`serde`**: JSON serialization support for terms and statements
 
-Build with features:
-    cargo build --features serde
-    cargo +nightly build --features f16,f128
+### Building with Features
+
+```bash
+# Build with all features
+cargo build --all-features
+
+# Build with specific features
+cargo build --features bigint,serde
+```
+
+## Binary Tools
+
+### compact - Compact Proof Processor
+
+Process and verify compact proof strings using standard propositional calculus axioms:
+
+```bash
+# Process a compact proof (uses MetaByte by default)
+cargo run --bin compact -- "DD211"
+
+# Process multiple proofs
+cargo run --bin compact -- "D__" "DD211" "DD2D111"
+
+# Verify that a theorem is a tautology
+cargo run --bin compact -- --verify "DD211"
+
+# Use WideMetavariable for unlimited variables (with Unicode subscripts)
+cargo run --bin compact -- --wide "DD211"
+
+# Force MetaByte (32 variable limit, compact ASCII)
+cargo run --bin compact -- --byte "DD211"
+```
+
+**Options:**
+- `--verify`, `-v`: Verify that theorems are tautologies or inferences are valid
+- `--wide`, `-w`, `--no-byte`: Use WideMetavariable (unlimited variables)
+- `--byte`, `-b`, `--no-wide`: Use MetaByte (32 variables, default)
+- `--help`, `-h`: Show usage information
+
+**Dictionary:**
+- `D` = Modus Ponens
+- `1` = Simp: φ → (ψ → φ)
+- `2` = Frege: (φ → (ψ → χ)) → ((φ → ψ) → (φ → χ))
+- `3` = Transp: (¬φ → ¬ψ) → (ψ → φ)
+- `_` = Placeholder (unsatisfied hypothesis)
+
+## Minimum Rust Version
+
+This crate requires Rust 1.77 or later and uses edition 2018 for maximum compatibility.
+
+## Citation
+
+If you use symbolic-mgu in published research, please cite it as:
+
+> *symbolic-mgu (v0.1.x)* — a Rust library for typed symbolic unification and condensed detachment.
+> Available at [crates.io/crates/symbolic-mgu](https://crates.io/crates/symbolic-mgu).
+
+For foundational references (Robinson 1965, Meredith 1953, etc.), see [docs/SCHOLARLY_CONTEXT.md](docs/SCHOLARLY_CONTEXT.md).
+

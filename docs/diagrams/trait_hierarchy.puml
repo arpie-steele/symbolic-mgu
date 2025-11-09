@@ -1,0 +1,36 @@
+@startuml
+skinparam monochrome true
+skinparam classAttributeIconSize 0
+
+interface Type <<trait>>
+interface Node <<trait>>
+interface Metavariable <<trait>>
+interface Term <<trait>>
+
+class SimpleType {
+  Boolean
+  Setvar
+  Class
+}
+
+class "NodeByte" {
+  True, False, Not
+  And, Or, Implies
+  ... (222 ops total)
+}
+
+class "MetaByte" {
+  u8
+}
+
+class "EnumTerm<T,V,N>" {
+  Leaf(V)
+  NodeOrLeaf(N, Vec)
+}
+
+Type <|.. SimpleType
+Node <|.. NodeByte
+Metavariable <|.. MetaByte
+Term <|.. EnumTerm
+
+@enduml

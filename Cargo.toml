@@ -1,0 +1,83 @@
+[package]
+edition = "2018"
+rust-version = "1.77.0"
+name = "symbolic-mgu"
+version = "0.1.0-alpha.10"
+authors = ["Richard Penner <richardpenner@gmail.com>"]
+build = "build.rs"
+exclude = [
+    ".cargo/config.toml",
+    ".claude/",
+    ".github/",
+    "BACKPORT_PLAN.md",
+    "BOOL_EVAL_BACKPORT_PLAN.md",
+    "docs/archive/",
+    "docs/diagrams/",
+    "docs/FORMATTER_DESIGN.md",
+    "docs/IMPROVEMENTS_CHECKLIST.md",
+    "docs/PARAMETRIC_METAVARIABLE_DESIGN.md",
+    "docs/POST_RELEASE_TODO.md",
+    "docs/SESSION_SUMMARY_2025-11-04.md",
+    "GENERIC_TAUTOLOGY_PLAN.md",
+    "pmproofs_history/",
+    "pre-commit-script.sh",
+    "scripts/",
+    "src/example/",
+    "src/NodeBytesLogicTable.md",
+    "TODO.md",
+]
+autobins = true
+autoexamples = true
+autotests = true
+autobenches = true
+description = "Symbolic logic unification using Most General Unifiers (MGU). Implements Meredith's condensed detachment for automated theorem proving."
+readme = "README.md"
+keywords = [
+    "logic",
+    "unification",
+    "theorem-proving",
+    "mgu",
+    "condensed-detachment",
+]
+categories = [
+    "mathematics",
+    "science",
+    "algorithms",
+]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/arpie-steele/symbolic-mgu"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = []
+serde = ["dep:serde", "dep:serde_json"]
+bigint = ["dep:num-bigint"]
+
+[lib]
+name = "symbolic_mgu"
+path = "src/lib.rs"
+
+[dependencies]
+either = "1.15"
+itertools = "0.14"
+num-bigint = { version = "0.4", optional = true }
+num-traits = "0.2.19"
+proc-macro2 = "1.0"
+serde = { version = "1.0.228", features = ["derive"], optional = true }
+serde_json = { version = "1.0.145", optional = true }
+strum = { version = "0.26", features = ["derive"] }
+thiserror = "2.0"
+
+[build-dependencies]
+version_check = "0.9"
+
+[dev-dependencies]
+proptest = "1.5.0"  # Pinned: 1.6+ requires Rust 1.82+, we target 1.77
+
+[package.metadata.spellcheck]
+config = ".cargo/spellcheck.toml"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
