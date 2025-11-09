@@ -1034,7 +1034,7 @@ cargo run --bin compact -- D__ DD211 DD2D111
   - Note Łukasiewicz (1929) as original source
   - Mention Bocheński's systematic 16-connective extension organized by truth value frequency
 
-**Design Principles (from CLAUDE.md):**
+**Design Principles:**
 - Only metavariables colored by Type
 - Avoid elaborate color theory (no CIE XYZ/Lab)
 - Statement layout is application-controlled

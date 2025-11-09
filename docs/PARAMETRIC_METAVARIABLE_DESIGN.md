@@ -650,4 +650,3 @@ ParametricMetavariable can integrate seamlessly with this existing infrastructur
 - Phase 7.9: WideMetavariable Backport (completed)
 - Phase 7.10: Output Formatter System (planned)
 - `docs/FORMATTER_DESIGN.md`: Output formatter architecture
-- `.claude/CLAUDE.md`: Factory pattern principles
