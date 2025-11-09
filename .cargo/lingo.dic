@@ -4,9 +4,11 @@
 005eff
 0072ff
 007fff
+0088ff
 009aff
 009fff
 00a09b
+00aa00
 00b1ff
 00baff
 00ceff
@@ -209,6 +211,7 @@ cardinality
 CarryFromAdder
 CartesianProduct
 CC0
+cc0000
 CDATA
 CData
 cdot
@@ -352,6 +355,7 @@ EqTmpReals
 equinumerous
 EquivalenceCls
 EquivalenceRelPred
+et
 evaluator
 ExclusiveOr
 ExistsAtMostOne
@@ -421,7 +425,9 @@ fn
 ForAll
 FormalSpec
 formatter
+formatters
 Formelsprache
+foundational
 frege
 FunPred
 FunTranspose
@@ -495,6 +501,7 @@ LAMDA
 lang
 LanguageTool
 LanguageTools
+LaTeX
 learnings
 LeftInjection
 len
@@ -509,6 +516,7 @@ LinearGradientBuilder
 LocalAxiomChoice
 LogicalIf
 lookups
+lor
 lossless
 lossy
 LtPosFracs
@@ -729,6 +737,7 @@ ResIota
 reusability
 RGB
 RGB24
+rh
 Ridenour
 RightInjection
 roadmap
@@ -770,6 +779,7 @@ SetPosReals
 SetTmpReals
 Setvar
 Setvars
+si
 SignedValueOutOfRange
 simp
 SimpleGraph
@@ -835,6 +845,7 @@ testability
 TestStatement
 TestTerm
 TestVar
+th
 timestamps
 TinyTerm
 TODO
@@ -917,6 +928,7 @@ var0
 var1
 var2
 variadic
+varphi
 VarType
 Vec
 versa
@@ -943,6 +955,7 @@ x1
 x2
 xmlns
 XNOR
+xterm256
 xyY
 XYZ
 YCbCr
@@ -984,6 +997,7 @@ Yuv56
 Yuv67
 Yuv90
 Yxy
+ze
 ZeroTmpReals
 ZFC
 Zmth
@@ -1145,6 +1159,7 @@ Samiro's
 Samiro/M
 scaler's
 scaler/MS
+SCHOLARLY_CONTEXT
 Schütte
 shouldn't
 simple_graph
@@ -1365,6 +1380,8 @@ Sₙ₋₁
 +
 <
 =
+>
+\
 {0}
 {1}
 {bot_chroma

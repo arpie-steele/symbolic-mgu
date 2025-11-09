@@ -315,6 +315,185 @@ impl Metavariable for WideMetavariable {
     fn enumerate(for_type: Type) -> impl Iterator<Item = Self> {
         (0usize..).map(move |x| WideMetavariable(for_type, x))
     }
+
+    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+        match formatter.name() {
+            "ascii" => self.to_ascii(),
+            "latex" => self.to_latex(),
+            "html" | "html-color" => self.to_html(formatter),
+            "utf8-color" => self.to_utf8_color(formatter),
+            _ => self.to_utf8(), // Default: UTF-8
+        }
+    }
+
+    fn to_ascii(&self) -> String {
+        use Type::*;
+
+        let (ascii_array, data) = match self.0 {
+            Boolean => (ASCII_BOOLEANS, OUR_BOOLEANS),
+            Setvar => (ASCII_SETVARS, OUR_SETVARS),
+            Class => (ASCII_CLASSES, OUR_CLASSES),
+        };
+
+        let n_chars = data.chars().count();
+        let subscript = self.1 / n_chars;
+        let index = self.1 % n_chars;
+
+        let ascii_name = ascii_array[index];
+
+        if subscript != 0 {
+            format!("{}_{}", ascii_name, subscript)
+        } else {
+            ascii_name.to_string()
+        }
+    }
+
+    fn to_utf8(&self) -> String {
+        // Use the Display implementation
+        format!("{}", self)
+    }
+}
+
+impl WideMetavariable {
+    /// Get LaTeX representation.
+    fn to_latex(self) -> String {
+        use Type::*;
+
+        let data = match self.0 {
+            Boolean => OUR_BOOLEANS,
+            Setvar => OUR_SETVARS,
+            Class => OUR_CLASSES,
+        };
+
+        let n_chars = data.chars().count();
+        let subscript = self.1 / n_chars;
+        let index = self.1 % n_chars;
+        let main_char = data.chars().nth(index).unwrap();
+
+        // Map Unicode to LaTeX command
+        let latex_cmd = match main_char {
+            // Boolean (Greek)
+            '𝜑' => r"\varphi",
+            '𝜓' => r"\psi",
+            '𝜒' => r"\chi",
+            '𝜃' => r"\theta",
+            '𝜏' => r"\tau",
+            '𝜂' => r"\eta",
+            '𝜁' => r"\zeta",
+            '𝜎' => r"\sigma",
+            '𝜌' => r"\rho",
+            '𝜇' => r"\mu",
+            '𝜆' => r"\lambda",
+            '𝜅' => r"\kappa",
+            // Setvar / Class (Latin) - just use the plain letter
+            _ => {
+                return if subscript != 0 {
+                    format!("{}_{{{}}}", main_char, subscript)
+                } else {
+                    main_char.to_string()
+                }
+            }
+        };
+
+        if subscript != 0 {
+            format!("{}_{{{}}}", latex_cmd, subscript)
+        } else {
+            latex_cmd.to_string()
+        }
+    }
+
+    /// Get HTML representation with optional coloring.
+    fn to_html(self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+        let (main_char, subscript_opt) = self.get_display_parts();
+
+        let color_opt = match self.0 {
+            Type::Boolean => formatter.get_boolean_color(),
+            Type::Setvar => formatter.get_setvar_color(),
+            Type::Class => formatter.get_class_color(),
+        };
+
+        let main_html = if let Some(color) = color_opt {
+            format!("<i style='color:{}'>{}</i>", color.to_html(), main_char)
+        } else {
+            format!("<i>{}</i>", main_char)
+        };
+
+        if let Some(sub) = subscript_opt {
+            // Use proper HTML <sub> tag with normal digits
+            if let Some(color) = color_opt {
+                format!(
+                    "{}<sub style='color:{}'>{}</sub>",
+                    main_html,
+                    color.to_html(),
+                    sub
+                )
+            } else {
+                format!("{}<sub>{}</sub>", main_html, sub)
+            }
+        } else {
+            main_html
+        }
+    }
+
+    /// Get UTF-8 representation with ANSI color codes.
+    fn to_utf8_color(self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+        let (main_char, subscript_opt) = self.get_display_parts();
+
+        let color_opt = match self.0 {
+            Type::Boolean => formatter.get_boolean_color(),
+            Type::Setvar => formatter.get_setvar_color(),
+            Type::Class => formatter.get_class_color(),
+        };
+
+        if let Some(sub) = subscript_opt {
+            // Convert subscript number to Unicode subscript digits
+            let sub_str: String = format!("{}", sub)
+                .chars()
+                .map(|ch| char::from_u32(0x2080 + (ch as u32 - '0' as u32)).unwrap())
+                .collect();
+
+            // Color both main char and subscript
+            if let Some(color) = color_opt {
+                format!(
+                    "\x1b[38;5;{}m{}{}\x1b[0m",
+                    color.to_xterm256(),
+                    main_char,
+                    sub_str
+                )
+            } else {
+                format!("{}{}", main_char, sub_str)
+            }
+        } else {
+            // No subscript, just color the main char
+            if let Some(color) = color_opt {
+                format!("\x1b[38;5;{}m{}\x1b[0m", color.to_xterm256(), main_char)
+            } else {
+                main_char.to_string()
+            }
+        }
+    }
+
+    /// Helper: breaks down into main char + optional subscript number.
+    fn get_display_parts(&self) -> (char, Option<usize>) {
+        use Type::*;
+
+        let data = match self.0 {
+            Boolean => OUR_BOOLEANS,
+            Setvar => OUR_SETVARS,
+            Class => OUR_CLASSES,
+        };
+
+        let n_chars = data.chars().count();
+        let subscript_num = self.1 / n_chars;
+        let index = self.1 % n_chars;
+        let main_char = data.chars().nth(index).unwrap();
+
+        if subscript_num == 0 {
+            (main_char, None)
+        } else {
+            (main_char, Some(subscript_num))
+        }
+    }
 }
 
 impl Display for WideMetavariable {

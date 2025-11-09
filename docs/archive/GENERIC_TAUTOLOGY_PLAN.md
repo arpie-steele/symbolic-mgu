@@ -244,7 +244,7 @@ where
 
 1. **Custom Type Systems**: Projects using domain-specific type hierarchies (e.g., quantum logic, fuzzy logic, modal logic) that still have Boolean sub-systems
 
-2. **Extended Mathematical Frameworks**: Systems with `OrdinalClass`, `ComplexNumberClass`, etc., as mentioned in CLAUDE.md, where Boolean operations exist within a richer type system
+2. **Extended Mathematical Frameworks**: Systems with `OrdinalClass`, `ComplexNumberClass`, etc., where Boolean operations exist within a richer type system
 
 3. **Multi-Paradigm Systems**: Hybrid systems combining different logical frameworks, each with their own node types
 

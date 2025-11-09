@@ -4,9 +4,10 @@
 
 Design document for `ParametricMetavariable<Ty, U, CharSet>`, a generic metavariable implementation that decouples type systems, decoration schemes, and output formats.
 
-**Status**: Design phase (planned for v0.1.0-alpha.11+)
+**Status**: Design phase (planned for v0.1.1+)
 **Author**: Design discussion 2025-01-04
 **Replaces**: `WideMetavariable` (after testing)
+**Prerequisites**: Phase 7.10 (Output Formatters) - ✅ **COMPLETE** (v0.1.0-alpha.10)
 
 ## Motivation
 
@@ -531,12 +532,12 @@ pub type PrimeMetavariable = ParametricMetavariable<SimpleType, Prime, WideCharS
 pub type CompactMetavariable = ParametricMetavariable<SimpleType, u8, WideCharSet>;
 ```
 
-## Integration with Phase 7.10 (Output Formatters)
+## Integration with Phase 7.10 (Output Formatters) - ✅ COMPLETE
 
-### Formatter Trait Method
+Phase 7.10 has been fully implemented in v0.1.0-alpha.10. The `Metavariable` trait now includes:
 
 ```rust
-// Enhanced Metavariable trait (add in Phase 7.10)
+// Already implemented in Metavariable trait (v0.1.0-alpha.10)
 pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq {
     type Type: Type;
 
@@ -547,17 +548,32 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq {
         // Default: delegate to Display
         format!("{}", self)
     }
+
+    fn to_ascii(&self) -> String { format!("{}", self) }
+    fn to_utf8(&self) -> String { format!("{}", self) }
 }
 
-// ParametricMetavariable implementation
+// WideMetavariable already implements format_with() (v0.1.0-alpha.10)
+impl Metavariable for WideMetavariable {
+    fn format_with(&self, formatter: &dyn OutputFormatter) -> String {
+        match formatter.name() {
+            "ascii" => self.to_ascii(),
+            "latex" => self.to_latex(),
+            "html" | "html-color" => self.to_html(formatter),
+            "utf8-color" => self.to_utf8_color(formatter),
+            _ => self.to_utf8(),
+        }
+    }
+}
+
+// ParametricMetavariable will follow the same pattern
 impl<Ty, U, CharSet> Metavariable for ParametricMetavariable<Ty, U, CharSet>
 where
     Ty: Type + Clone + Debug + Display + Hash + Eq,
     U: Decorator,
 {
     fn format_with(&self, formatter: &dyn OutputFormatter) -> String {
-        // Formatters can query format name
-        match formatter.format_name() {
+        match formatter.name() {
             "ascii" => self.format_as_ascii(),
             "utf8" | "utf8-color" => self.format_as_utf8(),
             "latex" => self.format_as_latex(),
@@ -567,38 +583,60 @@ where
 }
 ```
 
+### OutputFormatter Trait (Implemented)
+
+The `OutputFormatter` trait is object-safe and uses delegation:
+
+```rust
+pub trait OutputFormatter: Send + Sync {
+    fn name(&self) -> &str;
+    fn get_boolean_color(&self) -> Option<Color> { None }
+    fn get_setvar_color(&self) -> Option<Color> { None }
+    fn get_class_color(&self) -> Option<Color> { None }
+    fn is_infix(&self) -> bool { true }
+}
+```
+
+ParametricMetavariable can integrate seamlessly with this existing infrastructure.
+
 ## Migration Path
 
-### Phase 1: v0.1.0-alpha.11 - Implement ParametricMetavariable
+**Updated Timeline**: Based on Phase 7.10 completion (v0.1.0-alpha.10)
+
+### Phase 1: v0.1.1 - Implement ParametricMetavariable
 
 1. Create `src/metavariable/parametric.rs`
 2. Implement `Decorator` trait with `()`, `usize`, `Prime`
 3. Implement `WideCharSet` using const arrays (Option B)
 4. Implement `ParametricMetavariable<Ty, U, CharSet>`
-5. Add type alias: `pub type WideMetavariable2 = ParametricMetavariable<SimpleType, usize, WideCharSet>`
-6. Export from `lib.rs`
-7. **Do not deprecate `WideMetavariable` yet**
+5. Implement `format_with()` using existing `OutputFormatter` infrastructure
+6. Add type alias: `pub type WideMetavariable2 = ParametricMetavariable<SimpleType, usize, WideCharSet>`
+7. Export from `lib.rs`
+8. **Do not deprecate `WideMetavariable` yet**
 
-### Phase 2: v0.1.0-alpha.12 - Testing
+### Phase 2: v0.1.2 - Testing
 
 1. Add comprehensive unit tests
 2. Test with compact binary on long proofs
 3. Benchmark against `WideMetavariable`
-4. Verify formatting matches current output
+4. Verify formatting matches current output (all 6 formatters)
+5. Test integration with existing formatter system
 
-### Phase 3: v0.1.0 - Replace WideMetavariable
+### Phase 3: v0.2.0 - Replace WideMetavariable (Breaking Change)
 
 1. Deprecate `WideMetavariable` (mark with `#[deprecated]`)
 2. Update `WideMetavariableFactory` to create `WideMetavariable2`
 3. Update all examples and docs
 4. Migration guide in CHANGELOG
+5. Announce breaking change with clear upgrade path
 
-### Phase 4: v0.1.1 - Add Trait Extensibility
+### Phase 4: v0.2.1+ - Add Trait Extensibility
 
 1. Define `MetavariableCharSet<Ty>` trait (Option C)
 2. Implement trait for `WideCharSet` (wraps const arrays)
 3. Document third-party character set creation
 4. Example: Metamath legacy character set
+5. Example: Custom domain-specific character sets
 
 ## Open Questions
 
@@ -612,4 +650,3 @@ where
 - Phase 7.9: WideMetavariable Backport (completed)
 - Phase 7.10: Output Formatter System (planned)
 - `docs/FORMATTER_DESIGN.md`: Output formatter architecture
-- `.claude/CLAUDE.md`: Factory pattern principles

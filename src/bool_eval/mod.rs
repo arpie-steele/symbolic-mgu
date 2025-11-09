@@ -62,7 +62,6 @@ use crate::{
     ub_prim_impl, BooleanSimpleOp, Metavariable, MguError, Node, NodeByte, SimpleType, Term, Type,
 };
 use std::collections::HashSet;
-use std::convert::TryInto;
 use std::fmt::{Debug as DebugTrait, Display};
 use std::marker::PhantomData;
 use std::ops::{BitAnd, BitOr, BitXor, Not};
@@ -97,6 +96,10 @@ impl<Ty: Type> Node for BooleanSimpleNode<Ty> {
                 None, index, n,
             ))
         }
+    }
+
+    fn to_boolean_op(&self) -> Option<crate::BooleanSimpleOp> {
+        Some(self.0)
     }
 }
 
@@ -596,8 +599,7 @@ where
     T: Term<Ty, V, No>,
     Ty: Type,
     V: Metavariable<Type = Ty>,
-    No: Node<Type = Ty> + TryInto<NodeByte>,
-    <No as TryInto<NodeByte>>::Error: Into<MguError>,
+    No: Node<Type = Ty>,
 {
     // Collect all metavariables
     let mut vars_set: HashSet<V> = HashSet::new();
@@ -642,12 +644,12 @@ where
     match n {
         0 => {
             let result =
-                <bool as UnsignedBits<bool, 0>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+                <bool as UnsignedBits<bool, 0>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             Ok(Some(result))
         }
         1..=3 => {
             let result =
-                <u8 as UnsignedBits<u8, 3>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+                <u8 as UnsignedBits<u8, 3>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = <u8 as UnsignedBits<u8, 3>>::from_bool(true);
             let all_false = <u8 as UnsignedBits<u8, 3>>::from_bool(false);
             if result == all_true {
@@ -660,7 +662,7 @@ where
         }
         4 => {
             let result =
-                <u16 as UnsignedBits<u16, 4>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+                <u16 as UnsignedBits<u16, 4>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = <u16 as UnsignedBits<u16, 4>>::from_bool(true);
             let all_false = <u16 as UnsignedBits<u16, 4>>::from_bool(false);
             if result == all_true {
@@ -673,7 +675,7 @@ where
         }
         5 => {
             let result =
-                <u32 as UnsignedBits<u32, 5>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+                <u32 as UnsignedBits<u32, 5>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = <u32 as UnsignedBits<u32, 5>>::from_bool(true);
             let all_false = <u32 as UnsignedBits<u32, 5>>::from_bool(false);
             if result == all_true {
@@ -686,7 +688,7 @@ where
         }
         6 => {
             let result =
-                <u64 as UnsignedBits<u64, 6>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+                <u64 as UnsignedBits<u64, 6>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = <u64 as UnsignedBits<u64, 6>>::from_bool(true);
             let all_false = <u64 as UnsignedBits<u64, 6>>::from_bool(false);
             if result == all_true {
@@ -699,7 +701,7 @@ where
         }
         7 => {
             let result =
-                <u128 as UnsignedBits<u128, 7>>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+                <u128 as UnsignedBits<u128, 7>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = <u128 as UnsignedBits<u128, 7>>::from_bool(true);
             let all_false = <u128 as UnsignedBits<u128, 7>>::from_bool(false);
             if result == all_true {
@@ -712,7 +714,7 @@ where
         }
         #[cfg(feature = "bigint")]
         8 => {
-            let result = SomeBits::<8>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let result = SomeBits::<8>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = SomeBits::<8>::from_bool(true);
             let all_false = SomeBits::<8>::from_bool(false);
             if result == all_true {
@@ -725,7 +727,7 @@ where
         }
         #[cfg(feature = "bigint")]
         9 => {
-            let result = SomeBits::<9>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let result = SomeBits::<9>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = SomeBits::<9>::from_bool(true);
             let all_false = SomeBits::<9>::from_bool(false);
             if result == all_true {
@@ -738,7 +740,7 @@ where
         }
         #[cfg(feature = "bigint")]
         10 => {
-            let result = SomeBits::<10>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let result = SomeBits::<10>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = SomeBits::<10>::from_bool(true);
             let all_false = SomeBits::<10>::from_bool(false);
             if result == all_true {
@@ -751,7 +753,7 @@ where
         }
         #[cfg(feature = "bigint")]
         11 => {
-            let result = SomeBits::<11>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let result = SomeBits::<11>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = SomeBits::<11>::from_bool(true);
             let all_false = SomeBits::<11>::from_bool(false);
             if result == all_true {
@@ -764,7 +766,7 @@ where
         }
         #[cfg(feature = "bigint")]
         12 => {
-            let result = SomeBits::<12>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let result = SomeBits::<12>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = SomeBits::<12>::from_bool(true);
             let all_false = SomeBits::<12>::from_bool(false);
             if result == all_true {
@@ -777,7 +779,7 @@ where
         }
         #[cfg(feature = "bigint")]
         13 => {
-            let result = SomeBits::<13>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let result = SomeBits::<13>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = SomeBits::<13>::from_bool(true);
             let all_false = SomeBits::<13>::from_bool(false);
             if result == all_true {
@@ -790,7 +792,7 @@ where
         }
         #[cfg(feature = "bigint")]
         14 => {
-            let result = SomeBits::<14>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let result = SomeBits::<14>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = SomeBits::<14>::from_bool(true);
             let all_false = SomeBits::<14>::from_bool(false);
             if result == all_true {
@@ -803,7 +805,7 @@ where
         }
         #[cfg(feature = "bigint")]
         15 => {
-            let result = SomeBits::<15>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let result = SomeBits::<15>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = SomeBits::<15>::from_bool(true);
             let all_false = SomeBits::<15>::from_bool(false);
             if result == all_true {
@@ -816,7 +818,7 @@ where
         }
         #[cfg(feature = "bigint")]
         16 => {
-            let result = SomeBits::<16>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let result = SomeBits::<16>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = SomeBits::<16>::from_bool(true);
             let all_false = SomeBits::<16>::from_bool(false);
             if result == all_true {
@@ -829,7 +831,7 @@ where
         }
         #[cfg(feature = "bigint")]
         17 => {
-            let result = SomeBits::<17>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let result = SomeBits::<17>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = SomeBits::<17>::from_bool(true);
             let all_false = SomeBits::<17>::from_bool(false);
             if result == all_true {
@@ -842,7 +844,7 @@ where
         }
         #[cfg(feature = "bigint")]
         18 => {
-            let result = SomeBits::<18>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let result = SomeBits::<18>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = SomeBits::<18>::from_bool(true);
             let all_false = SomeBits::<18>::from_bool(false);
             if result == all_true {
@@ -855,7 +857,7 @@ where
         }
         #[cfg(feature = "bigint")]
         19 => {
-            let result = SomeBits::<19>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let result = SomeBits::<19>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = SomeBits::<19>::from_bool(true);
             let all_false = SomeBits::<19>::from_bool(false);
             if result == all_true {
@@ -868,7 +870,7 @@ where
         }
         #[cfg(feature = "bigint")]
         20 => {
-            let result = SomeBits::<20>::eval_boolean_term::<T, Ty, V, No, _>(term, &vars)?;
+            let result = SomeBits::<20>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
             let all_true = SomeBits::<20>::from_bool(true);
             let all_false = SomeBits::<20>::from_bool(false);
             if result == all_true {
@@ -918,8 +920,7 @@ where
     T: Term<Ty, V, No>,
     Ty: Type,
     V: Metavariable<Type = Ty>,
-    No: Node<Type = Ty> + TryInto<NodeByte>,
-    <No as TryInto<NodeByte>>::Error: Into<MguError>,
+    No: Node<Type = Ty>,
 {
     test_term(term).map(|opt| opt == Some(true))
 }
@@ -953,8 +954,7 @@ where
     T: Term<Ty, V, No>,
     Ty: Type,
     V: Metavariable<Type = Ty>,
-    No: Node<Type = Ty> + TryInto<NodeByte>,
-    <No as TryInto<NodeByte>>::Error: Into<MguError>,
+    No: Node<Type = Ty>,
 {
     test_term(term).map(|opt| opt == Some(true))
 }
@@ -988,8 +988,7 @@ where
     T: Term<Ty, V, No>,
     Ty: Type,
     V: Metavariable<Type = Ty>,
-    No: Node<Type = Ty> + TryInto<NodeByte>,
-    <No as TryInto<NodeByte>>::Error: Into<MguError>,
+    No: Node<Type = Ty>,
 {
     test_term(term).map(|opt| opt.is_none())
 }
@@ -1159,6 +1158,38 @@ where
         }
     }
 
+    /// Evaluate a Boolean operation using `BooleanSimpleOp`.
+    ///
+    /// This is the generic interface that works with any node type via the
+    /// `Node::to_boolean_op()` method.
+    ///
+    /// # Errors
+    ///
+    /// Returns error if the number of children doesn't match the operation's arity.
+    fn eval_boolean_simple_op<V>(
+        op: &crate::BooleanSimpleOp,
+        children: &[Self],
+    ) -> Result<Self, MguError>
+    where
+        V: Metavariable,
+    {
+        let arity = op.get_arity() as usize;
+        let len = children.len();
+        if len != arity {
+            return Err(MguError::SlotsMismatch(len, arity));
+        }
+
+        let result = match arity {
+            0 => op.eval0::<Self, U, N>(),
+            1 => op.eval1::<Self, U, N>(&children[0]),
+            2 => op.eval2::<Self, U, N>(&children[0], &children[1]),
+            3 => op.eval3::<Self, U, N>(&children[0], &children[1], &children[2]),
+            _ => return Err(MguError::UnknownError(705)),
+        };
+
+        result.ok_or_else(|| MguError::UnknownError(706))
+    }
+
     /// Evaluate a Boolean term with N variables to a truth table representation.
     ///
     /// This method works with any type implementing [`Term`], recursively evaluating
@@ -1176,13 +1207,12 @@ where
     /// - A variable is not in the provided `vars` list
     /// - The variable index exceeds the bit capacity (N)
     /// - Node conversion fails
-    fn eval_boolean_term<T, Ty, V, No, CvtErr>(term: &T, vars: &[V]) -> Result<Self, MguError>
+    fn eval_boolean_term<T, Ty, V, No>(term: &T, vars: &[V]) -> Result<Self, MguError>
     where
         T: Term<Ty, V, No>,
         Ty: Type,
         V: Metavariable<Type = Ty>,
-        No: Node<Type = Ty> + TryInto<NodeByte, Error = CvtErr>,
-        CvtErr: Into<MguError>,
+        No: Node<Type = Ty>,
     {
         if term.is_metavariable() {
             // Leaf case: extract the metavariable
@@ -1237,26 +1267,22 @@ where
         } else {
             // Node case: evaluate the node with its children
             let node = term.get_node().ok_or(MguError::UnknownError(704))?;
-            let node_converted: NodeByte = node.try_into().map_err(|e| e.into())?;
-            use NodeByte::*;
-            match node_converted {
-                True | False | Not | Implies | Biimp | And | Or | NotAnd | ExclusiveOr | NotOr
-                | And3 | Or3 | SumFromAdder | CarryFromAdder | LogicalIf => {
-                    let child_values = term
-                        .get_children()
-                        .map(|t| Self::eval_boolean_term(t, vars))
-                        .collect::<Vec<_>>();
-                    if let Some(Err(err)) = child_values.iter().find(|x| (*x).is_err()) {
-                        return Err(err.clone());
-                    }
-                    let child_values = child_values
-                        .into_iter()
-                        .map(|x| x.unwrap())
-                        .collect::<Vec<_>>();
-                    Self::eval_boolean_node::<V>(&node_converted, &child_values)
-                }
-                _ => Err(MguError::UnknownError(700)),
+            let bool_op = node
+                .to_boolean_op()
+                .ok_or_else(|| MguError::UnknownError(700))?;
+
+            let child_values = term
+                .get_children()
+                .map(|t| Self::eval_boolean_term(t, vars))
+                .collect::<Vec<_>>();
+            if let Some(Err(err)) = child_values.iter().find(|x| (*x).is_err()) {
+                return Err(err.clone());
             }
+            let child_values = child_values
+                .into_iter()
+                .map(|x| x.unwrap())
+                .collect::<Vec<_>>();
+            Self::eval_boolean_simple_op::<V>(&bool_op, &child_values)
         }
     }
 }

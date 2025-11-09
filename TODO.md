@@ -1,6 +1,6 @@
 # symbolic-mgu TODO List
 
-## 📊 Overall Progress: ~85% Complete
+## 📊 Overall Progress: ~92% Complete
 
 **Summary of v010 branch status (as of v0.1.0-alpha.10):**
 
@@ -13,27 +13,31 @@
 | Phase 4: Testing | ✅ Complete | 100% | 24 tests covering all operations |
 | Phase 5: Unification | ✅ Complete | 100% | Robinson's MGU fully backported |
 | Phase 6: Enhanced Testing API | ✅ Complete | 100% | test_term(), test_contradiction(), test_contingent() |
-| Phase 7: rustmgu Backport | 🚧 In Progress | 85% | Logic, proofs, inclusion, operations, binary, regression, WideMetavariable complete |
+| Phase 7: rustmgu Backport | 🚧 In Progress | 92% | Logic, proofs, inclusion, operations, binary, regression, WideMetavariable, formatters complete |
 
 **Status for v0.1.0 final release (~1 week away):**
-- ✅ **All tests passing** - 93 tests total (50 unit + 4 integration + 39 doctests)
-  - 50 lib unit tests
+- ✅ **All tests passing** - 112 tests total (62 unit + 4 integration + 46 doctests)
+  - 62 lib unit tests (includes 12 formatter tests)
   - 4 integration tests (regression_compact_proofs.rs)
-  - 39 doctests
+  - 46 doctests
 - ✅ **All UnsignedBits types** - bool, u8, u16, u32, u64, u128, BigUint
 - ✅ **Unification algorithm** - Substitution, MGU, occurs check
 - ✅ **Statement operations** - substitute, apply, contract
-- ✅ **Compact binary** - Working with verification support
+- ✅ **Compact binary** - Working with verification and formatter support
 - ✅ **Regression tests** - DDD111D23, DDD1D221D2D2D11 validate disjointness fix
 - ✅ **WideMetavariable** - Unlimited variable space for long proofs (Phase 7.9)
   - ASCII mapping documentation complete with full character tables
-  - 12 Boolean, 26 Setvar, 26 Class characters documented
-  - Ready for ParametricMetavariable migration and formatter integration
+  - 12 Boolean, 24 Setvar, 24 Class characters documented
+  - Formatter integration complete (format_with() implemented)
+- ✅ **Output formatters** - 6 formatters implemented (Phase 7.10)
+  - ASCII, UTF-8, UTF-8-color, HTML, HTML-color, LaTeX
+  - Global formatter registry with OnceLock (zero dependencies)
+  - Type-based coloring for metavariables
+  - Integrated with compact binary (--format flag)
 - ✅ **Quality gates pass** - clippy, doc, test all clean (zero warnings)
 - ✅ **Property testing ready** - proptest 1.5.0 added to dev-dependencies
 - ⚠️ **Documentation gaps** - Module docs exist but could be expanded
 - 🚧 **Backporting from rustmgu** - See Phase 7 below
-- 🚧 **Output formatters** - Design complete, implementation pending (Phase 7.10)
 
 ---
 
@@ -908,82 +912,129 @@ cargo run --bin compact -- D__ DD211 DD2D111
 - [x] Fix clippy warnings (backticks, .nth(0) → .next())
 - [ ] Test with compact binary on long proofs (deferred to user testing)
 
-### 7.10: Output Formatter System - ⏳ 0% Complete
+### 7.10: Output Formatter System - ✅ 100% Complete
 
 **Goal**: Implement extensible output formatters for multiple target formats.
 
-**Design Document**: See `docs/FORMATTER_DESIGN.md` for full specification
+**Design Document**: See `docs/FORMATTER_DESIGN.md` and `FORMATTER_DEMO_SUMMARY.md`
 
-**What needs to be implemented:**
+**What's been implemented:**
 
-1. **Core Formatter Trait** (src/formatter/mod.rs)
-   - `OutputFormatter` trait with format_metavar/node/term methods
-   - Delegation pattern: formatters call back to Metavariable/Node
+1. ✅ **Core Formatter Trait** (src/formatter/output_formatter.rs)
+   - `OutputFormatter` trait with delegation pattern
+   - Object-safe design (works with `dyn OutputFormatter`)
+   - Color getter methods: `get_boolean_color()`, `get_setvar_color()`, `get_class_color()`
+   - Infix/prefix notation support via `is_infix()` method
 
-2. **Type-Color Registry** (src/formatter/type_colors.rs)
-   - Simple `Color` struct (xterm256 + HTML hex)
-   - Global `TYPE_COLOR_REGISTRY` with lazy_static
-   - Default colors: Boolean→Blue, Setvar→Green, Class→Red
-   - `register_type_color()` API for extensibility
+2. ✅ **Type-Color Registry** (src/formatter/type_colors.rs)
+   - Simple `Color` struct with xterm256 + HTML hex (no dependencies)
+   - Global `TYPE_COLOR_REGISTRY` with `OnceLock<RwLock<HashMap>>` (zero dependencies)
+   - Default colors: Boolean→Blue (#0088ff/33), Setvar→Green (#00aa00/34), Class→Red (#cc0000/160)
+   - Public API: `register_type_color()`, `get_type_color()`, `get_type_color_from_trait()`
 
-3. **Global Formatter Registry** (src/formatter/registry.rs)
-   - `GLOBAL_FORMATTER_REGISTRY` with Arc<dyn OutputFormatter>
-   - Built-in formatters: ascii, utf8, utf8-color, html-color, latex, display
-   - `register_formatter()` and `get_formatter()` API
+3. ✅ **Global Formatter Registry** (src/formatter/registry.rs)
+   - `GLOBAL_FORMATTER_REGISTRY` with `OnceLock<RwLock<HashMap<String, Arc<dyn OutputFormatter>>>>`
+   - 6 built-in formatters registered on first access
+   - Public API: `register_formatter()`, `get_formatter()`
+   - Fallback to Display formatter for unknown names
 
-4. **Enhanced Metavariable Trait** (src/metavariable/mod.rs)
-   - Add `format_with(&dyn OutputFormatter) -> String` method
-   - Add `to_ascii()` and `to_utf8()` helper methods
-   - Default implementation delegates to Display
+4. ✅ **Enhanced Metavariable Trait** (src/metavariable/mod.rs)
+   - Added `format_with(&dyn OutputFormatter) -> String` method
+   - Added `to_ascii()` and `to_utf8()` helper methods
+   - Default implementation delegates to Display trait
 
-5. **Enhanced Node Trait** (src/node/base.rs)
-   - Add `format_with(&dyn OutputFormatter) -> String` method
-   - Add `to_ascii_symbol()`, `to_utf8_symbol()`, `to_latex_symbol()` methods
-   - Implement for NodeByte (→, ¬, ∧, ∨, ↔, ⊕)
+5. ✅ **Enhanced Node Trait** (src/node/base.rs)
+   - Added `format_with(&dyn OutputFormatter) -> String` method
+   - Added `to_ascii_symbol()`, `to_utf8_symbol()`, `to_latex_symbol()` methods
+   - Implemented for NodeByte (40+ operators in all formats)
 
-6. **Built-in Formatters** (src/formatter/*)
-   - `AsciiFormatter`: Metamath baseline (ph, ps, ch; ->, -, /\, \/)
+6. ✅ **Built-in Formatters** (src/formatter/formatters.rs)
+   - `AsciiFormatter`: Metamath baseline (ph, ps, ch; ->, -., /\, \/)
    - `Utf8Formatter`: Plain Unicode (φ, ψ, χ; →, ¬, ∧, ∨)
-   - `Utf8ColorFormatter`: ANSI 256-color terminal
-   - `HtmlColorFormatter`: Inline styles for web
-   - `LatexFormatter`: LaTeX math mode
-   - `DisplayFormatter`: Fallback to existing Display trait
+   - `Utf8ColorFormatter`: ANSI 256-color terminal with type-based coloring
+   - `HtmlFormatter`: Plain HTML with Unicode symbols
+   - `HtmlColorFormatter`: Inline styles with proper `<sub>` tags for subscripts
+   - `LatexFormatter`: LaTeX math mode (\varphi, \to, \land, \lor)
 
-7. **std::fmt Integration** (src/formatter/display_wrapper.rs)
-   - `Formatted<T>` wrapper type
-   - `Formattable` extension trait with `.formatted("name")` method
-   - Enable `format!("{}", term.formatted("latex"))` syntax
+7. ✅ **Concrete Implementations**
+   - **MetaByte**: ASCII names (ph, ps, ch, th, ta...), LaTeX Greek, HTML with colors
+   - **WideMetavariable**: Full formatter support with subscripts
+     - UTF-8: Unicode subscript digits (₀₁₂...)
+     - HTML: Proper `<sub>` tags with normal digits
+     - ASCII: Underscore notation (ph_1, ph_2...)
+     - LaTeX: Subscript notation (\varphi_1, \varphi_2...)
+   - **NodeByte**: 40+ operators in ASCII, UTF-8, LaTeX formats
+   - **EnumTerm**: Recursive formatting with proper parenthesization
 
-8. **Compact Binary Integration**
-   - Add `--format=<name>` flag
-   - Examples: `--format=ascii`, `--format=utf8-color`, `--format=html`
-   - Update help text with formatter list
+8. ✅ **Compact Binary Integration** (src/bin/compact.rs)
+   - Added `--format=<name>` flag with 6 supported formats
+   - Updated help text with formatter descriptions
+   - Examples work: `--format=ascii`, `--format=utf8-color`, `--format=html-color`
 
-**Dependencies**: lazy_static crate (check if already in Cargo.toml)
+9. ✅ **Test Suite** (src/formatter/tests.rs)
+   - 12 comprehensive tests covering all formatters
+   - Tests for metavariables, nodes, terms
+   - Tests for complex nested expressions
+   - Tests for color capability checking
 
-**Complexity**: Medium (~800 lines total across all files)
+10. ✅ **Bug Fixes** (during implementation)
+    - Fixed UTF-8 color: subscripts now included in ANSI escape sequences
+    - Fixed HTML: uses proper `<sub>` tags with normal digits (not Unicode subscripts)
 
-**Priority**: ⭐⭐⭐ **HIGH** (user-facing feature, enables 0.2.0 WASM)
+**Implementation Details:**
+- Zero external dependencies (uses stdlib `OnceLock` and `RwLock`)
+- Object-safe trait design via delegation pattern
+- Thread-safe lazy initialization for both registries
+- Generic throughout (works with any Type/Node/Metavariable implementation)
+- Comprehensive documentation with examples
+
+**Complexity**: ~1200 lines implemented across 8 files
+
+**Priority**: ⭐⭐⭐ **HIGH** - **COMPLETE**
 
 **Action Items:**
-- [ ] Add lazy_static dependency if needed
-- [ ] Create src/formatter/ module hierarchy
-- [ ] Implement Color and TYPE_COLOR_REGISTRY
-- [ ] Implement GLOBAL_FORMATTER_REGISTRY
-- [ ] Add format_with() to Metavariable trait
-- [ ] Add format_with() + symbol methods to Node trait
-- [ ] Implement MetaByte ASCII names (ph, ps, ch, th, ta...)
-- [ ] Implement MetaByte formatter support
-- [ ] Implement WideMetavariable formatter support
-- [ ] Implement NodeByte symbol methods and formatter support
-- [ ] Implement 6 built-in formatters
-- [ ] Implement Formatted<T> wrapper and Formattable trait
-- [ ] Add --format flag to compact binary
-- [ ] Write comprehensive formatter tests
-- [ ] Document formatter API in module docs
-- [ ] Export formatter API from lib.rs
+- [x] Create src/formatter/ module hierarchy
+- [x] Implement Color and TYPE_COLOR_REGISTRY (OnceLock, no dependencies)
+- [x] Implement GLOBAL_FORMATTER_REGISTRY (OnceLock, object-safe)
+- [x] Add format_with() to Metavariable trait
+- [x] Add format_with() + symbol methods to Node trait
+- [x] Implement MetaByte ASCII names (ph, ps, ch, th, ta...)
+- [x] Implement MetaByte formatter support (all 6 formats)
+- [x] Implement WideMetavariable formatter support (with subscripts)
+- [x] Implement NodeByte symbol methods (40+ operators)
+- [x] Implement 6 built-in formatters
+- [x] Add --format flag to compact binary
+- [x] Write comprehensive formatter tests (12 tests)
+- [x] Document formatter API in module docs
+- [x] Export formatter API from lib.rs
+- [x] Fix subscript coloring bug (UTF-8 ANSI escapes)
+- [x] Fix HTML subscript bug (use <sub> tags, not Unicode)
+- [x] Create demonstration script and summary document
+- [ ] ~~Implement Formatted<T> wrapper~~ (deferred to v0.2.0)
 
-**Design Principles (from CLAUDE.md):**
+**Post-Implementation Example:**
+- [ ] **Meredith Paper Parser Example** - Demonstrate parsing/verifying historical logic papers
+  - Parse Meredith's 1953 (A,N) system paper examples in Polish notation
+  - Verify all theorems using `test_tautology()`
+  - Display in multiple formats: Polish, infix, UTF-8, LaTeX
+  - Example: `CCpqCCqrCpr` → verified tautology → displayed as:
+    - Polish: `CCpqCCqrCpr`
+    - Infix: `((p → q) → ((q → r) → (p → r)))`
+    - UTF-8: `((φ → ψ) → ((ψ → χ) → (φ → χ)))`
+    - LaTeX: `((\varphi \to \psi) \to ((\psi \to \chi) \to (\varphi \to \chi)))`
+  - Shows how modern tooling can illuminate historical papers
+  - Educational fair use (brief quotes + independent verification)
+  - Reference: https://en.wikipedia.org/wiki/Polish_notation
+  - See also: Łukasiewicz (1929) *Elementy logiki matematycznej* and Bocheński's 16-connective system
+
+**Documentation Updates:**
+- [ ] Add Polish notation reference to `BooleanSimpleOp` module docs
+  - Link to https://en.wikipedia.org/wiki/Polish_notation
+  - Document correspondence: Cpq (implication), Npq (negation), Apq (or), Kpq (and), Epq (equivalence)
+  - Note Łukasiewicz (1929) as original source
+  - Mention Bocheński's systematic 16-connective extension organized by truth value frequency
+
+**Design Principles:**
 - Only metavariables colored by Type
 - Avoid elaborate color theory (no CIE XYZ/Lab)
 - Statement layout is application-controlled

@@ -119,4 +119,34 @@ where
         }
         Ok(())
     }
+
+    /// Format this term with the given formatter.
+    ///
+    /// This method allows terms to customize their representation
+    /// based on the formatter being used. Different formatters support
+    /// different output formats (ASCII, UTF-8, LaTeX, HTML, etc.).
+    ///
+    /// # Default Implementation
+    ///
+    /// The default implementation delegates to the Display trait.
+    /// Concrete implementations should override this to provide
+    /// formatter-specific recursive rendering.
+    ///
+    /// # Arguments
+    ///
+    /// * `formatter` - The formatter to use for rendering
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// use symbolic_mgu::{Term, get_formatter};
+    ///
+    /// let term = /* some term */;
+    /// let formatter = get_formatter("utf8-color");
+    /// let output = term.format_with(&*formatter);
+    /// ```
+    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+        let _ = formatter; // Suppress unused warning
+        format!("{}", self) // Default: use Display
+    }
 }

@@ -1,5 +1,62 @@
 # Output Formatter Design Document
 
+**Status**: ✅ **IMPLEMENTED** (v0.1.0-alpha.10)
+**Implementation Summary**: See `FORMATTER_DEMO_SUMMARY.md` in project root
+**Test Results**: 12 comprehensive tests passing, all formatters working
+
+## Implementation Notes (v0.1.0-alpha.10)
+
+The formatter system has been fully implemented with some adjustments from the original design:
+
+### What Was Implemented
+
+1. **Core Infrastructure** ✅
+   - `OutputFormatter` trait with object-safe design (src/formatter/output_formatter.rs)
+   - Global formatter registry using `OnceLock` (zero dependencies, no lazy_static)
+   - Global type-color registry using `OnceLock`
+   - Thread-safe lazy initialization for both registries
+
+2. **Six Built-in Formatters** ✅
+   - AsciiFormatter, Utf8Formatter, Utf8ColorFormatter
+   - HtmlFormatter, HtmlColorFormatter, LatexFormatter
+
+3. **Trait Enhancements** ✅
+   - `Metavariable::format_with()`, `to_ascii()`, `to_utf8()`
+   - `Node::format_with()`, `to_ascii_symbol()`, `to_utf8_symbol()`, `to_latex_symbol()`
+   - `Term::format_with()`
+
+4. **Concrete Implementations** ✅
+   - MetaByte: Full formatter support with ASCII names (ph, ps, ch...)
+   - WideMetavariable: Complete with proper subscript handling
+   - NodeByte: 40+ operators in all formats
+   - EnumTerm: Recursive formatting with parenthesization
+
+5. **Compact Binary Integration** ✅
+   - `--format` flag with 6 supported formats
+   - Updated help text and examples
+
+### Design Deviations
+
+1. **Object Safety** - Made trait object-safe by using specific color getters (`get_boolean_color()`, etc.) instead of generic `get_type_color(&impl Type)`
+2. **OnceLock vs lazy_static** - Used stdlib `OnceLock` (Rust 1.70+) instead of external dependency
+3. **Formatted<T> Wrapper** - Deferred to v0.2.0 (not blocking for v0.1.0)
+4. **Delegation Pattern** - Formatters delegate to Metavariable/Node `format_with()` methods, types check `formatter.name()` and render accordingly
+
+### Bug Fixes During Implementation
+
+1. **Subscript Coloring (UTF-8)** - Fixed to include subscript digits within ANSI escape sequences
+2. **HTML Subscripts** - Fixed to use proper `<sub>` tags with normal digits (not Unicode subscripts)
+
+### Testing
+
+- 12 comprehensive tests in src/formatter/tests.rs
+- All formatters tested with metavariables, nodes, and complex terms
+- Color capability checking verified
+- Integration testing via compact binary
+- Demo script (demo_formatters.sh) validates all 6 formatters
+
+---
+
 ## Design Goals
 
 1. **Familiar Rust syntax**: `"{0:latex}"`, `"{term:html}"` format specifiers
