@@ -575,9 +575,9 @@ pub fn is_supported_op(node: &NodeByte) -> bool {
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, test_term};
-///
+/// ```rust
+/// # use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, bool_eval::test_term, MguError};
+/// # fn example() -> Result<(), MguError> {
 /// // Test law of excluded middle: p ∨ ¬p
 /// let p = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
 /// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
@@ -593,9 +593,12 @@ pub fn is_supported_op(node: &NodeByte) -> bool {
 /// assert_eq!(test_term(&contradiction)?, Some(false));  // Contradiction
 ///
 /// // Test contingent formula: p
-/// let p3 = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
+/// let p3: EnumTerm<SimpleType, MetaByte, NodeByte> =
+///     EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
 ///
 /// assert_eq!(test_term(&p3)?, None);  // Contingent
+/// # Ok(())
+/// # }
 /// ```
 pub fn test_term<T, Ty, V, No>(term: &T) -> Result<Option<bool>, MguError>
 where
@@ -908,15 +911,17 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, test_tautology};
-///
+/// ```rust
+/// # use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, bool_eval::test_tautology, MguError};
+/// # fn example() -> Result<(), MguError> {
 /// // Test law of excluded middle: p ∨ ¬p
 /// let p = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
 /// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
 /// let law = EnumTerm::NodeOrLeaf(NodeByte::Or, vec![p, not_p]);
 ///
 /// assert!(test_tautology(&law)?);  // true - it's a tautology
+/// # Ok(())
+/// # }
 /// ```
 pub fn test_tautology<T, Ty, V, No>(term: &T) -> Result<bool, MguError>
 where
@@ -942,15 +947,17 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, test_contradiction};
-///
+/// ```rust
+/// # use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, bool_eval::test_contradiction, MguError};
+/// # fn example() -> Result<(), MguError> {
 /// // Test a simple contradiction: p ∧ ¬p
 /// let p = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
 /// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
 /// let law = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p, not_p]);
 ///
 /// assert!(test_contradiction(&law)?);  // true - it's never true
+/// # Ok(())
+/// # }
 /// ```
 pub fn test_contradiction<T, Ty, V, No>(term: &T) -> Result<bool, MguError>
 where
@@ -976,15 +983,17 @@ where
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, test_contingent};
-///
+/// ```rust
+/// # use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, bool_eval::test_contingent, MguError};
+/// # fn example() -> Result<(), MguError> {
 /// // Test term which is neither always true nor always false: p → ¬p
 /// let p = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
 /// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
 /// let law = EnumTerm::NodeOrLeaf(NodeByte::Implies, vec![p, not_p]);
 ///
 /// assert!(test_contingent(&law)?);  // true - it's true only some of the time
+/// # Ok(())
+/// # }
 /// ```
 pub fn test_contingent<T, Ty, V, No>(term: &T) -> Result<bool, MguError>
 where

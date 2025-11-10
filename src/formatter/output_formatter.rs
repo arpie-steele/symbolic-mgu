@@ -29,12 +29,13 @@ use super::color::Color;
 ///
 /// # Examples
 ///
-/// ```rust,ignore
-/// use symbolic_mgu::{OutputFormatter, get_formatter};
+/// ```rust
+/// use symbolic_mgu::{OutputFormatter, get_formatter, Metavariable, MetaByte, SimpleType};
 ///
-/// let formatter = get_formatter("utf8-color");
+/// let formatter = get_formatter("utf8");
 /// // Formatting is done via Metavariable/Node/Term format_with() methods
-/// let output = my_var.format_with(&*formatter);
+/// let var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+/// let output = var.format_with(&*formatter);
 /// println!("{}", output);
 /// ```
 ///

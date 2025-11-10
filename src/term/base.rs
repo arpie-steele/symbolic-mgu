@@ -138,12 +138,14 @@ where
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
-    /// use symbolic_mgu::{Term, get_formatter};
+    /// ```rust
+    /// use symbolic_mgu::{Term, EnumTerm, MetaByte, NodeByte, SimpleType, get_formatter};
     ///
-    /// let term = /* some term */;
-    /// let formatter = get_formatter("utf8-color");
+    /// let term: EnumTerm<SimpleType, MetaByte, NodeByte> =
+    ///     EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap());
+    /// let formatter = get_formatter("utf8");
     /// let output = term.format_with(&*formatter);
+    /// assert_eq!(output, "P");
     /// ```
     fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
         let _ = formatter; // Suppress unused warning

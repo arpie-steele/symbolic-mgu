@@ -96,12 +96,13 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
-    /// use symbolic_mgu::{Node, OutputFormatter, get_formatter};
+    /// ```rust
+    /// use symbolic_mgu::{Node, NodeByte, get_formatter};
     ///
-    /// let node = /* some node */;
-    /// let formatter = get_formatter("utf8-color");
+    /// let node = NodeByte::Implies;
+    /// let formatter = get_formatter("utf8");
     /// let output = node.format_with(&*formatter);
+    /// assert_eq!(output, "→");
     /// ```
     fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
         let _ = formatter; // Suppress unused warning
@@ -121,11 +122,12 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
-    /// use symbolic_mgu::Node;
+    /// ```rust
+    /// use symbolic_mgu::{Node, NodeByte};
     ///
-    /// let node = /* some node */;
-    /// let ascii = node.to_ascii_symbol(); // e.g., "->" for implies
+    /// let node = NodeByte::Implies;
+    /// let ascii = node.to_ascii_symbol();
+    /// assert_eq!(ascii, "->");
     /// ```
     fn to_ascii_symbol(&self) -> &str {
         "?" // Default: unknown operator
@@ -144,11 +146,12 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
-    /// use symbolic_mgu::Node;
+    /// ```rust
+    /// use symbolic_mgu::{Node, NodeByte};
     ///
-    /// let node = /* some node */;
-    /// let utf8 = node.to_utf8_symbol(); // e.g., "→" for implies
+    /// let node = NodeByte::Implies;
+    /// let utf8 = node.to_utf8_symbol();
+    /// assert_eq!(utf8, "→");
     /// ```
     fn to_utf8_symbol(&self) -> &str {
         "?" // Default: unknown operator
@@ -166,11 +169,12 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
-    /// use symbolic_mgu::Node;
+    /// ```rust
+    /// use symbolic_mgu::{Node, NodeByte};
     ///
-    /// let node = /* some node */;
-    /// let latex = node.to_latex_symbol(); // e.g., "\\to" for implies
+    /// let node = NodeByte::Implies;
+    /// let latex = node.to_latex_symbol();
+    /// assert_eq!(latex, r"\to ");
     /// ```
     fn to_latex_symbol(&self) -> &str {
         "?" // Default: unknown operator
