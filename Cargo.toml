@@ -2,7 +2,7 @@
 edition = "2018"
 rust-version = "1.77.0"
 name = "symbolic-mgu"
-version = "0.1.0-alpha.10"
+version = "0.1.0-alpha.11"
 authors = ["Richard Penner <richardpenner@gmail.com>"]
 build = "build.rs"
 exclude = [

@@ -4,6 +4,7 @@
 //! [`Metavariable`]: `crate::Metavariable`
 //! [`Term`]: `crate::Term`
 
+use crate::bool_eval::BooleanSimpleOp;
 use crate::{MguError, Type};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
@@ -62,7 +63,8 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
     /// # Examples
     ///
     /// ```
-    /// use symbolic_mgu::{Node, NodeByte, BooleanSimpleOp};
+    /// use symbolic_mgu::{Node, NodeByte};
+    /// use symbolic_mgu::bool_eval::BooleanSimpleOp;
     ///
     /// let and_node = NodeByte::And;
     /// assert_eq!(and_node.to_boolean_op(), Some(BooleanSimpleOp::AndAB2));
@@ -74,7 +76,7 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
     /// let element_of = NodeByte::IsElementOf;
     /// assert_eq!(element_of.to_boolean_op(), None);
     /// ```
-    fn to_boolean_op(&self) -> Option<crate::BooleanSimpleOp>;
+    fn to_boolean_op(&self) -> Option<BooleanSimpleOp>;
 
     /// Format this node with the given formatter.
     ///

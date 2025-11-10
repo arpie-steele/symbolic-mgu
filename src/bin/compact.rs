@@ -16,68 +16,13 @@
 //! cargo run --bin compact -- --verify "DD211"
 //! ```
 
+use symbolic_mgu::bool_eval::{test_tautology, test_validity};
+use symbolic_mgu::logic::create_dict;
 use symbolic_mgu::{
-    get_formatter, logic::create_dict, test_tautology, EnumTermFactory, MetaByte, MetaByteFactory,
-    Metavariable, MetavariableFactory, MguError, MguErrorType, Node, NodeByte, SimpleType,
-    Statement, Term, TermFactory, Type, WideMetavariable, WideMetavariableFactory,
+    get_formatter, EnumTermFactory, MetaByte, MetaByteFactory, Metavariable, MetavariableFactory,
+    MguError, MguErrorType, NodeByte, SimpleType, Statement, Term, WideMetavariable,
+    WideMetavariableFactory,
 };
-
-/// Check if a statement with possible hypotheses is valid.
-///
-/// Builds the nested implication H₁ → (H₂ → (... → (Hₙ → A))) and tests if it's a tautology.
-/// This checks **validity**: whether the conclusion logically follows from the premises.
-///
-/// This still can work if `implies_node` is `None` when there are zero hypotheses,
-/// but in general it should be a Boolean operator with semantics identical to material implication.
-fn check_validity<Ty, V, N, T, TF>(
-    statement: &Statement<Ty, V, N, TF::Term>,
-    term_factory: &TF,
-    implies_node: &Option<N>,
-) -> Result<bool, MguError>
-where
-    Ty: Type,
-    V: Metavariable<Type = Ty>,
-    N: Node<Type = Ty>,
-    T: Term<Ty, V, N>,
-    TF: TermFactory<T, Ty, V, N, TermNode = N>,
-{
-    use MguErrorType::VerificationFailure;
-    // Check if all hypotheses and assertion are Boolean
-    if !statement.get_assertion().get_type()?.is_boolean() {
-        return Err(MguError::from_err_type_and_message(
-            VerificationFailure,
-            "Assertion is not Boolean type",
-        ));
-    }
-
-    for hyp in statement.get_hypotheses() {
-        if !hyp.get_type()?.is_boolean() {
-            return Err(MguError::from_err_type_and_message(
-                VerificationFailure,
-                "Not all hypotheses are Boolean type",
-            ));
-        }
-    }
-
-    // Build nested implication: H₁ → (H₂ → (... → (Hₙ → A)))
-    let mut implication = statement.get_assertion().clone();
-
-    // Build from right to left (innermost to outermost), but usually order does not matter.
-    for hyp in statement.get_hypotheses().iter().rev() {
-        if let Some(actual_implies) = implies_node {
-            implication =
-                term_factory.create_node(actual_implies.clone(), vec![hyp.clone(), implication])?;
-        } else {
-            return Err(MguError::from_err_type_and_message(
-            VerificationFailure,
-                "Unable to produce a single-term Statement without being supplied an implication Node."
-                ));
-        }
-    }
-
-    // Test if the nested implication is a tautology
-    test_tautology(&implication)
-}
 
 fn main() {
     if let Err(e) = run() {
@@ -184,7 +129,7 @@ fn run_by_factory<V, VF>(
     format: &str,
 ) -> Result<(), MguError>
 where
-    V: Metavariable<Type = SimpleType> + Default,
+    V: Metavariable<Type = SimpleType>,
     VF: MetavariableFactory<MetavariableType = SimpleType, Metavariable = V>,
 {
     let term_factory: EnumTermFactory<SimpleType, V, NodeByte> = EnumTermFactory::new();
@@ -236,7 +181,7 @@ where
                         }
                     } else {
                         // Has hypotheses: check if all terms are Boolean, then verify validity
-                        match check_validity(&result, &term_factory, &Some(NodeByte::Implies)) {
+                        match test_validity(&result, &term_factory, &Some(NodeByte::Implies)) {
                             Ok(true) => {
                                 println!("  ✓ Valid: Hypotheses logically entail the assertion")
                             }

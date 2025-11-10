@@ -1,9 +1,12 @@
 //! Introduce the [`Metavariable`] trait which has ready-made short
 //! and wide toy implementations.
 
+pub(crate) mod charset;
+pub(crate) mod decorator;
 pub(crate) mod enums;
 pub(crate) mod factory;
 pub(crate) mod meta_byte;
+pub(crate) mod parametric;
 pub(crate) mod wide;
 pub(crate) mod wide_factory;
 

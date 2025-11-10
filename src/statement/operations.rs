@@ -474,7 +474,6 @@ where
     where
         VF: MetavariableFactory<Metavariable = V, MetavariableType = Ty>,
         TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermNode = N, TermMetavariable = V>,
-        V: Default,
     {
         // Create fresh Boolean metavariables for modus ponens
         let phi_var = var_factory

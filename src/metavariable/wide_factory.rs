@@ -86,40 +86,40 @@ mod tests {
 
     #[test]
     fn factory_creates_valid_variables() {
-        use crate::metavariable::wide::{OUR_BOOLEANS, OUR_CLASSES, OUR_SETVARS};
+        use crate::metavariable::wide::{WIDE_BOOLEANS, WIDE_CLASSES, WIDE_SETVARS};
 
         let factory = WideMetavariableFactory::new();
 
         // Test Boolean creation
         let phi = factory.create_by_type_and_index(&Type::Boolean, 0).unwrap();
-        let expected_phi = OUR_BOOLEANS.chars().next().unwrap().to_string();
+        let expected_phi = WIDE_BOOLEANS.chars().next().unwrap().to_string();
         assert_eq!(phi.to_string(), expected_phi);
 
         let psi = factory.create_by_type_and_index(&Type::Boolean, 1).unwrap();
-        let expected_psi = OUR_BOOLEANS.chars().nth(1).unwrap().to_string();
+        let expected_psi = WIDE_BOOLEANS.chars().nth(1).unwrap().to_string();
         assert_eq!(psi.to_string(), expected_psi);
 
         // Test with subscripts
         let phi_1 = factory
             .create_by_type_and_index(&Type::Boolean, 12)
             .unwrap();
-        let expected_phi_1 = OUR_BOOLEANS.chars().next().unwrap().to_string() + "₁";
+        let expected_phi_1 = WIDE_BOOLEANS.chars().next().unwrap().to_string() + "₁";
         assert_eq!(phi_1.to_string(), expected_phi_1);
 
         // Test Setvar
         let x = factory.create_by_type_and_index(&Type::Setvar, 0).unwrap();
-        let expected_x = OUR_SETVARS.chars().next().unwrap().to_string();
+        let expected_x = WIDE_SETVARS.chars().next().unwrap().to_string();
         assert_eq!(x.to_string(), expected_x);
 
         // Test Class
         let a = factory.create_by_type_and_index(&Type::Class, 0).unwrap();
-        let expected_a = OUR_CLASSES.chars().next().unwrap().to_string();
+        let expected_a = WIDE_CLASSES.chars().next().unwrap().to_string();
         assert_eq!(a.to_string(), expected_a);
     }
 
     #[test]
     fn factory_list_works() {
-        use crate::metavariable::wide::OUR_BOOLEANS;
+        use crate::metavariable::wide::WIDE_BOOLEANS;
 
         let factory = WideMetavariableFactory::new();
 
@@ -127,7 +127,7 @@ mod tests {
             .list_metavariables_by_type(&Type::Boolean)
             .take(5)
             .collect();
-        let expected: Vec<_> = OUR_BOOLEANS
+        let expected: Vec<_> = WIDE_BOOLEANS
             .chars()
             .take(5)
             .map(|c| c.to_string())
@@ -156,11 +156,11 @@ mod tests {
 
     #[test]
     fn default_factory_works() {
-        use crate::metavariable::wide::OUR_BOOLEANS;
+        use crate::metavariable::wide::WIDE_BOOLEANS;
 
         let factory = WideMetavariableFactory::default();
         let phi = factory.create_by_type_and_index(&Type::Boolean, 0).unwrap();
-        let expected = OUR_BOOLEANS.chars().next().unwrap().to_string();
+        let expected = WIDE_BOOLEANS.chars().next().unwrap().to_string();
         assert_eq!(phi.to_string(), expected);
     }
 }

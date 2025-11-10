@@ -56,11 +56,14 @@
 //! logic in `eval_implies` and `eval_biimp` within the `eval_map`
 //! function.
 
-pub(crate) mod generated_enum;
+mod generated_enum;
 
 use crate::{
-    ub_prim_impl, BooleanSimpleOp, Metavariable, MguError, Node, NodeByte, SimpleType, Term, Type,
+    ub_prim_impl, Metavariable, MguError, MguErrorType, Node, NodeByte, SimpleType, Statement,
+    Term, TermFactory, Type,
 };
+pub use generated_enum::BooleanSimpleOp;
+pub use generated_enum::BooleanSimpleOpDiscriminants;
 use std::collections::HashSet;
 use std::fmt::{Debug as DebugTrait, Display};
 use std::marker::PhantomData;
@@ -98,7 +101,7 @@ impl<Ty: Type> Node for BooleanSimpleNode<Ty> {
         }
     }
 
-    fn to_boolean_op(&self) -> Option<crate::BooleanSimpleOp> {
+    fn to_boolean_op(&self) -> Option<BooleanSimpleOp> {
         Some(self.0)
     }
 }
@@ -1166,10 +1169,7 @@ where
     /// # Errors
     ///
     /// Returns error if the number of children doesn't match the operation's arity.
-    fn eval_boolean_simple_op<V>(
-        op: &crate::BooleanSimpleOp,
-        children: &[Self],
-    ) -> Result<Self, MguError>
+    fn eval_boolean_simple_op<V>(op: &BooleanSimpleOp, children: &[Self]) -> Result<Self, MguError>
     where
         V: Metavariable,
     {
@@ -1436,6 +1436,67 @@ impl<const N: usize> std::fmt::Display for SomeBits<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(&(self.0), f) // delegate to `BigUint`'s implementation
     }
+}
+
+/// Check if a statement with possible hypotheses is valid.
+///
+/// Builds the nested implication H₁ → (H₂ → (... → (Hₙ → A))) and tests if it's a tautology.
+/// This checks **validity**: whether the conclusion logically follows from the premises.
+///
+/// This still can work if `implies_node` is `None` when there are zero hypotheses,
+/// but in general it should be a Boolean operator with semantics identical to material implication.
+///
+/// # Errors
+/// - When an Statement is not composed of purely Boolean Terms with Boolean Nodes and Boolean Metavariables.
+/// - When there are more Metavariables in the Statement than are supported. (7 or 20 if the feature `bigint` is on)
+pub fn test_validity<Ty, V, N, T, TF>(
+    statement: &Statement<Ty, V, N, TF::Term>,
+    term_factory: &TF,
+    implies_node: &Option<N>,
+) -> Result<bool, MguError>
+where
+    Ty: Type,
+    V: Metavariable<Type = Ty>,
+    N: Node<Type = Ty>,
+    T: Term<Ty, V, N>,
+    TF: TermFactory<T, Ty, V, N, TermNode = N>,
+{
+    use MguErrorType::VerificationFailure;
+    // Check if all hypotheses and assertion are Boolean
+    if !statement.get_assertion().get_type()?.is_boolean() {
+        return Err(MguError::from_err_type_and_message(
+            VerificationFailure,
+            "Assertion is not Boolean type",
+        ));
+    }
+
+    for hyp in statement.get_hypotheses() {
+        if !hyp.get_type()?.is_boolean() {
+            return Err(MguError::from_err_type_and_message(
+                VerificationFailure,
+                "Not all hypotheses are Boolean type",
+            ));
+        }
+    }
+
+    // Build nested implication: H₁ → (H₂ → (... → (Hₙ → A)))
+    let mut implication = statement.get_assertion().clone();
+
+    // Build from right to left (innermost to outermost), but usually order does not matter.
+    for hyp in statement.get_hypotheses().iter().rev() {
+        if let Some(actual_implies) = implies_node {
+            implication =
+                term_factory.create_node(actual_implies.clone(), vec![hyp.clone(), implication])?;
+        } else {
+            return Err(MguError::from_err_type_and_message(
+            VerificationFailure,
+                "Unable to produce a single-term Statement without being supplied an implication Node."
+                ));
+        }
+    }
+
+    // Test if the nested implication is a tautology
+    test_tautology(&implication)
 }
 
 #[cfg(test)]

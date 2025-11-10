@@ -87,13 +87,6 @@ impl MetaByte {
     }
 }
 
-impl Default for MetaByte {
-    /// Default is the first Boolean metavariable ('P').
-    fn default() -> Self {
-        MetaByte(OUR_BOOLEANS.as_bytes()[0])
-    }
-}
-
 impl Metavariable for MetaByte {
     type Type = SimpleType;
 

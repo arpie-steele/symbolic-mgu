@@ -8,7 +8,7 @@ use std::{collections::HashSet, marker::PhantomData};
 
 /// The primary object representing an axiom, inference rule, or
 /// statement of a theorem.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 #[cfg_attr(
     feature = "serde",
     derive(serde::Serialize, serde::Deserialize),
@@ -98,10 +98,7 @@ where
     /// # Errors
     ///
     /// Returns an error if the assertion is not a valid sentence.
-    pub fn simple_axiom(assertion: T) -> Result<Self, MguError>
-    where
-        V: Default,
-    {
+    pub fn simple_axiom(assertion: T) -> Result<Self, MguError> {
         Self::new(assertion, Vec::new(), DistinctnessGraph::default())
     }
 

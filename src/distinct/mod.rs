@@ -7,7 +7,7 @@ use crate::{Metavariable, MguError, SimpleGraph};
 use std::collections::HashMap;
 
 /// An undirected graph.
-#[derive(Debug, PartialEq, Eq, Default)]
+#[derive(Debug, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
     derive(serde::Serialize, serde::Deserialize),
@@ -29,6 +29,16 @@ impl<V: Metavariable> Clone for DistinctnessGraph<V> {
             vars: self.vars.clone(),
             edges: self.edges.clone(),
         }
+    }
+}
+
+impl<V: Metavariable> Default for DistinctnessGraph<V> {
+    /// Create a new empty distinctness graph.
+    ///
+    /// This implementation does not require `V: Default` because it creates
+    /// an empty graph with no vertices.
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -84,7 +84,7 @@ pub fn modus_ponens<Ty, V, N, T, TF>(
 ) -> Result<Statement<Ty, V, N, T>, MguError>
 where
     Ty: Type,
-    V: Metavariable<Type = Ty> + Default,
+    V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
     TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
@@ -154,7 +154,7 @@ pub fn simp<Ty, V, N, T, TF>(
 ) -> Result<Statement<Ty, V, N, T>, MguError>
 where
     Ty: Type,
-    V: Metavariable<Type = Ty> + Default,
+    V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
     TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
@@ -219,7 +219,7 @@ pub fn frege<Ty, V, N, T, TF>(
 ) -> Result<Statement<Ty, V, N, T>, MguError>
 where
     Ty: Type,
-    V: Metavariable<Type = Ty> + Default,
+    V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
     TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
@@ -302,7 +302,7 @@ pub fn transp<Ty, V, N, T, TF>(
 ) -> Result<Statement<Ty, V, N, T>, MguError>
 where
     Ty: Type,
-    V: Metavariable<Type = Ty> + Default,
+    V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
     TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
@@ -383,7 +383,7 @@ pub fn create_dict<TF, MF, Ty, V, N, T>(
 where
     TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermNode = N, TermMetavariable = V>,
     MF: MetavariableFactory<MetavariableType = Ty, Metavariable = V>,
-    V: Metavariable<Type = Ty> + Default,
+    V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
     Ty: Type,
