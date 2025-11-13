@@ -252,7 +252,7 @@ where
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,compile_fail
     /// // Create a substitution with chains (but no cycles)
     /// let mut subst = Substitution::new();
     /// // {P ↦ (T → S), T ↦ (Q → R), Q ↦ U}

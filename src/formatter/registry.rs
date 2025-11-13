@@ -66,7 +66,7 @@ fn formatter_registry() -> &'static RwLock<HashMap<String, FormatterBox>> {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```
 /// use symbolic_mgu::{register_formatter, OutputFormatter};
 ///
 /// struct MyFormatter;

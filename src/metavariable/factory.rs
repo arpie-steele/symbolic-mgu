@@ -58,7 +58,7 @@
 //!
 //! Stateful factories maintain internal state for variable generation, caching, or database access.
 //!
-//! ```rust,ignore
+//! ```rust,compile_fail
 //! // Hypothetical fresh variable generator
 //! struct FreshVariableFactory {
 //!     counter: usize,
@@ -98,7 +98,7 @@
 //!
 //! ### Production Backend: Unicode Variables (Conceptual)
 //!
-//! ```rust,ignore
+//! ```rust,compile_fail
 //! // Hypothetical Unicode variable factory
 //! let factory = UnicodeMetavariableFactory::new();
 //!
@@ -113,7 +113,7 @@
 //!
 //! ### Database Backend: Metamath Integration (Conceptual)
 //!
-//! ```rust,ignore
+//! ```rust,compile_fail
 //! // Hypothetical Metamath variable factory
 //! let factory = MetamathVariableFactory::load("set.mm")?;
 //!
