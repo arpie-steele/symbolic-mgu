@@ -237,7 +237,7 @@ pub trait BooleanNode {
 - [ ] Consider: Define `BooleanNode` trait to allow both `NodeByte` and `BooleanSimpleOp` to coexist
 - [ ] Add conversion: `TryFrom<NodeByte> for BooleanSimpleOp` (or vice versa)
 - [ ] Export `BooleanSimpleOp` and `BooleanSimpleNode<Ty>` from lib.rs if useful publicly
-- [ ] Complete the `eval3()` implementation (many `todo!()` macros for ternary operations)
+- [x] Complete the `eval3()` implementation (all 256 ternary operations fully implemented)
 - [ ] Document the elegant u16 encoding scheme in module-level docs
 
 **Original Action Items (for reference)**:

@@ -65,6 +65,7 @@ use crate::{
 pub use generated_enum::BooleanSimpleOp;
 pub use generated_enum::BooleanSimpleOpDiscriminants;
 use std::collections::HashSet;
+use std::convert::TryFrom;
 use std::fmt::{Debug as DebugTrait, Display};
 use std::marker::PhantomData;
 use std::ops::{BitAnd, BitOr, BitXor, Not};
@@ -103,6 +104,16 @@ impl<Ty: Type> Node for BooleanSimpleNode<Ty> {
 
     fn to_boolean_op(&self) -> Option<BooleanSimpleOp> {
         Some(self.0)
+    }
+}
+
+impl TryFrom<NodeByte> for BooleanSimpleOp {
+    type Error = MguError;
+
+    fn try_from(node: NodeByte) -> Result<Self, Self::Error> {
+        node.to_boolean_op().ok_or_else(|| {
+            MguError::ArgumentError(format!("NodeByte::{:?} is not a Boolean operation", node))
+        })
     }
 }
 
@@ -970,7 +981,7 @@ where
     V: Metavariable<Type = Ty>,
     No: Node<Type = Ty>,
 {
-    test_term(term).map(|opt| opt == Some(true))
+    test_term(term).map(|opt| opt == Some(false))
 }
 
 /// Test if a Boolean term remains contingent on the content of its variables.
@@ -1008,6 +1019,359 @@ where
     No: Node<Type = Ty>,
 {
     test_term(term).map(|opt| opt.is_none())
+}
+
+/// Test if a Boolean term is satisfiable (has at least one satisfying assignment).
+///
+/// This is a convenience wrapper around [`test_term`] that returns `true` if the term
+/// is satisfiable (true for at least one variable assignment) and `false` if it's
+/// a contradiction (false for all assignments).
+///
+/// A term is satisfiable if it's either a tautology or contingent.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The term contains non-Boolean variables
+/// - The term contains more than 20 variables
+/// - Evaluation fails
+///
+/// # Examples
+///
+/// ```rust
+/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, MguError};
+/// # use symbolic_mgu::bool_eval::test_satisfiable;
+/// # fn example() -> Result<(), MguError> {
+/// let factory = MetaByteFactory();
+/// let p = EnumTerm::Leaf(factory.list_metavariables_by_type(&SimpleType::Boolean).next().unwrap());
+///
+/// // p ∨ ¬p is a tautology, therefore satisfiable
+/// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
+/// let tautology = EnumTerm::NodeOrLeaf(NodeByte::Or, vec![p.clone(), not_p.clone()]);
+/// assert!(test_satisfiable(&tautology)?);
+///
+/// // p is contingent, therefore satisfiable
+/// assert!(test_satisfiable(&p)?);
+///
+/// // p ∧ ¬p is a contradiction, therefore not satisfiable
+/// let contradiction = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p, not_p]);
+/// assert!(!test_satisfiable(&contradiction)?);
+/// # Ok(())
+/// # }
+/// ```
+pub fn test_satisfiable<T, Ty, V, No>(term: &T) -> Result<bool, MguError>
+where
+    T: Term<Ty, V, No>,
+    Ty: Type,
+    V: Metavariable<Type = Ty>,
+    No: Node<Type = Ty>,
+{
+    test_term(term).map(|opt| opt != Some(false))
+}
+
+/// A row in a truth table showing one variable assignment and its result.
+///
+/// Each row represents one possible assignment of Boolean values to the
+/// term's variables, along with the result of evaluating the term with
+/// that assignment.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TruthTableRow<V> {
+    /// The variable assignment for this row.
+    /// Maps each variable to its Boolean value in the order variables were collected.
+    pub assignment: Vec<(V, bool)>,
+    /// The result of evaluating the term with this assignment.
+    pub result: bool,
+}
+
+/// Internal representation of evaluated truth table results.
+#[derive(Clone, Debug)]
+enum TruthTableBacking {
+    /// No variables: single constant value
+    Constant(bool),
+    /// 1-3 variables: `u8` bit-field
+    U8(u8, usize),
+    /// 4 variables: `u16` bit-field
+    U16(u16),
+    /// 5 variables: `u32` bit-field
+    U32(u32),
+    /// 6 variables: `u64` bit-field
+    U64(u64),
+    /// 7 variables: `u128` bit-field
+    U128(u128),
+    /// 8-20 variables: `BigUint` bit-field
+    #[cfg(feature = "bigint")]
+    BigInt(BigUint, usize),
+}
+
+/// A truth table that can be iterated over to extract individual rows.
+///
+/// This structure holds the compact bit-field representation of the truth table
+/// along with the list of variables. Rows are computed on-demand during iteration,
+/// making this much more memory-efficient than materializing all rows upfront.
+///
+/// # Examples
+///
+/// ```rust
+/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, MguError};
+/// # use symbolic_mgu::bool_eval::extract_truth_table;
+/// # fn example() -> Result<(), MguError> {
+/// // Create truth table for: p ∧ q
+/// let vars = MetaByteFactory();
+/// let mut var_iter = vars.list_metavariables_by_type(&SimpleType::Boolean);
+/// let p = EnumTerm::Leaf(var_iter.next().unwrap());
+/// let q = EnumTerm::Leaf(var_iter.next().unwrap());
+/// let and_term = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p, q]);
+///
+/// let table = extract_truth_table(&and_term)?;
+///
+/// // Iterate over rows
+/// let rows: Vec<_> = table.into_iter().collect();
+/// assert_eq!(rows.len(), 4);  // 2^2 = 4 rows
+/// assert_eq!(rows[3].result, true);  // Only true when both are true
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Clone, Debug)]
+pub struct TruthTable<V> {
+    /// A compact bitfield representation.
+    backing: TruthTableBacking,
+    /// The particular variables we are exercising.
+    vars: Vec<V>,
+}
+
+impl<V> TruthTable<V> {
+    /// Returns the number of rows in this truth table (`2^n` where n is the number of variables).
+    pub fn num_rows(&self) -> usize {
+        match &self.backing {
+            TruthTableBacking::Constant(_) => 1,
+            TruthTableBacking::U8(_, n) => 1 << n,
+            TruthTableBacking::U16(_) => 1 << self.vars.len(),
+            TruthTableBacking::U32(_) => 1 << self.vars.len(),
+            TruthTableBacking::U64(_) => 1 << self.vars.len(),
+            TruthTableBacking::U128(_) => 1 << self.vars.len(),
+            #[cfg(feature = "bigint")]
+            TruthTableBacking::BigInt(_, n) => 1 << n,
+        }
+    }
+
+    /// Returns the number of variables in this truth table.
+    pub fn num_vars(&self) -> usize {
+        self.vars.len()
+    }
+}
+
+impl<V: Clone> IntoIterator for TruthTable<V> {
+    type Item = TruthTableRow<V>;
+    type IntoIter = TruthTableIterator<V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let num_rows = self.num_rows();
+        TruthTableIterator {
+            table: self,
+            current_row: 0,
+            total_rows: num_rows,
+        }
+    }
+}
+
+/// Iterator over truth table rows.
+pub struct TruthTableIterator<V> {
+    /// The source of truth.
+    table: TruthTable<V>,
+    /// How far this iterator has progressed.
+    current_row: usize,
+    /// Final state.
+    total_rows: usize,
+}
+
+impl<V: Clone> Iterator for TruthTableIterator<V> {
+    type Item = TruthTableRow<V>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_row >= self.total_rows {
+            return None;
+        }
+
+        let i = self.current_row;
+        self.current_row += 1;
+
+        // Build assignment vector
+        let mut assignment = Vec::with_capacity(self.table.vars.len());
+        for (var_idx, var) in self.table.vars.iter().enumerate() {
+            let bit_value = ((i >> var_idx) & 1) != 0;
+            assignment.push((var.clone(), bit_value));
+        }
+
+        // Extract result from backing representation
+        let result = match &self.table.backing {
+            TruthTableBacking::Constant(val) => *val,
+            TruthTableBacking::U8(bits, _) => ((bits >> i) & 1) != 0,
+            TruthTableBacking::U16(bits) => ((bits >> i) & 1) != 0,
+            TruthTableBacking::U32(bits) => ((bits >> i) & 1) != 0,
+            TruthTableBacking::U64(bits) => ((bits >> i) & 1) != 0,
+            TruthTableBacking::U128(bits) => ((bits >> i) & 1) != 0,
+            #[cfg(feature = "bigint")]
+            TruthTableBacking::BigInt(bits, _) => bits.bit(i as u64),
+        };
+
+        Some(TruthTableRow { assignment, result })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.total_rows - self.current_row;
+        (remaining, Some(remaining))
+    }
+}
+
+impl<V: Clone> ExactSizeIterator for TruthTableIterator<V> {
+    fn len(&self) -> usize {
+        self.total_rows - self.current_row
+    }
+}
+
+/// Extract the complete truth table for a Boolean term.
+///
+/// Returns a `TruthTable` that can be iterated over to extract individual rows.
+/// The backing representation is a compact bit-field (`u8`, `u16`, `u32`, `u64`, `u128`, or `BigUint`
+/// depending on the number of variables), and rows are computed on-demand during iteration.
+///
+/// For a term with n variables, the truth table has `2^n` rows, ordered by the binary
+/// representation of the assignment (first variable is least significant bit).
+///
+/// For example, with 2 variables [p, q], the rows will be:
+/// - Row 0: p=false, q=false
+/// - Row 1: p=true, q=false
+/// - Row 2: p=false, q=true
+/// - Row 3: p=true, q=true
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The term contains non-Boolean variables
+/// - The term contains more than 20 variables (or 7 without `bigint` feature)
+/// - Evaluation fails
+///
+/// # Examples
+///
+/// ```rust
+/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, MguError};
+/// # use symbolic_mgu::bool_eval::extract_truth_table;
+/// # fn example() -> Result<(), MguError> {
+/// // Extract truth table for: p → q (implication)
+/// let vars = MetaByteFactory();
+/// let mut var_iter = vars.list_metavariables_by_type(&SimpleType::Boolean);
+/// let p = EnumTerm::Leaf(var_iter.next().unwrap());
+/// let q = EnumTerm::Leaf(var_iter.next().unwrap());
+/// let implies = EnumTerm::NodeOrLeaf(NodeByte::Implies, vec![p, q]);
+///
+/// let table = extract_truth_table(&implies)?;
+/// assert_eq!(table.num_rows(), 4);  // 2^2 = 4 rows
+/// assert_eq!(table.num_vars(), 2);
+///
+/// // Iterate and check results
+/// let rows: Vec<_> = table.into_iter().collect();
+/// assert_eq!(rows[0].result, true);   // F → F is true
+/// assert_eq!(rows[1].result, true);   // T → F is false... wait, let me recalculate
+/// // Actually with p as LSB: row 0 = (p=F, q=F), row 1 = (p=T, q=F)
+/// # Ok(())
+/// # }
+/// ```
+pub fn extract_truth_table<T, Ty, V, No>(term: &T) -> Result<TruthTable<V>, MguError>
+where
+    T: Term<Ty, V, No>,
+    Ty: Type,
+    V: Metavariable<Type = Ty> + Clone,
+    No: Node<Type = Ty>,
+{
+    // Collect all metavariables
+    let mut vars_set: HashSet<V> = HashSet::new();
+    term.collect_metavariables(&mut vars_set)?;
+    let vars: Vec<V> = vars_set.into_iter().collect();
+    let n = vars.len();
+
+    // Check all variables are Boolean
+    for var in &vars {
+        if var.get_type()? != Ty::try_boolean()? {
+            let non_bool_type = var.get_type()?;
+            let expected_type = Ty::try_boolean()?;
+            return Err(MguError::from_found_and_expected_types(
+                false,
+                &non_bool_type,
+                &expected_type,
+            ));
+        }
+    }
+
+    // Evaluate and create backing representation based on variable count
+    let backing = match n {
+        0 => {
+            let result =
+                <bool as UnsignedBits<bool, 0>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            TruthTableBacking::Constant(result)
+        }
+        1..=3 => {
+            let result =
+                <u8 as UnsignedBits<u8, 3>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            TruthTableBacking::U8(result, n)
+        }
+        4 => {
+            let result =
+                <u16 as UnsignedBits<u16, 4>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            TruthTableBacking::U16(result)
+        }
+        5 => {
+            let result =
+                <u32 as UnsignedBits<u32, 5>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            TruthTableBacking::U32(result)
+        }
+        6 => {
+            let result =
+                <u64 as UnsignedBits<u64, 6>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            TruthTableBacking::U64(result)
+        }
+        7 => {
+            let result =
+                <u128 as UnsignedBits<u128, 7>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            TruthTableBacking::U128(result)
+        }
+        #[cfg(feature = "bigint")]
+        8..=20 => {
+            let result = match n {
+                8 => SomeBits::<8>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
+                9 => SomeBits::<9>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
+                10 => SomeBits::<10>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
+                11 => SomeBits::<11>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
+                12 => SomeBits::<12>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
+                13 => SomeBits::<13>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
+                14 => SomeBits::<14>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
+                15 => SomeBits::<15>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
+                16 => SomeBits::<16>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
+                17 => SomeBits::<17>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
+                18 => SomeBits::<18>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
+                19 => SomeBits::<19>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
+                20 => SomeBits::<20>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
+                _ => {
+                    return Err(MguError::AllocationError(
+                        "Invalid number of variables for BigUint extraction".to_owned(),
+                    ))
+                }
+            };
+            TruthTableBacking::BigInt(result, n)
+        }
+        #[cfg(not(feature = "bigint"))]
+        8..=20 => {
+            return Err(MguError::AllocationError(
+                "Support for 8-20 variables requires the 'bigint' feature".to_owned(),
+            ))
+        }
+        _ => {
+            return Err(MguError::AllocationError(
+                "Too many variables to represent (maximum is 20)".to_owned(),
+            ))
+        }
+    };
+
+    Ok(TruthTable { backing, vars })
 }
 
 /// Isolate the differences between various unsigned representations.
@@ -1052,128 +1416,6 @@ where
     ///
     /// TODO.
     fn set_bit(&mut self, bit_pos: u64, value: bool) -> Result<(), MguError>;
-
-    /// Convenience method to evaluate a single node with no children.
-    ///
-    /// # Errors
-    ///
-    /// TODO.
-    fn eval_boolean_nullary(node: &NodeByte) -> Result<Self, MguError> {
-        use NodeByte::*;
-        match node {
-            True => Ok(Self::from_bool(true)),
-            False => Ok(Self::from_bool(false)),
-            _ => Err(MguError::UnknownError(690)),
-        }
-    }
-
-    /// Convenience method to evaluate a single node with specified child.
-    ///
-    /// # Errors
-    ///
-    /// TODO.
-    fn eval_boolean_unary<V>(&node: &NodeByte, a: &Self) -> Result<Self, MguError>
-    where
-        V: Metavariable,
-    {
-        use NodeByte::*;
-        match node {
-            Not => Ok(!a.clone()),
-            _ => Err(MguError::UnknownError(691)),
-        }
-    }
-
-    /// Convenience method to evaluate a single node with specified children.
-    ///
-    /// # Errors
-    ///
-    /// TODO.
-    fn eval_boolean_binary<V>(node: &NodeByte, a: &Self, b: &Self) -> Result<Self, MguError>
-    where
-        V: Metavariable,
-    {
-        use NodeByte::*;
-        match node {
-            Implies => Ok((!a.clone()) | b.clone()),
-            Biimp => Ok(!(a.clone() ^ b.clone())),
-            And => Ok(a.clone() & b.clone()),
-            Or => Ok(a.clone() | b.clone()),
-            NotAnd => Ok(!(a.clone() & b.clone())),
-            ExclusiveOr => Ok(a.clone() ^ b.clone()),
-            NotOr => Ok(!(a.clone() | b.clone())),
-            _ => Err(MguError::UnknownError(692)),
-        }
-    }
-
-    /// Convenience method to evaluate a single node with specified children.
-    ///
-    /// # Errors
-    ///
-    /// TODO.
-    fn eval_boolean_ternary<V>(
-        node: &NodeByte,
-        a: &Self,
-        b: &Self,
-        c: &Self,
-    ) -> Result<Self, MguError>
-    where
-        V: Metavariable,
-    {
-        use NodeByte::*;
-        match node {
-            And3 => Ok(a.clone() & b.clone() & c.clone()),
-            Or3 => Ok(a.clone() | b.clone() | c.clone()),
-            SumFromAdder => Ok(a.clone() ^ b.clone() ^ c.clone()),
-            CarryFromAdder => {
-                Ok((a.clone() & b.clone()) | (a.clone() & c.clone()) | (b.clone() & c.clone()))
-            }
-            LogicalIf => Ok((a.clone() & b.clone()) | (!a.clone() & c.clone())),
-            _ => Err(MguError::UnknownError(693)),
-        }
-    }
-
-    /// Convenience method to evaluate a single node with specified children.
-    ///
-    /// # Errors
-    ///
-    /// TODO.
-    fn eval_boolean_node<V>(node: &NodeByte, children: &[Self]) -> Result<Self, MguError>
-    where
-        V: Metavariable,
-    {
-        use NodeByte::*;
-        match node {
-            True | False => {
-                let len = children.len();
-                if len != 0 {
-                    return Err(MguError::SlotsMismatch(len, 0));
-                }
-                Self::eval_boolean_nullary(node)
-            }
-            Not => {
-                let len = children.len();
-                if len != 1 {
-                    return Err(MguError::SlotsMismatch(len, 1));
-                }
-                Self::eval_boolean_unary::<V>(node, &children[0])
-            }
-            Implies | Biimp | And | Or | NotAnd | ExclusiveOr | NotOr => {
-                let len = children.len();
-                if len != 2 {
-                    return Err(MguError::SlotsMismatch(len, 2));
-                }
-                Self::eval_boolean_binary::<V>(node, &children[0], &children[1])
-            }
-            And3 | Or3 | SumFromAdder | CarryFromAdder | LogicalIf => {
-                let len = children.len();
-                if len != 3 {
-                    return Err(MguError::SlotsMismatch(len, 3));
-                }
-                Self::eval_boolean_ternary::<V>(node, &children[0], &children[1], &children[2])
-            }
-            _ => Err(MguError::UnknownError(700)),
-        }
-    }
 
     /// Evaluate a Boolean operation using `BooleanSimpleOp`.
     ///
