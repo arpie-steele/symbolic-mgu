@@ -41,55 +41,59 @@ fn arbitrary_class_var() -> impl Strategy<Value = MetaByte> {
 }
 
 /// Generate a simple Boolean term (variable, or binary operation on variables).
+#[allow(dead_code)]
 fn arbitrary_boolean_term_simple() -> impl Strategy<Value = TestTerm> {
     prop_oneof![
         // Leaf: just a Boolean variable
-        arbitrary_boolean_var().prop_map(|var| {
-            TestFactory::new().create_leaf(var).expect("leaf creation")
-        }),
+        arbitrary_boolean_var()
+            .prop_map(|var| { TestFactory::new().create_leaf(var).expect("leaf creation") }),
         // Binary operation: op(var1, var2)
         (arbitrary_boolean_var(), arbitrary_boolean_var()).prop_map(|(v1, v2)| {
             let factory = TestFactory::new();
             let t1 = factory.create_leaf(v1).expect("leaf");
             let t2 = factory.create_leaf(v2).expect("leaf");
-            factory.create_node(NodeByte::Implies, vec![t1, t2]).expect("node")
+            factory
+                .create_node(NodeByte::Implies, vec![t1, t2])
+                .expect("node")
         }),
     ]
 }
 
 /// Generate a Boolean term with controlled depth (0-2).
 fn arbitrary_boolean_term(depth: u32) -> impl Strategy<Value = TestTerm> {
-    let leaf = arbitrary_boolean_var().prop_map(|var| {
-        TestFactory::new().create_leaf(var).expect("leaf creation")
-    });
+    let leaf = arbitrary_boolean_var()
+        .prop_map(|var| TestFactory::new().create_leaf(var).expect("leaf creation"));
 
     leaf.prop_recursive(depth, 8, 3, |inner| {
         (inner.clone(), inner.clone()).prop_map(|(t1, t2)| {
-            TestFactory::new().create_node(NodeByte::Implies, vec![t1, t2]).expect("node")
+            TestFactory::new()
+                .create_node(NodeByte::Implies, vec![t1, t2])
+                .expect("node")
         })
     })
 }
 
 /// Generate a Setvar term (just variables for now).
+#[allow(dead_code)]
 fn arbitrary_setvar_term() -> impl Strategy<Value = TestTerm> {
-    arbitrary_setvar().prop_map(|var| {
-        TestFactory::new().create_leaf(var).expect("leaf creation")
-    })
+    arbitrary_setvar().prop_map(|var| TestFactory::new().create_leaf(var).expect("leaf creation"))
 }
 
 /// Generate a Class term (Setvar or equality).
+#[allow(dead_code)]
 fn arbitrary_class_term() -> impl Strategy<Value = TestTerm> {
     prop_oneof![
         // A setvar is a class
-        arbitrary_setvar().prop_map(|var| {
-            TestFactory::new().create_leaf(var).expect("leaf creation")
-        }),
+        arbitrary_setvar()
+            .prop_map(|var| { TestFactory::new().create_leaf(var).expect("leaf creation") }),
         // Equality of two setvars
         (arbitrary_setvar(), arbitrary_setvar()).prop_map(|(v1, v2)| {
             let factory = TestFactory::new();
             let t1 = factory.create_leaf(v1).expect("leaf");
             let t2 = factory.create_leaf(v2).expect("leaf");
-            factory.create_node(NodeByte::Equals, vec![t1, t2]).expect("node")
+            factory
+                .create_node(NodeByte::Equals, vec![t1, t2])
+                .expect("node")
         }),
     ]
 }
@@ -110,12 +114,16 @@ fn arbitrary_disjoint_boolean_terms() -> impl Strategy<Value = (TestTerm, TestTe
         // t1 uses only v1 and v2
         let t1_left = factory.create_leaf(v1).expect("leaf");
         let t1_right = factory.create_leaf(v2).expect("leaf");
-        let t1 = factory.create_node(NodeByte::Implies, vec![t1_left, t1_right]).expect("node");
+        let t1 = factory
+            .create_node(NodeByte::Implies, vec![t1_left, t1_right])
+            .expect("node");
 
         // t2 uses only v3 and v4 (disjoint from t1)
         let t2_left = factory.create_leaf(v3).expect("leaf");
         let t2_right = factory.create_leaf(v4).expect("leaf");
-        let t2 = factory.create_node(NodeByte::Implies, vec![t2_left, t2_right]).expect("node");
+        let t2 = factory
+            .create_node(NodeByte::Implies, vec![t2_left, t2_right])
+            .expect("node");
 
         (t1, t2)
     })
@@ -137,18 +145,18 @@ proptest! {
         prop_assert_eq!(result1.is_ok(), result2.is_ok(),
             "unify(t1, t2) and unify(t2, t1) must both succeed or both fail");
 
-        if let (Ok(σ1), Ok(σ2)) = (result1, result2) {
+        if let (Ok(sigma1), Ok(sigma2)) = (result1, result2) {
             // Apply substitutions
-            let t1_σ1 = apply_substitution(&factory, &σ1, &t1)?;
-            let t2_σ1 = apply_substitution(&factory, &σ1, &t2)?;
-            let t1_σ2 = apply_substitution(&factory, &σ2, &t1)?;
-            let t2_σ2 = apply_substitution(&factory, &σ2, &t2)?;
+            let t1_sigma1 = apply_substitution(&factory, &sigma1, &t1)?;
+            let t2_sigma1 = apply_substitution(&factory, &sigma1, &t2)?;
+            let t1_sigma2 = apply_substitution(&factory, &sigma2, &t1)?;
+            let t2_sigma2 = apply_substitution(&factory, &sigma2, &t2)?;
 
             // After unification, t1·σ1 should equal t2·σ1
-            prop_assert_eq!(&t1_σ1, &t2_σ1, "unify(t1,t2): t1·σ != t2·σ");
+            prop_assert_eq!(&t1_sigma1, &t2_sigma1, "unify(t1,t2): t1·σ != t2·σ");
 
             // After unification, t1·σ2 should equal t2·σ2
-            prop_assert_eq!(&t1_σ2, &t2_σ2, "unify(t2,t1): t1·σ != t2·σ");
+            prop_assert_eq!(&t1_sigma2, &t2_sigma2, "unify(t2,t1): t1·σ != t2·σ");
         }
     }
 }
@@ -164,10 +172,10 @@ proptest! {
         let factory = TestFactory::new();
 
         // Try to unify t1 and t2
-        if let Ok(σ) = unify(&factory, &t1, &t2) {
+        if let Ok(sigma) = unify(&factory, &t1, &t2) {
             // Apply substitution to get unified terms
-            let t1_prime = apply_substitution(&factory, &σ, &t1)?;
-            let t2_prime = apply_substitution(&factory, &σ, &t2)?;
+            let t1_prime = apply_substitution(&factory, &sigma, &t1)?;
+            let t2_prime = apply_substitution(&factory, &sigma, &t2)?;
 
             // t1' and t2' should be identical
             prop_assert_eq!(&t1_prime, &t2_prime, "Unified terms should be identical");
@@ -177,10 +185,10 @@ proptest! {
             prop_assert!(result.is_ok(), "Unifying unified terms should succeed");
 
             // Result should be empty or identity substitution
-            if let Ok(σ_prime) = result {
+            if let Ok(sigma_prime) = result {
                 // Applying σ' shouldn't change anything
-                let t1_twice = apply_substitution(&factory, &σ_prime, &t1_prime)?;
-                let t2_twice = apply_substitution(&factory, &σ_prime, &t2_prime)?;
+                let t1_twice = apply_substitution(&factory, &sigma_prime, &t1_prime)?;
+                let t2_twice = apply_substitution(&factory, &sigma_prime, &t2_prime)?;
                 prop_assert_eq!(&t1_twice, &t1_prime, "Re-unifying should not change t1'");
                 prop_assert_eq!(&t2_twice, &t2_prime, "Re-unifying should not change t2'");
             }
@@ -200,9 +208,9 @@ proptest! {
         let result = unify(&factory, &t, &t);
         prop_assert!(result.is_ok(), "Any term should unify with itself");
 
-        if let Ok(σ) = result {
+        if let Ok(sigma) = result {
             // Applying σ to t should give back t (or something equivalent)
-            let t_prime = apply_substitution(&factory, &σ, &t)?;
+            let t_prime = apply_substitution(&factory, &sigma, &t)?;
             prop_assert_eq!(&t_prime, &t, "Unifying with self should not change term");
         }
     }
@@ -220,9 +228,9 @@ proptest! {
     ) {
         let factory = TestFactory::new();
 
-        if let Ok(σ) = unify(&factory, &t1, &t2) {
-            let t1_prime = apply_substitution(&factory, &σ, &t1)?;
-            let t2_prime = apply_substitution(&factory, &σ, &t2)?;
+        if let Ok(sigma) = unify(&factory, &t1, &t2) {
+            let t1_prime = apply_substitution(&factory, &sigma, &t1)?;
+            let t2_prime = apply_substitution(&factory, &sigma, &t2)?;
 
             // The whole point of unification: t1·σ == t2·σ
             prop_assert_eq!(&t1_prime, &t2_prime,
@@ -241,14 +249,14 @@ proptest! {
                                    t2 in arbitrary_boolean_term(2)) {
         let factory = TestFactory::new();
 
-        if let Ok(σ) = unify(&factory, &t1, &t2) {
+        if let Ok(sigma) = unify(&factory, &t1, &t2) {
             // Apply once
-            let t1_once = apply_substitution(&factory, &σ, &t1)?;
-            let t2_once = apply_substitution(&factory, &σ, &t2)?;
+            let t1_once = apply_substitution(&factory, &sigma, &t1)?;
+            let t2_once = apply_substitution(&factory, &sigma, &t2)?;
 
             // Apply twice
-            let t1_twice = apply_substitution(&factory, &σ, &t1_once)?;
-            let t2_twice = apply_substitution(&factory, &σ, &t2_once)?;
+            let t1_twice = apply_substitution(&factory, &sigma, &t1_once)?;
+            let t2_twice = apply_substitution(&factory, &sigma, &t2_once)?;
 
             // Should be identical
             prop_assert_eq!(&t1_once, &t1_twice, "σ(σ(t1)) == σ(t1)");
@@ -300,9 +308,9 @@ proptest! {
         prop_assert!(result.is_ok(),
             "Class variable should unify with Setvar term (Setvar ⊆ Class)");
 
-        if let Ok(σ) = result {
+        if let Ok(sigma) = result {
             // Substitution should bind class_var → setvar
-            let class_after = apply_substitution(&factory, &σ, &class_term)?;
+            let class_after = apply_substitution(&factory, &sigma, &class_term)?;
             prop_assert_eq!(&class_after, &setvar_term,
                 "Class var should be bound to Setvar term");
         }
@@ -322,9 +330,9 @@ proptest! {
         let result = unify(&factory, &setvar_term, &class_term);
 
         // This should succeed by binding the class_var, not the setvar
-        if let Ok(σ) = result {
-            let setvar_after = apply_substitution(&factory, &σ, &setvar_term)?;
-            let class_after = apply_substitution(&factory, &σ, &class_term)?;
+        if let Ok(sigma) = result {
+            let setvar_after = apply_substitution(&factory, &sigma, &setvar_term)?;
+            let class_after = apply_substitution(&factory, &sigma, &class_term)?;
 
             // Both should now be the setvar
             prop_assert_eq!(&setvar_after, &setvar_term, "Setvar should remain unchanged");

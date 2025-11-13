@@ -136,7 +136,7 @@ impl Metavariable for MetaByte {
 impl MetaByte {
     /// Get LaTeX representation.
     ///
-    /// For MetaByte, this is just the ASCII character.
+    /// For `MetaByte`, this is just the ASCII character.
     fn to_latex(self) -> String {
         self.to_str()
     }
