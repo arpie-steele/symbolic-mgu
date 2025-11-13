@@ -63,18 +63,6 @@ impl MetaByte {
 
     /// Return an iterator over Metavariables.
     ///
-    /// Let 𝑀ₜ be the set of metavariables of TYPE t. We get this list, in canonical
-    /// order, via the iterator returned by the this method.
-    pub fn enumerate(for_type: SimpleType) -> impl Iterator<Item = Self> {
-        use SimpleType::*;
-        let data = match for_type {
-            Boolean => OUR_BOOLEANS,
-            Setvar => OUR_SETVARS,
-            Class => OUR_CLASSES,
-        };
-        data.as_bytes().iter().copied().map(MetaByte)
-    }
-
     /// Every metavariable has a string display form.
     ///
     /// This methods need not check that the item is valid data for Metavariable purposes.
@@ -122,10 +110,6 @@ impl Metavariable for MetaByte {
 
     fn try_from_type_and_index(my_type: SimpleType, my_index: usize) -> Result<Self, MguError> {
         Self::try_from_type_and_index(my_type, my_index)
-    }
-
-    fn enumerate(for_type: SimpleType) -> impl Iterator<Item = Self> {
-        Self::enumerate(for_type)
     }
 
     fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {

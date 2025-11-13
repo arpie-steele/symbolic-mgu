@@ -144,10 +144,14 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// use symbolic_mgu::{Term, EnumTerm, MetaByte, NodeByte, SimpleType, get_formatter};
+    /// use symbolic_mgu::{Term, EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, get_formatter};
     ///
-    /// let term: EnumTerm<SimpleType, MetaByte, NodeByte> =
-    ///     EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap());
+    /// let vars = MetaByteFactory();
+    /// let var = vars
+    ///     .list_metavariables_by_type(&SimpleType::Boolean)
+    ///     .next()
+    ///     .unwrap();
+    /// let term: EnumTerm<SimpleType, MetaByte, NodeByte> = EnumTerm::Leaf(var);
     /// let formatter = get_formatter("utf8");
     /// let output = term.format_with(&*formatter);
     /// assert_eq!(output, "P");

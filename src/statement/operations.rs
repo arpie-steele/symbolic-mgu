@@ -8,13 +8,13 @@
 //! - `condensed_detach`: Meredith's condensed detachment (modus ponens application)
 
 use super::base::Statement;
+use crate::logic::{modus_ponens, MP_MAJOR_PREMISE, MP_MINOR_PREMISE};
 use crate::{
-    apply_substitution,
-    logic::{modus_ponens, MP_MAJOR_PREMISE, MP_MINOR_PREMISE},
-    unify, DistinctnessGraph, Metavariable, MetavariableFactory, MguError, Node, Substitution,
-    Term, TermFactory, Type,
+    apply_substitution, unify, DistinctnessGraph, Metavariable, MetavariableFactory, MguError,
+    Node, Substitution, Term, TermFactory, Type,
 };
-use std::{collections::HashSet, marker::PhantomData};
+use std::collections::HashSet;
+use std::marker::PhantomData;
 
 impl<Ty, V, N, T> Statement<Ty, V, N, T>
 where
@@ -526,14 +526,19 @@ where
     ///
     /// ```rust
     /// use symbolic_mgu::{Statement, MetaByte, Metavariable, SimpleType, NodeByte, Node};
-    /// use symbolic_mgu::{EnumTerm, EnumTermFactory, MetaByteFactory};
+    /// use symbolic_mgu::{EnumTerm, EnumTermFactory, MetaByteFactory, MetavariableFactory};
+    /// use itertools::Itertools;
     ///
     /// let var_factory = MetaByteFactory();
     /// let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
     ///
     /// // Create φ₂ → φ₅ (non-canonical variables)
-    /// let phi2 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 2).unwrap();
-    /// let phi5 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 5).unwrap();
+    /// let vars = MetaByteFactory();
+    /// let (_, _, phi2, _, _, phi5) = vars
+    ///         .list_metavariables_by_type(&SimpleType::Boolean)
+    ///         .tuples()
+    ///         .next()
+    ///         .unwrap();
     /// let implies = NodeByte::Implies;
     ///
     /// let phi2_term: EnumTerm<SimpleType, MetaByte, NodeByte> = EnumTerm::Leaf(phi2);
@@ -555,7 +560,7 @@ where
     /// Returns an error if variable or term creation fails.
     pub fn canonicalize<VF, TF>(
         &self,
-        _var_factory: &VF,
+        var_factory: &VF,
         term_factory: &TF,
     ) -> Result<Self, MguError>
     where
@@ -585,7 +590,10 @@ where
 
             // Create iterators for each type
             for typ in types_seen {
-                type_iterators.insert(typ.clone(), Box::new(V::enumerate(typ)));
+                type_iterators.insert(
+                    typ.clone(),
+                    Box::new(var_factory.list_metavariables_by_type(&typ)),
+                );
             }
 
             // Build variable renaming map via pre-order traversal

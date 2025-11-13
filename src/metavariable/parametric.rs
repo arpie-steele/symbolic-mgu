@@ -216,13 +216,6 @@ where
         usize::MAX
     }
 
-    fn enumerate(for_type: Ty) -> impl Iterator<Item = Self> {
-        (0usize..).map(move |index| {
-            ParametricMetavariable::try_from_type_and_index(for_type, index)
-                .expect("enumeration should always succeed")
-        })
-    }
-
     fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
         match formatter.name() {
             "ascii" => self.format_as_ascii(),
@@ -284,8 +277,10 @@ mod tests {
     }
 
     #[test]
-    fn parametric_metavariable_enumerate() {
-        let vars: Vec<_> = TestVar::enumerate(SimpleType::Boolean).take(15).collect();
+    fn parametric_metavariable_sequence() {
+        let vars: Vec<_> = (0..15)
+            .map(|i| TestVar::try_from_type_and_index(SimpleType::Boolean, i).unwrap())
+            .collect();
 
         // First 12 should be base characters
         assert_eq!(vars[0].to_string(), "𝜑");

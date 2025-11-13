@@ -76,7 +76,8 @@ impl MetavariableFactory for WideMetavariableFactory {
         the_type: &Self::MetavariableType,
     ) -> Self::MetavariableIterator<'_> {
         // Return boxed iterator for unlimited variables
-        Box::new(WideMetavariable::enumerate(*the_type))
+        let typ = *the_type;
+        Box::new((0..).map(move |i| WideMetavariable::try_from_type_and_index(typ, i).unwrap()))
     }
 }
 

@@ -4,7 +4,8 @@
 //! and theorems in a logical system.
 
 use crate::{DistinctnessGraph, Metavariable, MguError, Node, Term, Type};
-use std::{collections::HashSet, marker::PhantomData};
+use std::collections::HashSet;
+use std::marker::PhantomData;
 
 /// The primary object representing an axiom, inference rule, or
 /// statement of a theorem.

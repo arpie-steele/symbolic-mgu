@@ -576,17 +576,19 @@ pub fn is_supported_op(node: &NodeByte) -> bool {
 /// # Examples
 ///
 /// ```rust
-/// # use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, bool_eval::test_term, MguError};
+/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, MguError};
+/// # use symbolic_mgu::bool_eval::test_term;
 /// # fn example() -> Result<(), MguError> {
 /// // Test law of excluded middle: p ∨ ¬p
-/// let p = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
+/// let vars = MetaByteFactory();
+/// let p = EnumTerm::Leaf(vars.list_metavariables_by_type(&SimpleType::Boolean).next().unwrap());
 /// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
 /// let law = EnumTerm::NodeOrLeaf(NodeByte::Or, vec![p, not_p]);
 ///
 /// assert_eq!(test_term(&law)?, Some(true));  // Tautology
 ///
 /// // Test contradiction: p ∧ ¬p
-/// let p2 = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
+/// let p2 = EnumTerm::Leaf(vars.list_metavariables_by_type(&SimpleType::Boolean).next().unwrap());
 /// let not_p2 = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p2.clone()]);
 /// let contradiction = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p2, not_p2]);
 ///
@@ -594,7 +596,7 @@ pub fn is_supported_op(node: &NodeByte) -> bool {
 ///
 /// // Test contingent formula: p
 /// let p3: EnumTerm<SimpleType, MetaByte, NodeByte> =
-///     EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
+///     EnumTerm::Leaf(vars.list_metavariables_by_type(&SimpleType::Boolean).next().unwrap());
 ///
 /// assert_eq!(test_term(&p3)?, None);  // Contingent
 /// # Ok(())
@@ -912,10 +914,11 @@ where
 /// # Examples
 ///
 /// ```rust
-/// # use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, bool_eval::test_tautology, MguError};
+/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, MguError};
+/// # use symbolic_mgu::bool_eval::test_tautology;
 /// # fn example() -> Result<(), MguError> {
 /// // Test law of excluded middle: p ∨ ¬p
-/// let p = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
+/// let p = EnumTerm::Leaf(MetaByteFactory().list_metavariables_by_type(&SimpleType::Boolean).next().unwrap());
 /// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
 /// let law = EnumTerm::NodeOrLeaf(NodeByte::Or, vec![p, not_p]);
 ///
@@ -948,10 +951,11 @@ where
 /// # Examples
 ///
 /// ```rust
-/// # use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, bool_eval::test_contradiction, MguError};
+/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, MguError};
+/// # use symbolic_mgu::bool_eval::test_contradiction;
 /// # fn example() -> Result<(), MguError> {
 /// // Test a simple contradiction: p ∧ ¬p
-/// let p = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
+/// let p = EnumTerm::Leaf(MetaByteFactory().list_metavariables_by_type(&SimpleType::Boolean).next().unwrap());
 /// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
 /// let law = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p, not_p]);
 ///
@@ -984,10 +988,11 @@ where
 /// # Examples
 ///
 /// ```rust
-/// # use symbolic_mgu::{EnumTerm, MetaByte, NodeByte, SimpleType, bool_eval::test_contingent, MguError};
+/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, MguError};
+/// # use symbolic_mgu::bool_eval::test_contingent;
 /// # fn example() -> Result<(), MguError> {
 /// // Test term which is neither always true nor always false: p → ¬p
-/// let p = EnumTerm::Leaf(MetaByte::try_from_type_and_index(SimpleType::Boolean, 0)?);
+/// let p = EnumTerm::Leaf(MetaByteFactory().list_metavariables_by_type(&SimpleType::Boolean).next().unwrap());
 /// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
 /// let law = EnumTerm::NodeOrLeaf(NodeByte::Implies, vec![p, not_p]);
 ///
@@ -1510,6 +1515,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::MetavariableFactory;
+
     use super::*;
     use strum::VariantArray;
 
@@ -1783,10 +1790,14 @@ mod tests {
     /// Test law of excluded middle: p ∨ ¬p is a tautology.
     #[test]
     fn tautology_simple() {
-        use crate::{EnumTerm, MetaByte, SimpleType};
+        use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
 
         // Create variable p
-        let p_var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let vars = MetaByteFactory();
+        let p_var = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
         let p_term = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
 
         // Create ¬p
@@ -1805,10 +1816,14 @@ mod tests {
     /// Test that p ∧ ¬p is not a tautology (it's a contradiction).
     #[test]
     fn tautology_not_tautology() {
-        use crate::{EnumTerm, MetaByte, SimpleType};
+        use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
 
         // Create variable p
-        let p_var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let vars = MetaByteFactory();
+        let p_var = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
         let p_term = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
 
         // Create ¬p
@@ -1827,11 +1842,17 @@ mod tests {
     /// Test <span style="white-space: nowrap">De Morgan's</span> law: ¬(p ∧ q) ↔ (¬p ∨ ¬q) is a tautology.
     #[test]
     fn tautology_de_morgan() {
-        use crate::{EnumTerm, MetaByte, SimpleType};
+        use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
+        use itertools::Itertools;
 
         // Create variables p and q
-        let p_var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
-        let q_var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 1).unwrap();
+
+        let vars = MetaByteFactory();
+        let (p_var, q_var) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
         let p = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
         let q = EnumTerm::Leaf(q_var);
 

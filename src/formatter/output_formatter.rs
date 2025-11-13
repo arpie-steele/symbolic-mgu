@@ -30,11 +30,12 @@ use super::color::Color;
 /// # Examples
 ///
 /// ```rust
-/// use symbolic_mgu::{OutputFormatter, get_formatter, Metavariable, MetaByte, SimpleType};
+/// use symbolic_mgu::{OutputFormatter, get_formatter, Metavariable, MetavariableFactory, MetaByte, MetaByteFactory, SimpleType};
 ///
 /// let formatter = get_formatter("utf8");
 /// // Formatting is done via Metavariable/Node/Term format_with() methods
-/// let var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+/// let vars = MetaByteFactory();
+/// let var = vars.list_metavariables_by_type(&SimpleType::Boolean).next().unwrap();
 /// let output = var.format_with(&*formatter);
 /// println!("{}", output);
 /// ```

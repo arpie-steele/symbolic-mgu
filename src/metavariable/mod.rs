@@ -63,13 +63,8 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + Partia
     ///
     /// # Errors
     /// - Returns an error if the index exceeds the maximum for this type
+    /// - Returns an error if the index is incompatible with this type
     fn try_from_type_and_index(my_type: Self::Type, my_index: usize) -> Result<Self, MguError>;
-
-    /// Enumerate all metavariables of the given type, starting from index 0.
-    ///
-    /// For implementations with unlimited variables, this iterator is infinite.
-    /// For limited implementations, it terminates at the maximum index.
-    fn enumerate(for_type: Self::Type) -> impl Iterator<Item = Self>;
 
     /// Format this metavariable with the given formatter.
     ///
@@ -90,9 +85,9 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + Partia
     /// # Examples
     ///
     /// ```rust
-    /// use symbolic_mgu::{Metavariable, MetaByte, SimpleType, get_formatter};
+    /// use symbolic_mgu::{Metavariable, MetaByte, MetaByteFactory, MetavariableFactory, SimpleType, get_formatter};
     ///
-    /// let var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+    /// let var = MetaByteFactory().list_metavariables_by_type(&SimpleType::Boolean).next().unwrap();
     /// let formatter = get_formatter("utf8");
     /// let output = var.format_with(&*formatter);
     /// assert_eq!(output, "P");
@@ -116,9 +111,9 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + Partia
     /// # Examples
     ///
     /// ```rust
-    /// use symbolic_mgu::{Metavariable, MetaByte, SimpleType};
+    /// use symbolic_mgu::{Metavariable, MetaByte, MetaByteFactory, MetavariableFactory, SimpleType};
     ///
-    /// let var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+    /// let var = MetaByteFactory().list_metavariables_by_type(&SimpleType::Boolean).next().unwrap();
     /// let ascii = var.to_ascii();
     /// assert_eq!(ascii, "ph"); // "ph" for φ
     /// ```
@@ -140,9 +135,9 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + Partia
     /// # Examples
     ///
     /// ```rust
-    /// use symbolic_mgu::{Metavariable, MetaByte, SimpleType};
+    /// use symbolic_mgu::{Metavariable, MetaByte, MetaByteFactory, MetavariableFactory, SimpleType};
     ///
-    /// let var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+    /// let var = MetaByteFactory().list_metavariables_by_type(&SimpleType::Boolean).next().unwrap();
     /// let utf8 = var.to_utf8();
     /// assert_eq!(utf8, "P"); // MetaByte uses ASCII
     /// ```

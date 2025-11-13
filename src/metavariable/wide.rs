@@ -39,10 +39,11 @@
 //! let phi_1 = WideMetavariable::try_from_type_and_index(SimpleType::Boolean, 12).unwrap();
 //! assert_eq!(phi_1.to_string(), "𝜑₁");
 //!
-//! // Enumerate variables
-//! let mut bools = WideMetavariable::enumerate(SimpleType::Boolean);
-//! assert_eq!(bools.next().unwrap().to_string(), "𝜑");
-//! assert_eq!(bools.next().unwrap().to_string(), "𝜓");
+//! // Create multiple variables by index
+//! let phi = WideMetavariable::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+//! let psi = WideMetavariable::try_from_type_and_index(SimpleType::Boolean, 1).unwrap();
+//! assert_eq!(phi.to_string(), "𝜑");
+//! assert_eq!(psi.to_string(), "𝜓");
 //! ```
 
 use crate::{ParametricMetavariable, SimpleType, WideCharSet};
@@ -281,7 +282,7 @@ pub const WIDE_CLASSES_ASCII: &[&str] = &[
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Metavariable;
+    use crate::{Metavariable, MetavariableFactory, WideMetavariableFactory};
     use std::collections::HashSet;
 
     #[test]
@@ -331,6 +332,8 @@ mod tests {
         assert!(!WIDE_SETVARS.is_ascii());
         assert!(!WIDE_CLASSES.is_ascii());
 
+        let v_factory = WideMetavariableFactory();
+
         let n = WIDE_BOOLEANS.chars().count();
         for (i, ch) in WIDE_BOOLEANS.chars().enumerate() {
             let x = WideMetavariable::try_from_type_and_index(SimpleType::Boolean, i).unwrap();
@@ -338,12 +341,22 @@ mod tests {
             assert_eq!(x.get_type_and_index(), Ok((SimpleType::Boolean, i)));
             let y = WideMetavariable::try_from_type_and_index(SimpleType::Boolean, i);
             assert_eq!(y, Ok(x));
+            let z = v_factory
+                .list_metavariables_by_type(&SimpleType::Boolean)
+                .nth(i)
+                .unwrap();
+            assert_eq!(z, x);
 
             let x = WideMetavariable::try_from_type_and_index(SimpleType::Boolean, i + n).unwrap();
             assert_eq!(x.to_string(), ch.to_string() + "₁");
             assert_eq!(x.get_type_and_index(), Ok((SimpleType::Boolean, i + n)));
             let y = WideMetavariable::try_from_type_and_index(SimpleType::Boolean, i + n);
             assert_eq!(y, Ok(x));
+            let z = v_factory
+                .list_metavariables_by_type(&SimpleType::Boolean)
+                .nth(i + n)
+                .unwrap();
+            assert_eq!(z, x);
         }
 
         let n = WIDE_SETVARS.chars().count();
@@ -353,12 +366,22 @@ mod tests {
             assert_eq!(x.get_type_and_index(), Ok((SimpleType::Setvar, i)));
             let y = WideMetavariable::try_from_type_and_index(SimpleType::Setvar, i);
             assert_eq!(y, Ok(x));
+            let z = v_factory
+                .list_metavariables_by_type(&SimpleType::Setvar)
+                .nth(i)
+                .unwrap();
+            assert_eq!(z, x);
 
             let x = WideMetavariable::try_from_type_and_index(SimpleType::Setvar, i + n).unwrap();
             assert_eq!(x.to_string(), ch.to_string() + "₁");
             assert_eq!(x.get_type_and_index(), Ok((SimpleType::Setvar, i + n)));
             let y = WideMetavariable::try_from_type_and_index(SimpleType::Setvar, i + n);
             assert_eq!(y, Ok(x));
+            let z = v_factory
+                .list_metavariables_by_type(&SimpleType::Setvar)
+                .nth(i + n)
+                .unwrap();
+            assert_eq!(z, x);
         }
 
         let n = WIDE_CLASSES.chars().count();
@@ -368,27 +391,52 @@ mod tests {
             assert_eq!(x.get_type_and_index(), Ok((SimpleType::Class, i)));
             let y = WideMetavariable::try_from_type_and_index(SimpleType::Class, i);
             assert_eq!(y, Ok(x));
+            let z = v_factory
+                .list_metavariables_by_type(&SimpleType::Class)
+                .nth(i)
+                .unwrap();
+            assert_eq!(z, x);
 
             let x = WideMetavariable::try_from_type_and_index(SimpleType::Class, i + n).unwrap();
             assert_eq!(x.to_string(), ch.to_string() + "₁");
             assert_eq!(x.get_type_and_index(), Ok((SimpleType::Class, i + n)));
             let y = WideMetavariable::try_from_type_and_index(SimpleType::Class, i + n);
             assert_eq!(y, Ok(x));
+            let z = v_factory
+                .list_metavariables_by_type(&SimpleType::Class)
+                .nth(i + n)
+                .unwrap();
+            assert_eq!(z, x);
         }
 
         let mut uniques = HashSet::new();
         for t in [SimpleType::Boolean, SimpleType::Setvar, SimpleType::Class] {
-            for i in WideMetavariable::enumerate(t).take(100) {
-                assert_eq!(i.get_type(), Ok(t));
-                assert!(uniques.insert(i));
+            for index in 0..100 {
+                let var = WideMetavariable::try_from_type_and_index(t, index).unwrap();
+                assert_eq!(var.get_type(), Ok(t));
+                assert!(uniques.insert(var));
             }
         }
     }
 
     #[test]
-    fn enumerate_produces_unique_variables() {
-        // Test that enumeration produces unique variables
-        let vars: Vec<_> = WideMetavariable::enumerate(SimpleType::Boolean)
+    fn sequential_variables_are_unique() {
+        // Test that sequential index-based variables are unique
+        let vars: Vec<_> = (0..100)
+            .map(|i| WideMetavariable::try_from_type_and_index(SimpleType::Boolean, i).unwrap())
+            .collect();
+        let unique_vars: HashSet<_> = vars.iter().cloned().collect();
+
+        assert_eq!(
+            vars.len(),
+            unique_vars.len(),
+            "All sequential variables should be unique"
+        );
+
+        // New Style, use factory
+        let v_factory = WideMetavariableFactory();
+        let vars: Vec<_> = v_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
             .take(100)
             .collect();
         let unique_vars: HashSet<_> = vars.iter().cloned().collect();
@@ -396,7 +444,7 @@ mod tests {
         assert_eq!(
             vars.len(),
             unique_vars.len(),
-            "All enumerated variables should be unique"
+            "All sequential variables should be unique"
         );
     }
 
@@ -413,9 +461,24 @@ mod tests {
             (1200, first_bool.clone() + "₁₀₀"), // Three-digit subscript
         ];
 
+        let v_factory = WideMetavariableFactory();
+
         for (index, expected) in test_cases {
             let var =
                 WideMetavariable::try_from_type_and_index(SimpleType::Boolean, index).unwrap();
+            assert_eq!(
+                var.to_string(),
+                expected,
+                "Index {} should format as {}",
+                index,
+                expected
+            );
+
+            // New Style (inferior for large index in this case)
+            let var = v_factory
+                .list_metavariables_by_type(&SimpleType::Boolean)
+                .nth(index)
+                .unwrap();
             assert_eq!(
                 var.to_string(),
                 expected,

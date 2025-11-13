@@ -8,7 +8,8 @@ use crate::{
     apply_substitution, DistinctnessGraph, Metavariable, MguError, Node, Substitution, Term,
     TermFactory, Type,
 };
-use std::{collections::HashSet, marker::PhantomData};
+use std::collections::HashSet;
+use std::marker::PhantomData;
 
 impl<Ty, V, N, T> Statement<Ty, V, N, T>
 where

@@ -65,15 +65,18 @@ where
     /// # Examples
     ///
     /// ```
-    /// use symbolic_mgu::{Statement, EnumTermFactory, MetaByte, MetaByteFactory, NodeByte, SimpleType, TermFactory};
+    /// use symbolic_mgu::{Statement, EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, TermFactory};
+    /// use itertools::Itertools;
     ///
     /// let term_factory = EnumTermFactory::new();
     /// let var_factory = MetaByteFactory();
     ///
     /// // Create two simple axioms
-    /// let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-    /// let p = vars.next().unwrap();
-    /// let q = vars.next().unwrap();
+    /// let (p, q) = var_factory
+    ///         .list_metavariables_by_type(&SimpleType::Boolean)
+    ///         .tuples()
+    ///         .next()
+    ///         .unwrap();
     ///
     /// // Create (P → P) - specific structure
     /// let p_term = term_factory.create_leaf(p).unwrap();
@@ -244,16 +247,17 @@ where
     /// # Examples
     ///
     /// ```
-    /// use symbolic_mgu::{Statement, EnumTermFactory, MetaByteFactory, MetaByte, NodeByte, SimpleType, DistinctnessGraph, TermFactory};
+    /// use symbolic_mgu::{Statement, EnumTermFactory, MetaByteFactory, MetavariableFactory, MetaByte, NodeByte, SimpleType, DistinctnessGraph, TermFactory};
+    /// use itertools::Itertools;
     ///
     /// let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> = EnumTermFactory::new();
     /// let var_factory = MetaByteFactory();
     ///
-    /// let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-    /// let p = vars.next().unwrap();
-    /// let q = vars.next().unwrap();
-    /// let r = vars.next().unwrap();
-    /// let s = vars.next().unwrap();
+    /// let (p, q, r, s) = var_factory
+    ///         .list_metavariables_by_type(&SimpleType::Boolean)
+    ///         .tuples()
+    ///         .next()
+    ///         .unwrap();
     ///
     /// // Create two statements with same structure, different variable names:
     /// // s1: Q from P
@@ -345,6 +349,7 @@ where
 mod tests {
     use super::*;
     use crate::{EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, NodeByte, SimpleType};
+    use itertools::Itertools;
 
     /// Type aliases for tests
     type TestStatement =
@@ -363,8 +368,10 @@ mod tests {
         // Any statement should be included in itself
         let (term_factory, var_factory) = setup();
 
-        let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-        let p = vars.next().unwrap();
+        let p = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
 
         let p_term = term_factory.create_leaf(p).unwrap();
         let stmt = TestStatement::simple_axiom(p_term).unwrap();
@@ -379,8 +386,10 @@ mod tests {
         // Any statement should be identical to itself
         let (term_factory, var_factory) = setup();
 
-        let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-        let p = vars.next().unwrap();
+        let p = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
 
         let p_term = term_factory.create_leaf(p).unwrap();
         let stmt = TestStatement::simple_axiom(p_term).unwrap();
@@ -397,9 +406,12 @@ mod tests {
         // s1 ⊆ s2 (equivalently: s2 ⊇ s1) because σ = {Q ↦ Implies(P, P)} makes `A_s2·σ = A_s1`
         let (term_factory, var_factory) = setup();
 
-        let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-        let p = vars.next().unwrap();
-        let q = vars.next().unwrap();
+        let vars = MetaByteFactory();
+        let (p, q) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
 
         // Create Implies(P, P) - specific structure
         let p_term = term_factory.create_leaf(p).unwrap();
@@ -424,11 +436,12 @@ mod tests {
         // Statements with same structure but different variable names are identical
         let (term_factory, var_factory) = setup();
 
-        let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-        let p = vars.next().unwrap();
-        let q = vars.next().unwrap();
-        let r = vars.next().unwrap();
-        let s = vars.next().unwrap();
+        let vars = MetaByteFactory();
+        let (p, q, r, s) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
 
         // Create two statements with same structure, different variable names:
         // s1: Q from P
@@ -450,10 +463,12 @@ mod tests {
         // Statements with same hypotheses in different order should be identical
         let (term_factory, var_factory) = setup();
 
-        let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-        let p = vars.next().unwrap();
-        let q = vars.next().unwrap();
-        let r = vars.next().unwrap();
+        let vars = MetaByteFactory();
+        let (p, q, r) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
 
         let p_term = term_factory.create_leaf(p).unwrap();
         let q_term = term_factory.create_leaf(q).unwrap();
@@ -484,10 +499,12 @@ mod tests {
         // s2 ⊄ s1 because collapsing to one hypothesis would violate P≠Q
         let (term_factory, var_factory) = setup();
 
-        let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-        let p = vars.next().unwrap();
-        let q = vars.next().unwrap();
-        let r = vars.next().unwrap();
+        let vars = MetaByteFactory();
+        let (p, q, r) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
 
         let p_term = term_factory.create_leaf(p).unwrap();
         let q_term = term_factory.create_leaf(q).unwrap();
@@ -520,9 +537,12 @@ mod tests {
         // Statements with incompatible structures are not included
         let (term_factory, var_factory) = setup();
 
-        let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-        let p = vars.next().unwrap();
-        let q = vars.next().unwrap();
+        let vars = MetaByteFactory();
+        let (p, q) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
 
         let p_term = term_factory.create_leaf(p).unwrap();
         let q_term = term_factory.create_leaf(q).unwrap();
@@ -550,9 +570,12 @@ mod tests {
         // when checking inclusion
         let (term_factory, var_factory) = setup();
 
-        let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-        let p = vars.next().unwrap();
-        let q = vars.next().unwrap();
+        let vars = MetaByteFactory();
+        let (p, q) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
 
         let p_term = term_factory.create_leaf(p).unwrap();
         let q_term = term_factory.create_leaf(q).unwrap();

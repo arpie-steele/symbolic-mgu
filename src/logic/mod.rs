@@ -57,15 +57,15 @@ pub fn require_var_is_boolean<V: Metavariable>(some_var: &V) -> Result<(), MguEr
 ///
 /// ```
 /// use symbolic_mgu::logic::modus_ponens;
-/// use symbolic_mgu::{EnumTermFactory, MetaByte, Metavariable, NodeByte, SimpleType};
+/// use symbolic_mgu::{EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, Metavariable, NodeByte, SimpleType};
+/// use itertools::Itertools;
 ///
 /// // Create factory for building terms
 /// let factory = EnumTermFactory::new();
 ///
 /// // Get two boolean metavariables
-/// let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-/// let phi = vars.next().unwrap();
-/// let psi = vars.next().unwrap();
+/// let vars = MetaByteFactory();
+/// let (phi, psi) = vars.list_metavariables_by_type(&SimpleType::Boolean).tuples().next().unwrap();
 ///
 /// // Create Modus Ponens: (ψ; φ, (φ → ψ); ∅)
 /// let mp = modus_ponens(&factory, phi, psi, NodeByte::Implies).unwrap();
@@ -128,14 +128,14 @@ where
 ///
 /// ```
 /// use symbolic_mgu::logic::simp;
-/// use symbolic_mgu::{EnumTermFactory, MetaByte, Metavariable, NodeByte, SimpleType};
+/// use symbolic_mgu::{EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, Metavariable, NodeByte, SimpleType};
+/// use itertools::Itertools;
 ///
 /// // Create factory for building terms
 /// let factory = EnumTermFactory::new();
 ///
-/// let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-/// let phi = vars.next().unwrap();
-/// let psi = vars.next().unwrap();
+/// let vars = MetaByteFactory();
+/// let (phi, psi) = vars.list_metavariables_by_type(&SimpleType::Boolean).tuples().next().unwrap();
 ///
 /// // Create Simp axiom: ((φ → (ψ → φ)); ∅; ∅)
 /// let axiom = simp(&factory, phi, psi, NodeByte::Implies).unwrap();
@@ -191,15 +191,14 @@ where
 ///
 /// ```
 /// use symbolic_mgu::logic::frege;
-/// use symbolic_mgu::{EnumTermFactory, MetaByte, Metavariable, NodeByte, SimpleType};
+/// use symbolic_mgu::{EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, Metavariable, NodeByte, SimpleType};
+/// use itertools::Itertools;
 ///
 /// // Create factory for building terms
 /// let factory = EnumTermFactory::new();
 ///
-/// let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-/// let phi = vars.next().unwrap();
-/// let psi = vars.next().unwrap();
-/// let chi = vars.next().unwrap();
+/// let vars = MetaByteFactory();
+/// let (phi, psi, chi) = vars.list_metavariables_by_type(&SimpleType::Boolean).tuples().next().unwrap();
 ///
 /// // Create Frege axiom (distributivity)
 /// let axiom = frege(&factory, phi, psi, chi, NodeByte::Implies).unwrap();
@@ -275,14 +274,14 @@ where
 ///
 /// ```
 /// use symbolic_mgu::logic::transp;
-/// use symbolic_mgu::{EnumTermFactory, MetaByte, Metavariable, NodeByte, SimpleType};
+/// use symbolic_mgu::{EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, Metavariable, NodeByte, SimpleType};
+/// use itertools::Itertools;
 ///
 /// // Create factory for building terms
 /// let factory = EnumTermFactory::new();
 ///
-/// let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-/// let phi = vars.next().unwrap();
-/// let psi = vars.next().unwrap();
+/// let vars = MetaByteFactory();
+/// let (phi, psi) = vars.list_metavariables_by_type(&SimpleType::Boolean).tuples().next().unwrap();
 ///
 /// // Create Transp axiom (contrapositive)
 /// let axiom = transp(&factory, phi, psi, NodeByte::Not, NodeByte::Implies).unwrap();

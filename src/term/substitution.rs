@@ -618,8 +618,12 @@ where
 
 #[cfg(test)]
 mod tests {
+    use itertools::Itertools;
+
     use super::*;
-    use crate::{EnumTerm, MetaByte, MetavariableFactory, NodeByte, NodeFactory, SimpleType};
+    use crate::{
+        EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, NodeFactory, SimpleType,
+    };
 
     type TestTerm = EnumTerm<SimpleType, MetaByte, NodeByte>;
 
@@ -668,7 +672,11 @@ mod tests {
 
     #[test]
     fn single_binding() {
-        let var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let vars = MetaByteFactory();
+        let var = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
         let term = TestTerm::Leaf(var);
 
         let mut subst = Substitution::new();
@@ -681,7 +689,11 @@ mod tests {
     #[test]
     fn identical_terms_unify() {
         let factory = TestTermFactory;
-        let var1 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let vars = MetaByteFactory();
+        let var1 = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
         let term1 = TestTerm::Leaf(var1);
         let term2 = TestTerm::Leaf(var1);
 
@@ -694,8 +706,12 @@ mod tests {
     #[test]
     fn different_variables_unify() {
         let factory = TestTermFactory;
-        let var1 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
-        let var2 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 1).unwrap();
+        let vars = MetaByteFactory();
+        let (var1, var2) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
         let term1 = TestTerm::Leaf(var1);
         let term2 = TestTerm::Leaf(var2);
 
@@ -708,8 +724,15 @@ mod tests {
     #[test]
     fn type_mismatch_fails() {
         let factory = TestTermFactory;
-        let var_bool = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
-        let var_class = MetaByte::try_from_type_and_index(SimpleType::Class, 0).unwrap();
+        let vars = MetaByteFactory();
+        let var_bool = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
+        let var_class = vars
+            .list_metavariables_by_type(&SimpleType::Class)
+            .next()
+            .unwrap();
         let term_bool = TestTerm::Leaf(var_bool);
         let term_class = TestTerm::Leaf(var_class);
 
@@ -719,7 +742,10 @@ mod tests {
 
     #[test]
     fn occurs_check_detects_cycle() {
-        let var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let var = MetaByteFactory()
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
         let term_var = TestTerm::Leaf(var);
 
         // Create term: Not(var)
@@ -735,7 +761,11 @@ mod tests {
     #[test]
     fn occurs_check_prevents_unification() {
         let factory = TestTermFactory;
-        let var = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let vars = MetaByteFactory();
+        let var = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
         let term_var = TestTerm::Leaf(var);
 
         // Create term: Not(var)
@@ -750,8 +780,12 @@ mod tests {
     #[test]
     fn apply_substitution_to_var() {
         let factory = TestTermFactory;
-        let var1 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
-        let var2 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 1).unwrap();
+        let vars = MetaByteFactory();
+        let (var1, var2) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
         let term1 = TestTerm::Leaf(var1);
         let term2 = TestTerm::Leaf(var2);
 
@@ -766,8 +800,12 @@ mod tests {
     #[test]
     fn apply_substitution_to_node() {
         let factory = TestTermFactory;
-        let var1 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
-        let var2 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 1).unwrap();
+        let vars = MetaByteFactory();
+        let (var1, var2) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
         let term1 = TestTerm::Leaf(var1);
         let term2 = TestTerm::Leaf(var2);
 
