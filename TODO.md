@@ -1,8 +1,8 @@
 # symbolic-mgu TODO List
 
-## 📊 Overall Progress: ~92% Complete
+## 📊 Overall Progress: ~95% Complete
 
-**Summary of v010 branch status (as of v0.1.0-alpha.10):**
+**Summary of v010 branch status (as of v0.1.0-alpha.11):**
 
 | Phase | Status | Completion | Notes |
 |-------|--------|------------|-------|
@@ -13,21 +13,24 @@
 | Phase 4: Testing | ✅ Complete | 100% | 24 tests covering all operations |
 | Phase 5: Unification | ✅ Complete | 100% | Robinson's MGU fully backported |
 | Phase 6: Enhanced Testing API | ✅ Complete | 100% | test_term(), test_contradiction(), test_contingent() |
-| Phase 7: rustmgu Backport | 🚧 In Progress | 92% | Logic, proofs, inclusion, operations, binary, regression, WideMetavariable, formatters complete |
+| Phase 7: rustmgu Backport | 🚧 In Progress | 93% | Logic, proofs, inclusion, operations, binary, regression, ParametricMetavariable, formatters, property tests, canonicalization complete |
 
 **Status for v0.1.0 final release (~1 week away):**
-- ✅ **All tests passing** - 112 tests total (62 unit + 4 integration + 46 doctests)
-  - 62 lib unit tests (includes 12 formatter tests)
-  - 4 integration tests (regression_compact_proofs.rs)
-  - 46 doctests
+- ✅ **All tests passing** - 106 tests total (90 unit + 12 property + 4 regression)
+  - 90 lib unit tests (includes 12 formatter tests)
+  - 12 property-based tests (unification_properties.rs)
+  - 4 regression tests (regression_compact_proofs.rs)
+  - 64 doctests (some ignored)
 - ✅ **All UnsignedBits types** - bool, u8, u16, u32, u64, u128, BigUint
 - ✅ **Unification algorithm** - Substitution, MGU, occurs check
 - ✅ **Statement operations** - substitute, apply, contract
 - ✅ **Compact binary** - Working with verification and formatter support
 - ✅ **Regression tests** - DDD111D23, DDD1D221D2D2D11 validate disjointness fix
-- ✅ **WideMetavariable** - Unlimited variable space for long proofs (Phase 7.9)
-  - ASCII mapping documentation complete with full character tables
-  - 12 Boolean, 24 Setvar, 24 Class characters documented
+- ✅ **ParametricMetavariable** - Generic metavariable with flexible decoration (Phase 7.9)
+  - Replaced WideMetavariable with more general design
+  - Generic over Type system, decorator type (subscripts/primes), and character set
+  - New types: WideCharSet, Prime, Decorator
+  - 12 Boolean, 24 Setvar, 24 Class characters in WideCharSet
   - Formatter integration complete (format_with() implemented)
 - ✅ **Output formatters** - 6 formatters implemented (Phase 7.10)
   - ASCII, UTF-8, UTF-8-color, HTML, HTML-color, LaTeX
@@ -35,7 +38,22 @@
   - Type-based coloring for metavariables
   - Integrated with compact binary (--format flag)
 - ✅ **Quality gates pass** - clippy, doc, test all clean (zero warnings)
-- ✅ **Property testing ready** - proptest 1.5.0 added to dev-dependencies
+- ✅ **Property-based testing** - 12 comprehensive tests using proptest 1.5.0
+  - Commutativity, idempotence, reflexivity of unification
+  - Type safety with correct Setvar ⊆ Class subtyping
+  - Occurs check, structural compatibility
+- ✅ **v0.1.0-alpha.11 major changes:**
+  - Upgraded to strum-0.27.2
+  - New Statement::canonicalize() method
+  - Ord trait added to Metavariable, Node, Term, Type (supports canonicalization)
+  - Macro for testing BooleanSimpleOp against primitive unsigned ints (wider testing)
+  - Replaced WideMetavariable with more general ParametricMetavariable
+  - Moved test_validity (of Statements) from compact binary to bool_eval module
+  - Removed Default trait requirement from many implementations
+  - crate::bool_eval::generated_enum now private module, BooleanSimpleOp re-exported from bool_eval
+  - WideMetavariable constants exported under new names
+  - New types: WideCharSet, Prime, Decorator for ParametricMetavariable
+  - MetaByte simplification: Truly ASCII-only (returns literal characters like "P")
 - ⚠️ **Documentation gaps** - Module docs exist but could be expanded
 - 🚧 **Backporting from rustmgu** - See Phase 7 below
 
@@ -459,7 +477,7 @@ pub trait BooleanNode {
 
 ---
 
-## Phase 7: rustmgu Feature Backport - 🚧 85% Complete
+## Phase 7: rustmgu Feature Backport - 🚧 93% Complete
 
 **Status**: Backporting mature features from rustmgu (edition 2024) to symbolic-mgu (edition 2018)
 
@@ -800,117 +818,120 @@ cargo run --bin compact -- D__ DD211 DD2D111
 - [x] All tests passing (41 unit tests, 36 doctests)
 - [ ] Document usage in README.md (future enhancement)
 
-### 7.8: Integration Tests - ⏳ 0% Complete
+### 7.8: Integration Tests - 🚧 40% Complete
 
 **Goal**: Add comprehensive integration tests from rustmgu.
 
-**Test Files to Create**:
+**Completed in v0.1.0-alpha.11:**
+
+1. ✅ **tests/unification_properties.rs** (407 lines)
+   - 12 comprehensive property-based tests using proptest 1.5.0
+   - **Core unification properties**:
+     - Commutativity (modulo variable renaming for disjoint terms)
+     - Idempotence (unified terms unify trivially)
+     - Reflexivity (any term unifies with itself)
+     - Successful unification produces identical terms
+     - Substitution idempotence
+   - **Safety properties**:
+     - Occurs check prevents cycles (x ↦ f(x))
+     - Type safety with correct Setvar ⊆ Class subtyping
+     - Structural compatibility (arity/operator mismatches fail)
+   - Covers all fundamental properties of Robinson's unification algorithm
+
+2. ✅ **tests/regression_compact_proofs.rs** (4 tests)
+   - Validates DDD111D23 and DDD1D221D2D2D11 proofs
+   - Verifies disjointness bug fix (relabel_disjoint before unification)
+   - Tests compact proof parsing end-to-end
+
+**Test Files Still to Create**:
 
 1. **tests/pmproofs_validation.rs** (~500 lines)
    - Validate Principia Mathematica proofs
    - Real-world theorem proving examples
-   - Tests compact proof parsing end-to-end
+   - Additional compact proof parsing tests
 
-2. **tests/property_tests.rs** (~200 lines)
-   - Property-based testing using proptest (✓ already added)
-   - Generate random terms/statements
-   - Test unification properties (idempotence, commutativity)
-
-3. **tests/apply_equivalence_test.rs** (~100 lines)
+2. **tests/apply_equivalence_test.rs** (~100 lines)
    - Verify apply() behavior
 
-4. **tests/test_condensed_detach.rs** (~100 lines)
+3. **tests/test_condensed_detach.rs** (~100 lines)
    - Test condensed_detach() vs apply(contract())
 
 **Complexity**: Low-Medium (mostly data + test harness)
 **Dependencies**:
-- compact_proof.rs for PM tests
-- proptest for property tests (✓ ready)
-- condensed_detach() for equivalence tests
+- compact_proof.rs for PM tests (✓ complete)
+- proptest for property tests (✓ complete)
+- condensed_detach() for equivalence tests (✓ complete)
 
 **Priority**: ⭐⭐⭐ **HIGH** (validates backported code)
 
 **Action Items:**
+- [x] Add regression tests for DDD111D23 and DDD1D221D2D2D11 - **COMPLETE**
+- [x] Create tests/unification_properties.rs - **COMPLETE (v0.1.0-alpha.11)**
+- [x] Define proptest strategies for Term - **COMPLETE**
 - [ ] Create tests/pmproofs_validation.rs
 - [ ] Port PM proof data from rustmgu
-- [x] Add regression tests for DDD111D23 and DDD1D221D2D2D11 (disjointness bug) - **COMPLETE**
-  - Created tests/regression_compact_proofs.rs with 4 tests
-  - Validates both proofs parse and produce tautologies
-  - Verifies disjointness bug fix (relabel_disjoint before unification)
-  - TODO: Exact canonical form comparison deferred to statement equivalence
-- [ ] Create tests/property_tests.rs
-- [ ] Define proptest strategies for Term, Statement
 - [ ] Create tests/apply_equivalence_test.rs
-- [ ] Create tests/test_condensed_detach.rs (if operation ported)
+- [ ] Create tests/test_condensed_detach.rs
 - [ ] Integrate subproofs.json tests (verify each produces tautology)
 
-### 7.9: WideMetavariable Backport - ✅ 100% Complete
+### 7.9: ParametricMetavariable Implementation - ✅ 100% Complete (v0.1.0-alpha.11)
 
-**Goal**: Backport WideMetavariable from rustmgu to support long proofs with >256 variables.
-
-**Source**: `~/projects/rustmgu/src/metavariable/wide.rs` (251 lines)
+**Goal**: Implement generic ParametricMetavariable to replace WideMetavariable with more flexible design.
 
 **What's been implemented:**
 
-1. ✅ **WideMetavariable Struct** (src/metavariable/wide.rs - 292 lines)
-   ```rust
-   /// Metavariable with unlimited index space (Type, usize)
-   /// Display: main UTF-8 char (𝜑, 𝑥, 𝐴) + optional subscript (₁₂₃)
-   #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
-   pub struct WideMetavariable(Type, usize);
-   ```
+1. ✅ **ParametricMetavariable<Ty, U, CharSet>** (src/metavariable/parametric.rs)
+   - Generic over Type system (Ty), decorator type (U), and character set
+   - Display: base char from CharSet + optional decorator (subscripts, primes, etc.)
+   - Supports any decoration style via type parameter U
 
-2. ✅ **WideMetavariableFactory** (src/metavariable/wide_factory.rs - 152 lines)
-   - Follows factory pattern (no class methods)
+2. ✅ **Decorator Types** (src/metavariable/decorator.rs)
+   - `()` - No decoration (φ, ψ, χ)
+   - `usize` - Numeric subscripts (φ, φ₁, φ₂...)
+   - `u8` - Compact subscripts (0-255)
+   - `Prime` - Prime notation (φ, φ′, φ″, φ‴)
+
+3. ✅ **WideCharSet Type** (src/metavariable/charset.rs)
+   - Character set abstraction for ASCII/UTF-8/LaTeX representations
+   - Compile-time const arrays (zero cost, no trait overhead)
+   - Constants for Boolean (12 chars), Setvar (24 chars), Class (24 chars)
+   - Mathematical Italic Unicode: 𝜑𝜓𝜒... (Greek), 𝑥𝑦𝑧... (lowercase), 𝐴𝐵𝐶... (uppercase)
+
+4. ✅ **Character Constants Exported**
+   - Exported under new names from crate root
+   - Available for use with ParametricMetavariable
+
+5. ✅ **Factory Pattern Integration**
+   - Factory implementation for ParametricMetavariable
    - Stateless implementation
-   - Boxed iterator for unlimited enumeration
+   - Enumeration support
 
-3. ✅ **Character Constants**
-   - `OUR_BOOLEANS`: 𝜑𝜓𝜒𝜃𝜏𝜂𝜁𝜎𝜌𝜇𝜆𝜅 (12 Mathematical Italic Greek letters)
-   - `OUR_SETVARS`: 𝑥𝑦𝑧𝑤𝑣𝑢𝑡𝑓𝑔𝑠𝑒ℎ𝑖𝑗𝑘𝑚𝑛𝑜𝑟𝑞𝑝𝑎𝑏𝑐𝑑𝑙 (24 italic Latin lowercase)
-   - `OUR_CLASSES`: 𝐴𝐵𝐶𝐷𝑃𝑄𝑅𝑆𝑇𝑈𝐸𝐹𝐺𝐻𝐼𝐽𝐾𝐿𝑀𝑁𝑉𝑊𝑋𝑌𝑍𝑂 (24 italic Latin uppercase)
+**Design Benefits:**
+- Type-independent: Works with any Type trait implementation, not just SimpleType
+- Flexible decorators: Choose decoration style via type parameter
+- Format-agnostic storage: Same struct for all output formats
+- Zero-cost abstraction: Compile-time const arrays
+- Human-readable enumeration: Cycles base characters first, then decorators
 
-4. ✅ **Display Implementation**
-   - Main char from appropriate constant array
-   - Subscript digits in Unicode: 0→₀, 1→₁, etc. (U+2080 + digit)
-   - Example: index 0 → 𝜑, index 12 → 𝜑₁, index 153 → 𝜅₁₂
+**Migration from WideMetavariable:**
+- WideMetavariable fully replaced by ParametricMetavariable
+- All tests updated and passing
+- More general and extensible design
 
-5. ✅ **Integration**
-   - Added to src/metavariable/mod.rs
-   - Exported from lib.rs
-   - Comprehensive tests ported and passing
-
-**Enhanced Metavariable Trait:**
-- ✅ Added `max_index_by_type(Type) -> usize` method
-- ✅ Added `try_from_type_and_index(Type, usize) -> Result<Self>` method
-- ✅ Added `enumerate(Type) -> impl Iterator<Item = Self>` method
-
-**Key Differences from rustmgu:**
-- ❌ NO `InfallibleMetavariable` trait (we use Result types)
-- ✅ ADD `WideMetavariableFactory` (factory pattern)
-- ✅ Uses Mathematical Italic Unicode characters (U+1D6xx) not ASCII Greek
-
-**Test Results:**
-- ✅ 93 tests passing (50 unit + 4 integration + 39 doctests)
-- ✅ All quality gates pass (clippy, doc, test)
-- ✅ Zero clippy warnings in new code
-
-**Complexity**: Low (~444 lines including factory + tests)
+**Complexity**: Medium (~600 lines across multiple files)
 **Dependencies**: None (pure addition)
-**Priority**: ⭐⭐⭐ **HIGH** (blocking long proof tests) - **COMPLETE**
+**Priority**: ⭐⭐⭐ **HIGH** - **COMPLETE**
 
 **Action Items:**
-- [x] Create src/metavariable/wide.rs
-- [x] Port WideMetavariable struct and implementation
-- [x] Create src/metavariable/wide_factory.rs
-- [x] Implement WideMetavariableFactory trait
-- [x] Add character constants (OUR_BOOLEANS, OUR_SETVARS, OUR_CLASSES)
-- [x] Implement Display with subscript digits
-- [x] Port unit tests from rustmgu
-- [x] Add to mod.rs and lib.rs exports
-- [x] Fix Unicode character mismatches in tests
-- [x] Fix clippy warnings (backticks, .nth(0) → .next())
-- [ ] Test with compact binary on long proofs (deferred to user testing)
+- [x] Create src/metavariable/parametric.rs
+- [x] Create src/metavariable/decorator.rs (Prime, Decorator trait)
+- [x] Create src/metavariable/charset.rs (WideCharSet)
+- [x] Implement ParametricMetavariable with generic type parameters
+- [x] Add formatter support (format_with() implementation)
+- [x] Replace all WideMetavariable usage with ParametricMetavariable
+- [x] Export character constants under new names
+- [x] Update tests
+- [x] All quality gates passing
 
 ### 7.10: Output Formatter System - ✅ 100% Complete
 
@@ -957,12 +978,13 @@ cargo run --bin compact -- D__ DD211 DD2D111
    - `LatexFormatter`: LaTeX math mode (\varphi, \to, \land, \lor)
 
 7. ✅ **Concrete Implementations**
-   - **MetaByte**: ASCII names (ph, ps, ch, th, ta...), LaTeX Greek, HTML with colors
-   - **WideMetavariable**: Full formatter support with subscripts
-     - UTF-8: Unicode subscript digits (₀₁₂...)
+   - **MetaByte**: Simplified to return literal characters (P, Q, x, A)
+   - **ParametricMetavariable**: Full formatter support with flexible decoration
+     - UTF-8: Unicode subscript digits (₀₁₂...) or primes (′″‴)
      - HTML: Proper `<sub>` tags with normal digits
      - ASCII: Underscore notation (ph_1, ph_2...)
      - LaTeX: Subscript notation (\varphi_1, \varphi_2...)
+     - Supports different decorator types: usize, u8, Prime, ()
    - **NodeByte**: 40+ operators in ASCII, UTF-8, LaTeX formats
    - **EnumTerm**: Recursive formatting with proper parenthesization
 
@@ -998,9 +1020,9 @@ cargo run --bin compact -- D__ DD211 DD2D111
 - [x] Implement GLOBAL_FORMATTER_REGISTRY (OnceLock, object-safe)
 - [x] Add format_with() to Metavariable trait
 - [x] Add format_with() + symbol methods to Node trait
-- [x] Implement MetaByte ASCII names (ph, ps, ch, th, ta...)
+- [x] Implement MetaByte simplified (returns literal characters)
 - [x] Implement MetaByte formatter support (all 6 formats)
-- [x] Implement WideMetavariable formatter support (with subscripts)
+- [x] Implement ParametricMetavariable formatter support (with flexible decoration)
 - [x] Implement NodeByte symbol methods (40+ operators)
 - [x] Implement 6 built-in formatters
 - [x] Add --format flag to compact binary

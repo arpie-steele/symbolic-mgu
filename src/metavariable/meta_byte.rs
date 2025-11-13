@@ -123,52 +123,22 @@ impl Metavariable for MetaByte {
     }
 
     fn to_ascii(&self) -> String {
-        // Metamath-style ASCII names
-        match self.0 as char {
-            // Boolean variables: ph, ps, ch, th, ta, et, ze, si, rh, mu, la
-            'P' => "ph".to_string(),
-            'Q' => "ps".to_string(),
-            'R' => "ch".to_string(),
-            'S' => "th".to_string(),
-            'T' => "ta".to_string(),
-            'U' => "et".to_string(),
-            'V' => "ze".to_string(),
-            'W' => "si".to_string(),
-            'X' => "rh".to_string(),
-            'Y' => "mu".to_string(),
-            'Z' => "la".to_string(),
-            // Setvar and Class: use character as-is
-            c => format!("{}", c),
-        }
+        // MetaByte is simple: just return the ASCII character
+        self.to_str()
     }
 
     fn to_utf8(&self) -> String {
-        // Same as Display implementation for now
+        // MetaByte is ASCII-only, same as to_str()
         self.to_str()
     }
 }
 
 impl MetaByte {
     /// Get LaTeX representation.
+    ///
+    /// For MetaByte, this is just the ASCII character.
     fn to_latex(self) -> String {
-        match self.0 as char {
-            // Boolean variables: Greek letters in LaTeX
-            'P' => r"\varphi".to_string(),
-            'Q' => r"\psi".to_string(),
-            'R' => r"\chi".to_string(),
-            'S' => r"\theta".to_string(),
-            'T' => r"\tau".to_string(),
-            'U' => r"\eta".to_string(),
-            'V' => r"\zeta".to_string(),
-            'W' => r"\sigma".to_string(),
-            'X' => r"\rho".to_string(),
-            'Y' => r"\mu".to_string(),
-            'Z' => r"\lambda".to_string(),
-            // Setvar: lowercase variables
-            c if c.is_ascii_lowercase() => format!("{}", c),
-            // Class: uppercase variables
-            c => format!("{}", c),
-        }
+        self.to_str()
     }
 
     /// Get HTML representation with optional coloring.

@@ -100,13 +100,17 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + Partia
     /// Get ASCII representation of this metavariable.
     ///
     /// This provides a pure ASCII rendering suitable for environments
-    /// that don't support Unicode (e.g., Metamath compatibility, plain text).
+    /// that don't support Unicode (e.g., plain text terminals).
+    ///
+    /// # Implementation Notes
+    ///
+    /// Different implementations may have different conventions:
+    /// - `MetaByte`: Returns the ASCII character directly (e.g., "P", "Q", "x")
+    /// - `WideMetavariable`: Returns Metamath-style ASCII names (e.g., "ph", "ps", "x")
     ///
     /// # Default Implementation
     ///
     /// The default implementation delegates to the Display trait.
-    /// Concrete implementations (like `MetaByte`) should override to provide
-    /// appropriate ASCII names (e.g., "ph", "ps", "ch").
     ///
     /// # Examples
     ///
@@ -115,7 +119,7 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + Partia
     ///
     /// let var = MetaByteFactory().list_metavariables_by_type(&SimpleType::Boolean).next().unwrap();
     /// let ascii = var.to_ascii();
-    /// assert_eq!(ascii, "ph"); // "ph" for φ
+    /// assert_eq!(ascii, "P"); // MetaByte returns literal character
     /// ```
     fn to_ascii(&self) -> String {
         format!("{}", self) // Default: use Display
@@ -123,14 +127,18 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + Partia
 
     /// Get UTF-8 representation of this metavariable.
     ///
-    /// This provides a Unicode rendering with mathematical symbols
-    /// (e.g., φ, ψ, χ for Boolean variables; x, y, z for Setvars).
+    /// This may provide Unicode rendering with mathematical symbols depending
+    /// on the implementation.
+    ///
+    /// # Implementation Notes
+    ///
+    /// Different implementations use different character sets:
+    /// - `MetaByte`: ASCII characters only (e.g., "P", "Q", "x")
+    /// - `WideMetavariable`: Unicode mathematical symbols (e.g., "𝜑", "𝜓", "𝑥")
     ///
     /// # Default Implementation
     ///
     /// The default implementation delegates to the Display trait.
-    /// Concrete implementations should override to provide appropriate
-    /// Unicode symbols.
     ///
     /// # Examples
     ///
@@ -139,7 +147,7 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + Partia
     ///
     /// let var = MetaByteFactory().list_metavariables_by_type(&SimpleType::Boolean).next().unwrap();
     /// let utf8 = var.to_utf8();
-    /// assert_eq!(utf8, "P"); // MetaByte uses ASCII
+    /// assert_eq!(utf8, "P"); // MetaByte uses ASCII only
     /// ```
     fn to_utf8(&self) -> String {
         format!("{}", self) // Default: use Display
