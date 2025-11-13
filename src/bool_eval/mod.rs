@@ -1133,7 +1133,7 @@ enum TruthTableBacking {
 /// ```
 #[derive(Clone, Debug)]
 pub struct TruthTable<V> {
-    /// A compact bitfield representation.
+    /// A compact bit-field representation.
     backing: TruthTableBacking,
     /// The particular variables we are exercising.
     vars: Vec<V>,
