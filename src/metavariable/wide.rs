@@ -29,19 +29,21 @@
 //! # Examples
 //!
 //! ```
-//! use symbolic_mgu::{WideMetavariable, Metavariable, SimpleType};
+//! use symbolic_mgu::{WideMetavariable, WideMetavariableFactory, MetavariableFactory, SimpleType};
+//! use itertools::Itertools;
 //!
-//! // Create first Boolean metavariable
-//! let phi = WideMetavariable::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+//! let factory = WideMetavariableFactory();
+//!
+//! // Get first Boolean metavariable
+//! let phi = factory.list_metavariables_by_type(&SimpleType::Boolean).next().unwrap();
 //! assert_eq!(phi.to_string(), "𝜑");
 //!
-//! // Create with subscript
-//! let phi_1 = WideMetavariable::try_from_type_and_index(SimpleType::Boolean, 12).unwrap();
+//! // Get variable with subscript
+//! let phi_1 = factory.list_metavariables_by_type(&SimpleType::Boolean).nth(12).unwrap();
 //! assert_eq!(phi_1.to_string(), "𝜑₁");
 //!
-//! // Create multiple variables by index
-//! let phi = WideMetavariable::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
-//! let psi = WideMetavariable::try_from_type_and_index(SimpleType::Boolean, 1).unwrap();
+//! // Create multiple variables using tuples
+//! let (phi, psi) = factory.list_metavariables_by_type(&SimpleType::Boolean).tuples().next().unwrap();
 //! assert_eq!(phi.to_string(), "𝜑");
 //! assert_eq!(psi.to_string(), "𝜓");
 //! ```
