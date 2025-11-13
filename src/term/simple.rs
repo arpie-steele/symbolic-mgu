@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::fmt::Display;
 
 /// A simple implementation of [`Term`] based straightforwardly on supplied [`Metavariable`] and [`Node`] implementations.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(
     feature = "serde",
     derive(serde::Serialize, serde::Deserialize),

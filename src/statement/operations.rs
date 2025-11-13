@@ -499,6 +499,189 @@ where
         proofs[MP_MAJOR_PREMISE] = Some(major.clone());
 
         // Apply both statements to modus ponens hypotheses
-        mp.apply_multiple(var_factory, term_factory, &proofs)
+        let result = mp.apply_multiple(var_factory, term_factory, &proofs)?;
+
+        // Canonicalize the result to ensure consistent variable naming
+        result.canonicalize(var_factory, term_factory)
+    }
+
+    /// Return a canonical form of this statement.
+    ///
+    /// Canonical form provides a unique representative for α-equivalent statements
+    /// by renaming variables to minimal lexicographic ordering and reordering hypotheses.
+    ///
+    /// # Algorithm
+    ///
+    /// 1. Try all permutations of hypothesis orderings
+    /// 2. For each permutation, traverse (`assertion`, `hyp`\[n-1\], ..., `hyp`\[0\]) in pre-order
+    /// 3. Assign fresh variables (starting from index 0) in encounter order
+    /// 4. Keep the lexicographically minimal result
+    ///
+    /// # Computational Cost
+    ///
+    /// This operation has factorial complexity in the number of hypotheses.
+    /// For statements with many hypotheses, this may be expensive.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use symbolic_mgu::{Statement, MetaByte, Metavariable, SimpleType, NodeByte, Node};
+    /// use symbolic_mgu::{EnumTerm, EnumTermFactory, MetaByteFactory};
+    ///
+    /// let var_factory = MetaByteFactory();
+    /// let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
+    ///
+    /// // Create φ₂ → φ₅ (non-canonical variables)
+    /// let phi2 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 2).unwrap();
+    /// let phi5 = MetaByte::try_from_type_and_index(SimpleType::Boolean, 5).unwrap();
+    /// let implies = NodeByte::Implies;
+    ///
+    /// let phi2_term: EnumTerm<SimpleType, MetaByte, NodeByte> = EnumTerm::Leaf(phi2);
+    /// let phi5_term = EnumTerm::Leaf(phi5);
+    /// let implication = EnumTerm::NodeOrLeaf(implies, vec![phi2_term, phi5_term]);
+    ///
+    /// let stmt = Statement::simple_axiom(implication).unwrap();
+    ///
+    /// // Canonicalize to get (φ₀ → φ₁)
+    /// let canonical = stmt.canonicalize(&var_factory, &term_factory).unwrap();
+    ///
+    /// // The canonical form uses φ₀ and φ₁
+    /// let vars = canonical.collect_metavariables().unwrap();
+    /// assert_eq!(vars.len(), 2); // Two variables remain
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if variable or term creation fails.
+    pub fn canonicalize<VF, TF>(
+        &self,
+        _var_factory: &VF,
+        term_factory: &TF,
+    ) -> Result<Self, MguError>
+    where
+        VF: MetavariableFactory<Metavariable = V, MetavariableType = Ty>,
+        TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N, TermMetavariable = V>,
+    {
+        use itertools::Itertools;
+        use std::collections::HashMap;
+
+        let all_vars = self.collect_metavariables()?;
+        let n_hyp = self.hypotheses.len();
+
+        // Track the best canonical form found
+        let mut best_canonical: Option<Self> = None;
+
+        // Try all permutations of hypothesis orderings
+        for perm in (0..n_hyp).permutations(n_hyp) {
+            // Create fresh iterator for each metavariable type by collecting all types
+            let mut type_iterators: HashMap<Ty, Box<dyn Iterator<Item = V>>> = HashMap::new();
+
+            // Collect all unique types from variables
+            let mut types_seen = HashSet::new();
+            for var in &all_vars {
+                let (var_type, _) = var.get_type_and_index()?;
+                types_seen.insert(var_type);
+            }
+
+            // Create iterators for each type
+            for typ in types_seen {
+                type_iterators.insert(typ.clone(), Box::new(V::enumerate(typ)));
+            }
+
+            // Build variable renaming map via pre-order traversal
+            // Visit order: (`assertion`, `hyp[perm[n-1]]`, ..., `hyp[perm[0]]`)
+            let mut var_map: HashMap<V, V> = HashMap::new();
+
+            // Collect terms to traverse in order
+            let mut terms_to_traverse = vec![&self.assertion];
+            for &idx in perm.iter().rev() {
+                terms_to_traverse.push(&self.hypotheses[idx]);
+            }
+
+            // Traverse each term
+            for term in terms_to_traverse {
+                let mut stack = vec![term];
+
+                while let Some(current) = stack.pop() {
+                    if let Some(v) = current.get_metavariable() {
+                        // If we haven't seen this variable, map it to next fresh variable
+                        if !var_map.contains_key(&v) {
+                            let (var_type, _) = v.get_type_and_index()?;
+                            let iter = type_iterators.get_mut(&var_type).ok_or_else(|| {
+                                MguError::AllocationError(format!(
+                                    "No iterator for type {:?}",
+                                    var_type
+                                ))
+                            })?;
+                            let fresh = iter.next().ok_or_else(|| {
+                                MguError::AllocationError(
+                                    "Ran out of fresh metavariables".to_string(),
+                                )
+                            })?;
+                            var_map.insert(v.clone(), fresh);
+                        }
+                    } else {
+                        // Pre-order: visit children in natural order (left to right)
+                        // Push in reverse order so we pop in natural order
+                        let children: Vec<_> = current.get_children().collect();
+                        for child in children.iter().rev() {
+                            stack.push(child);
+                        }
+                    }
+
+                    // Early exit if we've mapped all variables
+                    if var_map.len() == all_vars.len() {
+                        break;
+                    }
+                }
+
+                // Early exit if we've mapped all variables
+                if var_map.len() == all_vars.len() {
+                    break;
+                }
+            }
+
+            // Apply the variable renaming to create candidate
+            let candidate = self.apply_var_substitution(term_factory, &var_map)?;
+
+            // Reorder hypotheses according to permutation
+            let mut reordered_hyps = Vec::with_capacity(n_hyp);
+            for &idx in &perm {
+                reordered_hyps.push(candidate.hypotheses[idx].clone());
+            }
+
+            let reordered_candidate = Self {
+                _not_used: PhantomData,
+                assertion: candidate.assertion.clone(),
+                hypotheses: reordered_hyps,
+                distinctness_graph: candidate.distinctness_graph.clone(),
+            };
+
+            // Compare lexicographically: (`assertion`, `hyp[n-1]`, ..., `hyp[0]`)
+            // Keep the smallest
+            let is_better = if let Some(ref best) = best_canonical {
+                // Compare assertion first
+                match reordered_candidate.assertion.cmp(&best.assertion) {
+                    std::cmp::Ordering::Less => true,
+                    std::cmp::Ordering::Greater => false,
+                    std::cmp::Ordering::Equal => {
+                        // Compare hypotheses in reverse order
+                        let candidate_hyps_rev: Vec<_> =
+                            reordered_candidate.hypotheses.iter().rev().collect();
+                        let best_hyps_rev: Vec<_> = best.hypotheses.iter().rev().collect();
+                        candidate_hyps_rev < best_hyps_rev
+                    }
+                }
+            } else {
+                true // First candidate is automatically best
+            };
+
+            if is_better {
+                best_canonical = Some(reordered_candidate);
+            }
+        }
+
+        best_canonical
+            .ok_or_else(|| MguError::AllocationError("Failed to find canonical form".to_string()))
     }
 }

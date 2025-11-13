@@ -15,7 +15,7 @@ use crate::{SimpleType, WIDE_BOOLEANS_ASCII, WIDE_CLASSES_ASCII, WIDE_SETVARS_AS
 /// - **Booleans**: 12 Greek letters (φ, ψ, χ, θ, τ, η, ζ, σ, ρ, μ, λ, κ)
 /// - **Setvars**: 26 lowercase Latin letters (x, y, z, w, v, u, t, ...)
 /// - **Classes**: 26 uppercase Latin letters (A, B, C, D, P, Q, R, S, ...)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct WideCharSet;
 
 impl WideCharSet {

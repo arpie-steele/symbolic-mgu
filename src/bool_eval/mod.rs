@@ -70,7 +70,7 @@ use std::marker::PhantomData;
 use std::ops::{BitAnd, BitOr, BitXor, Not};
 
 /// A Node wrapper for `BooleanSimpleOp` which works with any Type that implements Boolean.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 pub struct BooleanSimpleNode<Ty: Type>(BooleanSimpleOp, PhantomData<Ty>);
 
 impl<Ty: Type> Display for BooleanSimpleNode<Ty> {
@@ -1558,99 +1558,118 @@ mod tests {
         }
     }
 
-    /// Test that all `BooleanSimpleOp` variants evaluate to their correct truth table codes.
+    /// Macro to generate truth table tests for different unsigned integer types.
     ///
-    /// This test builds the truth table for each operation by evaluating it on all
-    /// possible input combinations (using a, b, c from the standard test vectors),
-    /// then verifies the result matches the operation's code.
-    #[test]
-    fn all_variants_u8_truth_tables() {
-        // Standard test vectors for 3 variables
-        // a = 10101010 = 0xaa
-        // b = 11001100 = 0xcc
-        // c = 11110000 = 0xf0
+    /// This macro creates test functions that verify all 278 `BooleanSimpleOp` variants
+    /// evaluate to their correct truth table codes on a given unsigned integer type.
+    ///
+    /// # Parameters
+    ///
+    /// * `$test_name` - Name of the test function to generate
+    /// * `$type` - The unsigned integer type (`u8`, `u16`, `u32`, `u64`, `u128`)
+    /// * `$vec_a` - Test vector for variable a (`0xaa` pattern)
+    /// * `$vec_b` - Test vector for variable b (`0xcc` pattern)
+    /// * `$vec_c` - Test vector for variable c (`0xf0` pattern)
+    /// * `$multiplier` - Multiplier for extending code to full width (e.g., `0x01` for `u8`, `0x0101` for `u16`)
+    /// * `$fmt_width` - Format width for hex output (e.g., `"02x"` for `u8`, `"04x"` for `u16`)
+    macro_rules! test_all_variants_truth_tables {
+        ($test_name:ident, $type:ty, $vec_a:expr, $vec_b:expr, $vec_c:expr, $multiplier:expr, $fmt_width:literal) => {
+            /// Test that all `BooleanSimpleOp` variants evaluate to their correct truth table codes.
+            ///
+            /// This test builds the truth table for each operation by evaluating it on all
+            /// possible input combinations (using a, b, c from the standard test vectors),
+            /// then verifies the result matches the operation's code.
+            #[test]
+            fn $test_name() {
+                // Standard test vectors for 3 variables
+                // a = 10101010 = 0xaa
+                // b = 11001100 = 0xcc
+                // c = 11110000 = 0xf0
 
-        let a = <u8 as UnsignedBits<u8, 3>>::from_orig(0xaa);
-        let b = <u8 as UnsignedBits<u8, 3>>::from_orig(0xcc);
-        let c = <u8 as UnsignedBits<u8, 3>>::from_orig(0xf0);
-        let mask = <u8 as UnsignedBits<u8, 3>>::mask();
+                let a = <$type as UnsignedBits<$type, 3>>::from_orig($vec_a);
+                let b = <$type as UnsignedBits<$type, 3>>::from_orig($vec_b);
+                let c = <$type as UnsignedBits<$type, 3>>::from_orig($vec_c);
+                let mask = <$type as UnsignedBits<$type, 3>>::mask();
 
-        // Test all 278 operations
-        for variant in BooleanSimpleOp::VARIANTS {
-            let arity = variant.get_arity();
-            let expected_code = variant.get_code3();
+                // Test all 278 operations
+                for variant in BooleanSimpleOp::VARIANTS {
+                    let arity = variant.get_arity();
+                    let expected_code = <$type as UnsignedBits<$type, 3>>::from_orig(
+                        <$type>::wrapping_mul($multiplier, variant.get_code3() as $type),
+                    );
 
-            let result = match arity {
-                0 => variant
-                    .eval0::<u8, u8, 3>()
-                    .unwrap_or_else(|| panic!("eval0 failed for {}", variant)),
-                1 => variant
-                    .eval1::<u8, u8, 3>(&a)
-                    .unwrap_or_else(|| panic!("eval1 failed for {}", variant)),
-                2 => variant
-                    .eval2::<u8, u8, 3>(&a, &b)
-                    .unwrap_or_else(|| panic!("eval2 failed for {}", variant)),
-                3 => variant
-                    .eval3::<u8, u8, 3>(&a, &b, &c)
-                    .unwrap_or_else(|| panic!("eval3 failed for {}", variant)),
-                _ => panic!("Unexpected arity {} for {}", arity, variant),
-            } & mask;
+                    let result = match arity {
+                        0 => variant
+                            .eval0::<$type, $type, 3>()
+                            .unwrap_or_else(|| panic!("eval0 failed for {}", variant)),
+                        1 => variant
+                            .eval1::<$type, $type, 3>(&a)
+                            .unwrap_or_else(|| panic!("eval1 failed for {}", variant)),
+                        2 => variant
+                            .eval2::<$type, $type, 3>(&a, &b)
+                            .unwrap_or_else(|| panic!("eval2 failed for {}", variant)),
+                        3 => variant
+                            .eval3::<$type, $type, 3>(&a, &b, &c)
+                            .unwrap_or_else(|| panic!("eval3 failed for {}", variant)),
+                        _ => panic!("Unexpected arity {} for {}", arity, variant),
+                    } & mask;
 
-            assert_eq!(
-                result, expected_code,
-                "Truth table mismatch for {variant} (arity={arity}): \
-                 got 0x{result:02x}, expected 0x{expected_code:02x}",
-            );
-        }
+                    assert_eq!(
+                        result, expected_code,
+                        "Truth table mismatch for {} (arity={}): got {:#x}, expected {:#x}",
+                        variant, arity, result, expected_code
+                    );
+                }
+            }
+        };
     }
 
-    /// Test that all `BooleanSimpleOp` variants evaluate to their correct truth table codes.
-    ///
-    /// This test builds the truth table for each operation by evaluating it on all
-    /// possible input combinations (using a, b, c from the standard test vectors),
-    /// then verifies the result matches the operation's code.
-    #[test]
-    fn all_variants_u64_truth_tables() {
-        // Standard test vectors for 3 variables
-        // a = 10101010 = 0xaa
-        // b = 11001100 = 0xcc
-        // c = 11110000 = 0xf0
-
-        let a = <u64 as UnsignedBits<u64, 3>>::from_orig(0xaaaa_aaaa_aaaa_aaaa);
-        let b = <u64 as UnsignedBits<u64, 3>>::from_orig(0xcccc_cccc_cccc_cccc);
-        let c = <u64 as UnsignedBits<u64, 3>>::from_orig(0xf0f0_f0f0_f0f0_f0f0);
-        let mask = <u64 as UnsignedBits<u64, 3>>::mask();
-
-        // Test all 278 operations
-        for variant in BooleanSimpleOp::VARIANTS {
-            let arity = variant.get_arity();
-            let expected_code = <u64 as UnsignedBits<u64, 3>>::from_orig(
-                0x0101_0101_0101_0101u64 * variant.get_code3() as u64,
-            );
-
-            let result = match arity {
-                0 => variant
-                    .eval0::<u64, u64, 3>()
-                    .unwrap_or_else(|| panic!("eval0 failed for {}", variant)),
-                1 => variant
-                    .eval1::<u64, u64, 3>(&a)
-                    .unwrap_or_else(|| panic!("eval1 failed for {}", variant)),
-                2 => variant
-                    .eval2::<u64, u64, 3>(&a, &b)
-                    .unwrap_or_else(|| panic!("eval2 failed for {}", variant)),
-                3 => variant
-                    .eval3::<u64, u64, 3>(&a, &b, &c)
-                    .unwrap_or_else(|| panic!("eval3 failed for {}", variant)),
-                _ => panic!("Unexpected arity {} for {}", arity, variant),
-            } & mask;
-
-            assert_eq!(
-                result, expected_code,
-                "Truth table mismatch for {variant} (arity={arity}): \
-                 got 0x{result:016x}, expected 0x{expected_code:016x}",
-            );
-        }
-    }
+    // Generate test functions for all unsigned integer types
+    test_all_variants_truth_tables!(
+        all_variants_u8_truth_tables,
+        u8,
+        0xaa,
+        0xcc,
+        0xf0,
+        0x01u8,
+        "02x"
+    );
+    test_all_variants_truth_tables!(
+        all_variants_u16_truth_tables,
+        u16,
+        0xaaaa,
+        0xcccc,
+        0xf0f0,
+        0x0101u16,
+        "04x"
+    );
+    test_all_variants_truth_tables!(
+        all_variants_u32_truth_tables,
+        u32,
+        0xaaaa_aaaa,
+        0xcccc_cccc,
+        0xf0f0_f0f0,
+        0x0101_0101u32,
+        "08x"
+    );
+    test_all_variants_truth_tables!(
+        all_variants_u64_truth_tables,
+        u64,
+        0xaaaa_aaaa_aaaa_aaaa,
+        0xcccc_cccc_cccc_cccc,
+        0xf0f0_f0f0_f0f0_f0f0,
+        0x0101_0101_0101_0101u64,
+        "016x"
+    );
+    test_all_variants_truth_tables!(
+        all_variants_u128_truth_tables,
+        u128,
+        0xaaaa_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa,
+        0xcccc_cccc_cccc_cccc_cccc_cccc_cccc_cccc,
+        0xf0f0_f0f0_f0f0_f0f0_f0f0_f0f0_f0f0_f0f0,
+        0x0101_0101_0101_0101_0101_0101_0101_0101u128,
+        "032x"
+    );
 
     /// Test that all `BooleanSimpleOp` variants evaluate to their correct truth table codes.
     ///

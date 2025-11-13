@@ -28,6 +28,8 @@ use strum::{
     PartialEq,
     Eq,
     Hash,
+    PartialOrd,
+    Ord,
     Display,
     EnumCount,
     EnumDiscriminants,

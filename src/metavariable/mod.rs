@@ -19,7 +19,11 @@ use std::hash::Hash;
 /// Metavariables are typed variables used in logical terms and statements.
 /// Each metavariable has a type (Boolean, Setvar, or Class) and an index
 /// that distinguishes it from other variables of the same type.
-pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq {
+///
+/// The `Ord` bound is required to support statement canonicalization,
+/// which produces a unique minimal representation by ordering variables
+/// lexicographically.
+pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + PartialOrd + Ord {
     /// Concrete implementation of the Type trait.
     type Type: Type;
 

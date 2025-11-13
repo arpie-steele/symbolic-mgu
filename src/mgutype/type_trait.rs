@@ -21,7 +21,11 @@ pub trait TypeCore: Debug + Display {
 /// Different implementations can have different sub-typing rules and type hierarchies.
 /// The library provides a default implementation (Boolean, Setvar, Class) suitable for
 /// Metamath and condensed detachment, but other systems can implement custom types.
-pub trait Type: Clone + Eq + TypeCore + Hash
+///
+/// The `Ord` bound is required to support statement canonicalization,
+/// which produces a unique minimal representation by ordering variables
+/// lexicographically.
+pub trait Type: Clone + Eq + TypeCore + Hash + PartialOrd + Ord
 where
     Self: 'static,
 {

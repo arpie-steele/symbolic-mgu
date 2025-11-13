@@ -9,8 +9,15 @@ use crate::{MguError, Type};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
-/// TODO.
-pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
+/// Trait for nodes representing operations in logical terms.
+///
+/// Nodes are the non-leaf parts of terms, representing operations like
+/// implication, negation, conjunction, etc.
+///
+/// The `Ord` bound is required to support statement canonicalization,
+/// which produces a unique minimal representation by ordering terms
+/// lexicographically.
+pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone + PartialOrd + Ord {
     /// Concrete implementation of the Type trait.
     type Type: Type;
 

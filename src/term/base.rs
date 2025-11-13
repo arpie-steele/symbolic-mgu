@@ -20,8 +20,13 @@ use std::hash::Hash;
 /// * TYPE(xᵗ) = t
 /// * TYPE(N(τ₁,...,τₖ)) = TYPE(N)
 ///
+/// The `Ord` bound is required to support statement canonicalization,
+/// which produces a unique minimal representation by ordering terms
+/// lexicographically.
+///
 /// [`Node`]: `crate::Node`
-pub trait Term<T, V, N>: Debug + Display + PartialEq + Eq + Hash + Clone
+pub trait Term<T, V, N>:
+    Debug + Display + PartialEq + Eq + Hash + Clone + PartialOrd + Ord
 where
     T: Type,
     V: Metavariable<Type = T>,
