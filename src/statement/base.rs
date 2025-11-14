@@ -61,7 +61,7 @@ where
         hypotheses: Vec<T>,
         distinctness_graph: DistinctnessGraph<V>,
     ) -> Result<Self, MguError> {
-        // Validate that assertion is a sentence (Boolean type)
+        // Validate that assertion is structurally well-formed
         if !assertion.is_valid_sentence()? {
             return Err(MguError::from_found_and_expected_types(
                 true,
@@ -70,12 +70,32 @@ where
             ));
         }
 
-        // Validate that all hypotheses are sentences
+        // Validate that assertion has Boolean type (is a sentence)
+        let assertion_type = assertion.get_type()?;
+        let boolean_type = Ty::try_boolean()?;
+        if !assertion_type.is_subtype_of(&boolean_type) {
+            return Err(MguError::from_found_and_expected_types(
+                true,
+                &assertion_type,
+                &boolean_type,
+            ));
+        }
+
+        // Validate that all hypotheses are structurally well-formed and have Boolean type
         for (i, hyp) in hypotheses.iter().enumerate() {
             if !hyp.is_valid_sentence()? {
                 return Err(MguError::UnificationFailure(format!(
-                    "Hypothesis {i} is not a valid sentence (type {:?})",
+                    "Hypothesis {i} is not structurally valid (type {:?})",
                     hyp.get_type()
+                )));
+            }
+
+            // Check that hypothesis has Boolean type
+            let hyp_type = hyp.get_type()?;
+            if !hyp_type.is_subtype_of(&boolean_type) {
+                return Err(MguError::UnificationFailure(format!(
+                    "Hypothesis {i} is not a Boolean sentence (type {:?})",
+                    hyp_type
                 )));
             }
         }

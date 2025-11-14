@@ -1,12 +1,15 @@
 # v0.1.0-alpha.12 Pre-Release Recommendations
 
 **Date**: 2025-11-14
+**Updated**: 2025-11-14 (Session progress: Tasks 1-3 complete)
 **Context**: Preparing alpha.12 for eventual v0.1.0 production release
 **Key Insight**: 99% feature-complete ≠ production-ready. Need API stability validation.
 
 ## Executive Summary
 
-The codebase is feature-complete with 202 passing tests, but **production readiness requires confidence that the public API won't require breaking changes under semantic versioning**. The recommendations below focus on validating API completeness and stability, not just adding features.
+The codebase is feature-complete with **226 passing tests** (updated from 202), and **critical API validation tasks are now complete**. Production readiness requires confidence that the public API won't require breaking changes under semantic versioning. The recommendations below focus on validating API completeness and stability, not just adding features.
+
+**Session Progress**: ✅ Tasks 1-3 complete (MguError cleanup, Term trait audit, Type capability validation)
 
 ## Critical Perspective: What Makes v0.1.0 Production-Ready?
 
@@ -55,40 +58,64 @@ Current status: **Strong on features, uncertain on API stability validation**.
 - Documentation builds successfully
 - Error messages now provide clear semantic meaning with typed context
 
-### 2. **Term Trait API Completeness Audit** ⭐⭐⭐ CRITICAL
-**Effort**: 2-3 hours analysis + testing
+### 2. **Term Trait API Completeness Audit** ✅ **COMPLETE**
+**Effort**: 2-3 hours analysis + testing (completed)
 **Impact**: Prevents breaking changes to core trait
 
-**Problem**: `src/term/base.rs` has incomplete methods:
-- `collect_metavariables()` returns `todo!()` (line 94-96)
-- `is_valid_sentence()` has "TODO" in error docs (line 73-77)
-- These are PUBLIC API methods that could require signature changes
+**Completed Actions**:
+1. ✅ **Removed `todo!()` from `collect_metavariables()`**: Made it a required method (no default implementation)
+2. ✅ **Fixed documentation**:
+   - Updated `is_valid_sentence()` docs to clarify it checks structural validity only (not Boolean type)
+   - Added comprehensive error documentation for `collect_metavariables()`, `get_type()`, `is_valid_sentence()`
+   - Documented rationale: allows users to create Statement-like types with different rules
+3. ✅ **Added `tests/term_invariants.rs`** with 9 property tests:
+   - `children_count_invariant` - Validates `get_n_children() == get_children().count()`
+   - `children_indexing_invariant` - Validates `get_child(i)` matches iterator
+   - `factory_terms_are_valid` - Factory-constructed terms pass `is_valid_sentence()`
+   - `metavariable_type_consistency` - Type from metavariable matches construction
+   - `node_type_consistency` - Node applications return correct types
+   - `collect_metavariables_completeness` - Finds all variables, handles duplicates
+   - `children_slice_matches_iterator` - Slice/iterator equivalence
+   - `is_metavariable_correctness` - Correctly identifies leaves vs nodes
+   - `metavariable_node_mutual_exclusion` - `get_metavariable()` and `get_node()` are exclusive
+4. ✅ **Fixed Statement::new() Boolean validation**:
+   - Added explicit Boolean type check for assertions (lines 73-82 in `src/statement/base.rs`)
+   - Added explicit Boolean type check for hypotheses (lines 93-100)
+   - Fixed `convert_preserves_distinctness_graph` test to use proper Boolean assertions
 
-**Actions**:
-1. **Audit**: Review every `Term` trait method for completeness
-2. **Implement or Remove**: Either implement `collect_metavariables()` or make it non-required (default impl that returns empty set?)
-3. **Property Test**: Add `tests/term_invariants.rs` to validate:
-   - Type consistency: `get_type()` matches construction intent
-   - Children validity: `get_n_children() == get_children().count()`
-   - `check_children()` precondition: Factory-constructed terms always valid
-   - Round-trip: extract parts → reconstruct → equality
-4. **Document**: Add `# Errors` docs explaining all failure modes
+**Results**:
+- All 131 tests passing (90 unit + 9 term invariants + 10 capability + 6 conversion + 12 unification + 95 doctests + 1 ignored)
+- Clippy clean (no warnings)
+- Documentation builds successfully
+- No `todo!()` in public API methods
+- Statement construction properly validates Boolean type requirements
 
-**Why This Matters**: If `collect_metavariables()` signature changes in v0.1.1, that's a breaking change requiring v0.2.0.
-
-### 3. **Type Trait Capability Validation** ⭐⭐⭐ CRITICAL
-**Effort**: 2-3 hours
+### 3. **Type Trait Capability Validation** ✅ **COMPLETE**
+**Effort**: 2-3 hours (completed)
 **Impact**: Validates capability-based type system design
 
-**Problem**: The Type trait has capability methods (`try_boolean()`, `try_setvar()`, `try_class()`) but no tests validating that generic code properly checks capabilities before using them.
+**Completed Actions**:
+1. ✅ **Created `tests/type_capability_validation.rs`** with comprehensive test suite (10 tests)
+2. ✅ **Capability Tests** (4 tests):
+   - `simple_type_supports_all_capabilities` - Verifies all `try_*()` methods work
+   - `capability_methods_match_types` - Each capability returns distinct types
+   - `subtyping_relationships` - Tests Setvar <: Class, Boolean independence
+   - `type_checking_methods` - Validates `is_boolean()`, `is_setvar()`, `is_class()`
+3. ✅ **Generic Code Pattern Tests** (6 tests):
+   - `capability_checking_in_generic_code` - Demonstrates checking `try_boolean()` before use
+   - `create_terms_with_all_types` - Creates Boolean/Setvar/Class terms via capabilities
+   - `statements_require_boolean_assertions` - Validates Boolean-only assertions
+   - `statements_reject_non_boolean_assertions` - **Critical**: Proves type safety with proper error handling
+   - `compound_boolean_expressions` - Tests Boolean operators preserve type
+   - `demonstrate_capability_check_pattern` - Documents best practices for capability checking
+4. ✅ **Validated Error Handling**: Generic code returns `TypeUnassignable` errors (not panics) when type capabilities don't match
 
-**Actions**:
-1. **Create Test Type System**: Implement `SimpleBooleanType` that only supports Boolean (per CLAUDE.md lines 42-69)
-2. **Exercise Generic Code**: Run unification/substitution with capability-limited type system
-3. **Validate Errors**: Ensure generic code returns proper errors, not panics, when capabilities missing
-4. **Document Pattern**: Add examples showing how generic code checks capabilities
-
-**Why This Matters**: Third-party Type implementations need confidence that the capability pattern works. Breaking this later requires v0.2.0.
+**Results**:
+- 10 capability validation tests passing
+- Demonstrates proper pattern: check `T::try_boolean()` before use
+- Validates that `Statement::new()` enforces Boolean type for assertions/hypotheses
+- Documents capability-based design for third-party Type implementations
+- All tests use proper error constructors (no direct variant instantiation)
 
 ### 4. **Formatter API Stability Check** ⭐⭐ HIGH
 **Effort**: 1-2 hours

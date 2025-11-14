@@ -160,7 +160,7 @@ fn convert_preserves_distinctness_graph() -> Result<(), MguError> {
     let var_factory = MetaByteFactory();
     let term_factory: EnumTermFactory<SimpleType, _, NodeByte> = EnumTermFactory::new();
 
-    // Get first two Setvar variables using tuples()
+    // Get two Setvar variables (x and y)
     let (x, y) = var_factory
         .list_metavariables_by_type(&SimpleType::Setvar)
         .tuples()
@@ -170,10 +170,24 @@ fn convert_preserves_distinctness_graph() -> Result<(), MguError> {
     let x_term = term_factory.create_leaf(x)?;
     let y_term = term_factory.create_leaf(y)?;
 
+    // Create Boolean terms: x ∈ y and y ∈ x
+    let x_in_y =
+        term_factory.create_node(NodeByte::IsElementOf, vec![x_term.clone(), y_term.clone()])?;
+    let y_in_x = term_factory.create_node(NodeByte::IsElementOf, vec![y_term, x_term])?;
+
+    // Create: ¬(y ∈ x)
+    let not_y_in_x = term_factory.create_node(NodeByte::Not, vec![y_in_x])?;
+
+    // Create: (x ∈ y) → ¬(y ∈ x)
+    let asymmetric =
+        term_factory.create_node(NodeByte::Implies, vec![x_in_y.clone(), not_y_in_x])?;
+
+    // Create distinctness constraint between the Setvars
     let mut distinctness = DistinctnessGraph::new();
     distinctness.add_edge(&x, &y)?;
 
-    let stmt = Statement::new(x_term, vec![y_term], distinctness)?;
+    // Create statement: assertion is the asymmetry property, hypothesis is x ∈ y
+    let stmt = Statement::new(asymmetric, vec![x_in_y], distinctness)?;
 
     // Convert to WideMetavariable
     let wide_var_factory = WideMetavariableFactory();

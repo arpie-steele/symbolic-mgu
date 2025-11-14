@@ -70,18 +70,23 @@ where
     /// Alternate to an iterator.
     fn get_children_as_slice(&self) -> &[Self];
 
-    /// Check if this term is a valid sentence (well-formed and of Boolean type).
+    /// Check if this term is structurally well-formed.
     ///
-    /// A term is a valid sentence if:
+    /// A term is structurally valid if:
     /// - All metavariables are well-formed (have valid type and index)
     /// - All nodes have the correct number of children for their arity
     /// - All children have types compatible with the node's slot types
-    /// - The root has Boolean type
+    ///
+    /// Note: This does NOT check if the root has Boolean type. That check
+    /// is performed separately by [`Statement::new`] to allow flexibility
+    /// for users who want different type requirements.
     ///
     /// # Errors
     ///
     /// Returns an error if type checking fails or structural validation encounters
     /// malformed nodes/metavariables.
+    ///
+    /// [`Statement::new`]: `crate::Statement::new`
     fn is_valid_sentence(&self) -> Result<bool, MguError>;
 
     /// Check if this term is a valid sentence, returning `false` on any error.
