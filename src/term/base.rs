@@ -108,10 +108,16 @@ where
         let wanted_children = node.get_arity()?;
         let actual_children = children.len();
         if wanted_children < actual_children {
-            return Err(MguError::SlotsMismatch(actual_children, wanted_children));
+            return Err(MguError::from_found_and_expected_unsigned(
+                actual_children,
+                wanted_children,
+            ));
         }
         if wanted_children > actual_children {
-            return Err(MguError::SlotsMismatch(actual_children, wanted_children));
+            return Err(MguError::from_found_and_expected_unsigned(
+                actual_children,
+                wanted_children,
+            ));
         }
         for (i, term) in children.iter().enumerate() {
             let slot_type = node.get_slot_type(i)?;

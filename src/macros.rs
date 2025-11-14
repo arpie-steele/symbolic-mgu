@@ -556,7 +556,10 @@ macro_rules! ub_prim_impl {
                     }
                     Ok(())
                 } else {
-                    Err(MguError::UnknownError(121))
+                    Err(MguError::BitPositionOutOfRange {
+                        position: bit_pos,
+                        bits: 1 << $n,
+                    })
                 }
             }
         }

@@ -545,6 +545,7 @@ InfallibleMetavariable
 InfallibleNodeCore
 infimum
 injective
+instantiation
 IntersectionOp
 IntoIterator
 ints

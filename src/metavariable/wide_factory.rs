@@ -57,9 +57,9 @@ impl MetavariableFactory for WideMetavariableFactory {
         // WideMetavariable uses UTF-8 display, so name-based creation
         // would require parsing Unicode characters and subscripts.
         // For now, return error - this is primarily an index-based system.
-        Err(MguError::UnknownMetavariable(
+        Err(MguError::from_type_and_var_strings(
             "WideMetavariable",
-            name.to_owned(),
+            name,
         ))
     }
 

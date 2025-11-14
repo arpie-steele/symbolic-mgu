@@ -57,9 +57,9 @@ impl<U: fmt::Debug + PartialOrd> Pair<U> {
         } else if b < a {
             Ok(Self(b, a))
         } else {
-            Err(MguError::PairValidationFailure(
-                format!("{a:?}"),
-                format!("{b:?}"),
+            Err(MguError::from_illegal_pair(
+                &*format!("{a:?}"),
+                &*format!("{b:?}"),
             ))
         }
     }
@@ -73,9 +73,9 @@ impl<U: fmt::Debug + PartialOrd> Pair<U> {
         if self.0 < self.1 {
             Ok(())
         } else {
-            Err(MguError::PairValidationFailure(
-                format!("{0:?}", self.0),
-                format!("{0:?}", self.1),
+            Err(MguError::from_illegal_pair(
+                &*format!("{0:?}", self.0),
+                &*format!("{0:?}", self.1),
             ))
         }
     }

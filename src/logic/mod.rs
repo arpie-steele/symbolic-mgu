@@ -35,7 +35,9 @@ pub fn require_var_is_boolean<V: Metavariable>(some_var: &V) -> Result<(), MguEr
                 false, &some_type, &bool_type,
             ));
         } else {
-            return Err(MguError::from_error_code(0x8001_usize)); // Type does not support Boolean
+            return Err(MguError::TypeCapabilityUnsupported {
+                capability: "Boolean",
+            });
         }
     }
     Ok(())
@@ -392,7 +394,7 @@ where
     let mut booleans = metavar_factory.list_metavariables_by_type(&our_bool);
     let (phi, psi, chi) = booleans
         .next_tuple()
-        .ok_or_else(|| MguError::from_index_and_len(Some(our_bool), 2usize, 0usize))?;
+        .ok_or_else(|| MguError::from_type_index_and_len(our_bool.clone(), 2usize, 0usize))?;
 
     let mut dict = HashMap::new();
 

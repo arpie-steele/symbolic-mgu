@@ -16,7 +16,6 @@ exclude = [
     "docs/diagrams/",
     "docs/FORMATTER_DESIGN.md",
     "docs/IMPROVEMENTS_CHECKLIST.md",
-    "docs/MGERROR_AUDIT.md",
     "docs/PARAMETRIC_METAVARIABLE_DESIGN.md",
     "docs/POST_RELEASE_TODO.md",
     "docs/SESSION_SUMMARY_2025-11-04.md",

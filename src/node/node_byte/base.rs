@@ -1351,9 +1351,7 @@ impl Node for NodeByte {
         if index < n {
             Ok(slice[index])
         } else {
-            Err(MguError::from_index_and_len::<SimpleType, usize, usize>(
-                None, index, n,
-            ))
+            Err(MguError::from_index_and_len(index, n))
         }
     }
 

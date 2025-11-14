@@ -23,46 +23,37 @@ Current status: **Strong on features, uncertain on API stability validation**.
 
 ## High-Priority API Validation (Before v0.1.0)
 
-### 1. **MguError Usage Audit and Cleanup** ⭐⭐⭐ CRITICAL
-**Effort**: 2-3 hours
+### 1. **MguError Usage Audit and Cleanup** ✅ **COMPLETE**
+**Effort**: 2-3 hours (completed)
 **Impact**: Error types are part of public API contract
 
-**Problem**: Found 21 instances of deprecated `UnknownError(code)` pattern that provide poor diagnostics:
-```rust
-// Current (bad): What does 703 mean?
-return Err(MguError::UnknownError(703));
+**Completed Actions**:
+1. ✅ **Replaced 22 UnknownError instances** with 12 new structured error variants:
+   - `src/bool_eval/mod.rs`: 10 instances → structured variants with typed fields
+   - `src/node/node_byte/factory.rs`: 10 instances → structured variants
+   - `src/logic/mod.rs`: 1 instance → `TypeCapabilityUnsupported`
+   - `src/macros.rs`: 1 instance → `BitPositionOutOfRange`
 
-// Should be (good): Clear semantic meaning
-return Err(MguError::argument_error(format!(
-    "Term has {} children, expected {}", actual, expected
-)));
-```
+2. ✅ **Added structured error variants** (better than planned string-based constructors):
+   - `TermKindMismatch`, `NodeNotBooleanOp`, `InvalidBooleanCode`
+   - `UnsupportedBooleanArity`, `BooleanEvaluationFailed`
+   - `VariableNotBound`, `VariableIndexOutOfRange`, `UnknownNodeName`
+   - `NodeTypeMismatch`, `FeatureRequired`, `TypeCapabilityUnsupported`
+   - `BitPositionOutOfRange`
+   - All with typed fields instead of pre-formatted strings
 
-**Actions**:
-1. **Replace UnknownError instances** (full audit in `docs/MGERROR_AUDIT.md`):
-   - `src/bool_eval/mod.rs`: 9 instances → `ArgumentError` with descriptive messages
-   - `src/node/node_byte/factory.rs`: 10 instances → `ArgumentError` or `NumericConversionError`
-   - `src/logic/mod.rs`: 1 instance → `ArgumentError` for type capability check
-   - `src/macros.rs`: 1 instance → `from_found_and_expected_unsigned()`
+3. ✅ **Refactored constructor methods**:
+   - Split `from_index_and_len` into two methods for better type inference
+   - Converted 16 direct instantiations to use constructors
+   - Added comprehensive module documentation with best practices
 
-2. **Add simplified constructors** for ergonomic error creation:
-```rust
-impl MguError {
-    pub fn argument_error(msg: impl Into<String>) -> Self;
-    pub fn unification_failure(msg: impl Into<String>) -> Self;
-    pub fn unsupported_type(capability: impl Into<String>) -> Self;
-}
-```
+4. ✅ **Deprecated** `from_error_code()` method
 
-3. **Refactor direct instantiations** to use constructor methods where appropriate
-
-**Why This Matters**:
-- Error types are part of public API
-- Descriptive errors critical for user experience
-- Users matching on `MguError::UnknownError(_)` should see this variant disappear
-- Changes from "Unknown Error with code = 703" to "Term has 3 children, expected 2"
-
-**Detailed Analysis**: See `docs/MGERROR_AUDIT.md` for complete catalog and replacement recommendations.
+**Results**:
+- All 91 tests passing
+- Clippy clean (no warnings)
+- Documentation builds successfully
+- Error messages now provide clear semantic meaning with typed context
 
 ### 2. **Term Trait API Completeness Audit** ⭐⭐⭐ CRITICAL
 **Effort**: 2-3 hours analysis + testing
@@ -221,13 +212,13 @@ Focus on factory traits and Statement methods. Not API-breaking but improves ado
 ## Recommended Roadmap
 
 ### For alpha.12 (This Session)
-1. **MguError cleanup** (2-3 hours) - Replace 21 UnknownError instances with specific types
+1. ✅ **MguError cleanup** (completed) - Replaced 22 UnknownError instances with 12 structured variants
 2. **Term trait audit** (3 hours) - Fix `todo!()`, add property tests
 3. **Panic audit** (3 hours) - Find and fix/document all unwraps
 4. **Type capability test** (2 hours) - Validate capability-based system
 5. **Formatter stress test** (1 hour) - Large proof + edge cases
 
-**Total: ~11-12 hours of focused work**
+**Total: ~9 hours of focused work remaining**
 
 ### For alpha.13 (If Needed)
 1. Error type review and tests
@@ -283,9 +274,10 @@ Math correctness (unification algorithm) is validated by 202 tests. API stabilit
 ## Summary
 
 **Current State**: Feature-complete but API stability uncertain
+**Completed**: ✅ MguError cleanup (22 instances → 12 structured variants)
 **Blocker**: `Term` trait `todo!()` methods
 **High Priority**: Type capability validation, panic audit, formatter stress test
-**Time Estimate**: ~9 hours of focused validation work
+**Time Estimate**: ~9 hours of focused validation work remaining
 **Goal**: Confidence that v0.1.0 API won't require breaking changes in v0.1.1
 
 The work isn't about adding features - it's about validating the API design is sound and complete.
@@ -460,7 +452,7 @@ From the feature list:
 2. **Panic audit** (main report) - Document or fix all unwraps
 3. **Type capability test** (main report) - Validate capability pattern
 4. **StatementFactory consideration** - Determine if Statement construction API is stable
-5. **MguError cleanup** (see `MGERROR_AUDIT.md`) - Replace 21 UnknownError instances with specific types
+5. ✅ **MguError cleanup** (completed) - Replaced 22 UnknownError instances with 12 structured variants
 
 ### Should Do for alpha.12
 

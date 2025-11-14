@@ -57,7 +57,7 @@ impl MetaByte {
         if my_index < n {
             Ok(MetaByte(data.as_bytes()[my_index]))
         } else {
-            Err(MguError::from_index_and_len(Some(my_type), my_index, n))
+            Err(MguError::from_type_index_and_len(my_type, my_index, n))
         }
     }
 
@@ -96,9 +96,9 @@ impl Metavariable for MetaByte {
             our_type = Class;
             data = OUR_CLASSES;
         } else {
-            return Err(MguError::UnknownMetavariable(
+            return Err(MguError::from_type_and_var_strings(
                 stringify!(MetaByte),
-                self.to_string(),
+                &*self.to_string(),
             ));
         }
         Ok((our_type, data.find(self.0 as char).unwrap()))
@@ -214,9 +214,9 @@ impl MetavariableFactory for MetaByteFactory {
                 }
             }
         }
-        Err(MguError::UnknownMetavariable(
+        Err(MguError::from_type_and_var_strings(
             stringify!(MetaByte),
-            name.to_owned(),
+            name,
         ))
     }
 

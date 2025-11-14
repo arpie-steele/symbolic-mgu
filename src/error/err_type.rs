@@ -68,6 +68,42 @@ pub enum MguErrorType {
     /// Color parsing error.
     ColorParseError,
 
+    /// Expected a metavariable but found a node, or vice versa.
+    TermKindMismatch,
+
+    /// Node is not a Boolean operation.
+    NodeNotBooleanOp,
+
+    /// Invalid Boolean function code for the given arity.
+    InvalidBooleanCode,
+
+    /// Boolean operation arity not supported.
+    UnsupportedBooleanArity,
+
+    /// Boolean evaluation failed.
+    BooleanEvaluationFailed,
+
+    /// Variable not found in the binding list.
+    VariableNotBound,
+
+    /// Variable index exceeds the allowed limit.
+    VariableIndexOutOfRange,
+
+    /// Unknown node name in factory method.
+    UnknownNodeName,
+
+    /// Node type doesn't match expected type.
+    NodeTypeMismatch,
+
+    /// Required feature not enabled.
+    FeatureRequired,
+
+    /// Type doesn't support the required capability.
+    TypeCapabilityUnsupported,
+
+    /// Bit position out of range for truth table.
+    BitPositionOutOfRange,
+
     /// Catch-all for bare errors created incorrectly.
     UnknownErrorType,
 

@@ -59,8 +59,8 @@
 mod generated_enum;
 
 use crate::{
-    ub_prim_impl, Metavariable, MguError, MguErrorType, Node, NodeByte, SimpleType, Statement,
-    Term, TermFactory, Type,
+    ub_prim_impl, Metavariable, MguError, MguErrorType, Node, NodeByte, Statement, Term,
+    TermFactory, Type,
 };
 pub use generated_enum::BooleanSimpleOp;
 pub use generated_enum::BooleanSimpleOpDiscriminants;
@@ -96,9 +96,7 @@ impl<Ty: Type> Node for BooleanSimpleNode<Ty> {
         if index < n {
             Ok(Self::Type::try_boolean()?)
         } else {
-            Err(MguError::from_index_and_len::<SimpleType, usize, usize>(
-                None, index, n,
-            ))
+            Err(MguError::from_index_and_len(index, n))
         }
     }
 
@@ -1432,7 +1430,7 @@ where
         let arity = op.get_arity() as usize;
         let len = children.len();
         if len != arity {
-            return Err(MguError::SlotsMismatch(len, arity));
+            return Err(MguError::from_found_and_expected_unsigned(len, arity));
         }
 
         let result = match arity {
@@ -1440,10 +1438,12 @@ where
             1 => op.eval1::<Self, U, N>(&children[0]),
             2 => op.eval2::<Self, U, N>(&children[0], &children[1]),
             3 => op.eval3::<Self, U, N>(&children[0], &children[1], &children[2]),
-            _ => return Err(MguError::UnknownError(705)),
+            _ => return Err(MguError::UnsupportedBooleanArity { arity }),
         };
 
-        result.ok_or_else(|| MguError::UnknownError(706))
+        result.ok_or_else(|| MguError::BooleanEvaluationFailed {
+            reason: format!("eval{}() returned None", arity),
+        })
     }
 
     /// Evaluate a Boolean term with N variables to a truth table representation.
@@ -1472,7 +1472,10 @@ where
     {
         if term.is_metavariable() {
             // Leaf case: extract the metavariable
-            let var = term.get_metavariable().ok_or(MguError::UnknownError(701))?;
+            let var = term.get_metavariable().ok_or(MguError::TermKindMismatch {
+                expected: "metavariable",
+                found: "node",
+            })?;
             let typ = var.get_type()?;
             if !typ.is_boolean() {
                 return Err(MguError::from_found_and_expected_types(
@@ -1481,12 +1484,14 @@ where
                     &(Ty::try_boolean()?),
                 ));
             }
-            let index = vars
-                .iter()
-                .position(|v| *v == var)
-                .ok_or(MguError::UnknownError(702))?;
+            let index =
+                vars.iter()
+                    .position(|v| *v == var)
+                    .ok_or_else(|| MguError::VariableNotBound {
+                        variable: format!("{:?}", var),
+                    })?;
             if index >= N {
-                return Err(MguError::UnknownError(703));
+                return Err(MguError::VariableIndexOutOfRange { index, limit: N });
             }
 
             if index >= 20 {
@@ -1522,10 +1527,15 @@ where
             Ok(result)
         } else {
             // Node case: evaluate the node with its children
-            let node = term.get_node().ok_or(MguError::UnknownError(704))?;
+            let node = term.get_node().ok_or(MguError::TermKindMismatch {
+                expected: "node",
+                found: "metavariable",
+            })?;
             let bool_op = node
                 .to_boolean_op()
-                .ok_or_else(|| MguError::UnknownError(700))?;
+                .ok_or_else(|| MguError::NodeNotBooleanOp {
+                    node_display: format!("{:?}", node),
+                })?;
 
             let child_values = term
                 .get_children()
@@ -1557,7 +1567,10 @@ impl UnsignedBits<bool, 0> for bool {
 
     fn set_bit(&mut self, bit_pos: u64, value: bool) -> Result<(), MguError> {
         if bit_pos != 0 {
-            Err(MguError::UnknownError(120))
+            Err(MguError::BitPositionOutOfRange {
+                position: bit_pos,
+                bits: 1,
+            })
         } else {
             *self = value;
             Ok(())
@@ -1632,7 +1645,10 @@ impl<const N: usize> UnsignedBits<SomeBits<N>, N> for SomeBits<N> {
             self.0.set_bit(bit_pos, value);
             Ok(())
         } else {
-            Err(MguError::UnknownError(119))
+            Err(MguError::BitPositionOutOfRange {
+                position: bit_pos,
+                bits: 1 << N,
+            })
         }
     }
 }

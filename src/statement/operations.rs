@@ -58,12 +58,12 @@ where
         let hyp_n = self
             .hypotheses
             .get(n)
-            .ok_or(MguError::ChildIndexOutOfRange(n, self.hypotheses.len()))?;
+            .ok_or_else(|| MguError::from_index_and_len(n, self.hypotheses.len()))?;
 
         let hyp_m = self
             .hypotheses
             .get(m)
-            .ok_or(MguError::ChildIndexOutOfRange(m, self.hypotheses.len()))?;
+            .ok_or_else(|| MguError::from_index_and_len(m, self.hypotheses.len()))?;
 
         // Unify the two hypotheses
         let subst = unify(factory, hyp_n, hyp_m)?;
@@ -229,7 +229,7 @@ where
         let hyp_n = self
             .hypotheses
             .get(n)
-            .ok_or(MguError::ChildIndexOutOfRange(n, self.hypotheses.len()))?;
+            .ok_or_else(|| MguError::from_index_and_len(n, self.hypotheses.len()))?;
 
         // Step 1: Relabel other's variables to be disjoint from self's
         let my_vars = self.collect_metavariables()?;

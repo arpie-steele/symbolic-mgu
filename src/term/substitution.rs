@@ -594,7 +594,7 @@ where
     // Arity must match
     let n_children = t1.get_n_children();
     if n_children != t2.get_n_children() {
-        return Err(MguError::SlotsMismatch(
+        return Err(MguError::from_found_and_expected_unsigned(
             t1.get_n_children(),
             t2.get_n_children(),
         ));
@@ -605,10 +605,10 @@ where
     for i in 0..n_children {
         let child1 = t1
             .get_child(i)
-            .ok_or(MguError::ChildIndexOutOfRange(i, n_children))?;
+            .ok_or_else(|| MguError::from_index_and_len(i, n_children))?;
         let child2 = t2
             .get_child(i)
-            .ok_or(MguError::ChildIndexOutOfRange(i, n_children))?;
+            .ok_or_else(|| MguError::from_index_and_len(i, n_children))?;
 
         current_subst = unify_with_subst(factory, &current_subst, child1, child2)?;
     }
@@ -657,7 +657,10 @@ mod tests {
             // Validate arity
             let expected_arity = node.get_arity()?;
             if children.len() != expected_arity {
-                return Err(MguError::SlotsMismatch(expected_arity, children.len()));
+                return Err(MguError::from_found_and_expected_unsigned(
+                    expected_arity,
+                    children.len(),
+                ));
             }
             Ok(TestTerm::NodeOrLeaf(node, children))
         }
