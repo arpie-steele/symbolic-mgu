@@ -187,13 +187,20 @@ fn run_both_mode(proofs: &[&str], verify: bool, format: &str) -> Result<(), MguE
             Ok(wide_result) => {
                 println!("✓ Parsed successfully (wide variables)");
 
+                // IMPORTANT: Canonicalize the parsed result before conversion or display.
+                // This ensures deterministic variable ordering regardless of Rust's randomized
+                // hash function, which would otherwise cause the same proof to display
+                // differently on each run.
+                let canonical_wide =
+                    wide_result.canonicalize(&wide_var_factory, &wide_term_factory)?;
+
                 // Try to convert to MetaByte
                 let byte_var_factory = MetaByteFactory();
                 let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
                 let byte_term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> =
                     EnumTermFactory::new();
 
-                match wide_result.convert::<
+                match canonical_wide.convert::<
                     SimpleType,
                     MetaByte,
                     NodeByte,
@@ -205,12 +212,16 @@ fn run_both_mode(proofs: &[&str], verify: bool, format: &str) -> Result<(), MguE
                 {
                     Ok(byte_result) => {
                         println!("✓ Successfully converted to byte variables");
-                        display_statement(&byte_result, &*formatter, verify, &byte_term_factory)?;
+                        // Note: Even though `canonical_wide` was canonical, convert() maps variables
+                        // based on the order they're encountered in the source, which may not match
+                        // the destination's canonical ordering. Re-canonicalize for consistency.
+                        let canonical_byte = byte_result.canonicalize(&byte_var_factory, &byte_term_factory)?;
+                        display_statement(&canonical_byte, &*formatter, verify, &byte_term_factory)?;
                     }
                     Err(e) => {
                         println!("⚠ Cannot convert to byte variables: {}", e);
                         println!("  Displaying with wide variables:");
-                        display_statement(&wide_result, &*formatter, verify, &wide_term_factory)?;
+                        display_statement(&canonical_wide, &*formatter, verify, &wide_term_factory)?;
                     }
                 }
             }
@@ -313,30 +324,38 @@ where
         match Statement::from_compact_proof(proof_str, var_factory, &term_factory, &dict) {
             Ok(result) => {
                 println!("✓ Parsed successfully");
+
+                // IMPORTANT: Canonicalize before display to ensure deterministic output.
+                // Without canonicalization, variable ordering depends on Rust's randomized
+                // hash function, causing the same proof to display differently on each run.
+                // Canonicalization produces minimal lexicographic variable ordering and
+                // ensures consistent, reproducible output for mathematical results.
+                let canonical = result.canonicalize(var_factory, &term_factory)?;
+
                 println!(
                     "  Assertion: {}",
-                    result.get_assertion().format_with(&*formatter)
+                    canonical.get_assertion().format_with(&*formatter)
                 );
-                println!("  Hypotheses: {}", result.get_n_hypotheses());
+                println!("  Hypotheses: {}", canonical.get_n_hypotheses());
 
-                if result.get_n_hypotheses() > 0 {
-                    for (j, hyp) in result.get_hypotheses().iter().enumerate() {
+                if canonical.get_n_hypotheses() > 0 {
+                    for (j, hyp) in canonical.get_hypotheses().iter().enumerate() {
                         println!("    {}: {}", j, hyp.format_with(&*formatter));
                     }
                 }
 
                 // Verify tautology or validity if requested
                 if verify {
-                    if result.get_n_hypotheses() == 0 {
+                    if canonical.get_n_hypotheses() == 0 {
                         // No hypotheses: verify assertion is a tautology
-                        match test_tautology(result.get_assertion()) {
+                        match test_tautology(canonical.get_assertion()) {
                             Ok(true) => println!("  ✓ Verified: This is a tautology"),
                             Ok(false) => println!("  ✗ Warning: This is NOT a tautology"),
                             Err(e) => println!("  ? Could not verify: {}", e),
                         }
                     } else {
                         // Has hypotheses: check if all terms are Boolean, then verify validity
-                        match test_validity(&result, &term_factory, &Some(NodeByte::Implies)) {
+                        match test_validity(&canonical, &term_factory, &Some(NodeByte::Implies)) {
                             Ok(true) => {
                                 println!("  ✓ Valid: Hypotheses logically entail the assertion")
                             }
