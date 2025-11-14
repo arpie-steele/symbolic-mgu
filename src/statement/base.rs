@@ -130,8 +130,13 @@ where
 
     /// Collect all metavariables used in this statement.
     ///
+    /// Traverses both the assertion and all hypotheses to collect
+    /// every metavariable appearing in the statement.
+    ///
     /// # Errors
-    /// - TODO.
+    ///
+    /// Returns an error if any term's structure is malformed or if
+    /// metavariable collection fails on any sub-term.
     pub fn collect_metavariables(&self) -> Result<HashSet<V>, MguError> {
         let mut vars = HashSet::new();
 

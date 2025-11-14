@@ -70,30 +70,62 @@ where
     /// Alternate to an iterator.
     fn get_children_as_slice(&self) -> &[Self];
 
-    /// TODO.
+    /// Check if this term is a valid sentence (well-formed and of Boolean type).
+    ///
+    /// A term is a valid sentence if:
+    /// - All metavariables are well-formed (have valid type and index)
+    /// - All nodes have the correct number of children for their arity
+    /// - All children have types compatible with the node's slot types
+    /// - The root has Boolean type
     ///
     /// # Errors
-    /// - TODO.
+    ///
+    /// Returns an error if type checking fails or structural validation encounters
+    /// malformed nodes/metavariables.
     fn is_valid_sentence(&self) -> Result<bool, MguError>;
 
-    /// TODO.
+    /// Check if this term is a valid sentence, returning `false` on any error.
+    ///
+    /// This is a convenience method that converts errors to `false`.
+    /// Use [`Term::is_valid_sentence`] if you need to distinguish between
+    /// validation failures and structural errors.
     fn is_valid_sentence_unchecked(&self) -> bool {
         self.is_valid_sentence().unwrap_or(false)
     }
 
     /// Return the [`Type`] of this tree/sub-tree.
     ///
-    /// # Errors
-    /// - TODO.
-    fn get_type(&self) -> Result<T, MguError>;
-
-    /// TODO.
+    /// For a metavariable, returns its declared type.
+    /// For a node application, returns the node's output type.
     ///
     /// # Errors
-    /// - TODO.
-    fn collect_metavariables(&self, _vars: &mut HashSet<V>) -> Result<(), MguError> {
-        todo!();
-    }
+    ///
+    /// Returns an error if the term structure is malformed or if
+    /// type information cannot be determined.
+    fn get_type(&self) -> Result<T, MguError>;
+
+    /// Recursively collect all metavariables appearing in this term.
+    ///
+    /// This method traverses the term tree and inserts all metavariables
+    /// into the provided `HashSet`. For a leaf metavariable, inserts just
+    /// that variable. For a node application, recursively collects from
+    /// all children.
+    ///
+    /// # Arguments
+    ///
+    /// * `vars` - `HashSet` to insert metavariables into
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The term structure is malformed
+    /// - Metavariable information cannot be accessed
+    /// - Database-backed implementations encounter I/O errors
+    ///
+    /// Note: The current `EnumTerm` implementation never returns an error,
+    /// but the trait allows for fallible implementations to support
+    /// database-backed or validated term structures.
+    fn collect_metavariables(&self, vars: &mut HashSet<V>) -> Result<(), MguError>;
 
     /// Pre-flight syntax check to see if the supplied children are compatible with the supplied [`Node`].
     ///
