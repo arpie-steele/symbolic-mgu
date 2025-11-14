@@ -692,4 +692,234 @@ where
         best_canonical
             .ok_or_else(|| MguError::AllocationError("Failed to find canonical form".to_string()))
     }
+
+    /// Convert a statement to use different implementations of Type, Metavariable, Node, and Term.
+    ///
+    /// This method enables converting between different backend implementations while preserving
+    /// the logical structure of the statement. For example, converting from `MetaByte` (limited
+    /// to 32 variables) to `WideMetavariable` (unlimited variables), or vice versa.
+    ///
+    /// The conversion process:
+    /// 1. Collects all variables from the source statement, grouped by type
+    /// 2. Maps each variable to the destination implementation using factory iterators
+    /// 3. Detects if the destination implementation has insufficient capacity
+    /// 4. Recursively converts all terms (assertion and hypotheses)
+    /// 5. Converts the distinctness graph
+    ///
+    /// # Type Parameters
+    ///
+    /// * `Ty2` - Destination Type implementation
+    /// * `V2` - Destination Metavariable implementation
+    /// * `N2` - Destination Node implementation
+    /// * `T2` - Destination Term implementation
+    /// * `VF` - Metavariable factory for creating destination variables
+    /// * `NF` - Node factory for creating destination nodes
+    /// * `TF` - Term factory for creating destination terms
+    ///
+    /// # Arguments
+    ///
+    /// * `var_factory` - Factory for creating destination metavariables
+    /// * `node_factory` - Factory for creating destination nodes
+    /// * `term_factory` - Factory for creating destination terms
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The destination metavariable implementation is exhausted (e.g., converting a statement
+    ///   with 15 Boolean variables to `MetaByte` which supports only 11)
+    /// - Type conversion fails (if source and destination type systems are incompatible)
+    /// - Term conversion fails
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use symbolic_mgu::{Statement, SimpleType, MetaByte, MetaByteFactory, MetavariableFactory};
+    /// # use symbolic_mgu::{WideMetavariable, WideMetavariableFactory};
+    /// # use symbolic_mgu::{NodeByte, NodeByteFactory, EnumTerm, EnumTermFactory, TermFactory, MguError};
+    /// # fn example() -> Result<(), MguError> {
+    /// // Original statement using MetaByte
+    /// let meta_var_factory = MetaByteFactory();
+    /// let term_factory: EnumTermFactory<SimpleType, _, NodeByte> = EnumTermFactory::new();
+    /// let p = meta_var_factory.create("P", &SimpleType::Boolean)?;
+    /// let p_term = term_factory.create_leaf(p)?;
+    /// let stmt = Statement::new(p_term, vec![], Default::default())?;
+    ///
+    /// // Convert to WideMetavariable
+    /// let var_factory = WideMetavariableFactory();
+    /// let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
+    /// let wide_term_factory = EnumTermFactory::new();
+    ///
+    /// let converted: Statement<SimpleType, WideMetavariable, NodeByte, EnumTerm<_, _, _>> =
+    ///     stmt.convert(&var_factory, &node_factory, &wide_term_factory)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn convert<Ty2, V2, N2, T2, VF, NF, TF>(
+        &self,
+        var_factory: &VF,
+        node_factory: &NF,
+        term_factory: &TF,
+    ) -> Result<Statement<Ty2, V2, N2, T2>, MguError>
+    where
+        Ty2: Type,
+        V2: Metavariable<Type = Ty2>,
+        N2: Node<Type = Ty2>,
+        T2: Term<Ty2, V2, N2>,
+        VF: MetavariableFactory<Metavariable = V2, MetavariableType = Ty2>,
+        NF: crate::NodeFactory<Node = N2, NodeType = Ty2>,
+        TF: TermFactory<T2, Ty2, V2, N2, Term = T2, TermNode = N2, TermMetavariable = V2>,
+    {
+        use std::collections::HashMap;
+
+        // Step 1: Collect all unique variables from the statement, grouped by type
+        let mut vars_set: HashSet<V> = HashSet::new();
+        self.assertion.collect_metavariables(&mut vars_set)?;
+        for hyp in &self.hypotheses {
+            hyp.collect_metavariables(&mut vars_set)?;
+        }
+
+        let mut vars_by_type: HashMap<Ty, Vec<V>> = HashMap::new();
+        for var in vars_set {
+            let ty = var.get_type()?;
+            vars_by_type.entry(ty).or_default().push(var);
+        }
+
+        // Step 2: Build variable mapping using factory iterators
+        let mut var_map: HashMap<V, V2> = HashMap::new();
+
+        for (src_type, src_vars) in vars_by_type {
+            // Convert type using capability checks
+            let dest_type = if src_type.is_boolean() {
+                Ty2::try_boolean()?
+            } else if src_type.is_setvar() {
+                Ty2::try_setvar()?
+            } else if src_type.is_class() {
+                Ty2::try_class()?
+            } else {
+                return Err(MguError::ArgumentError(
+                    "Unsupported type conversion: source type does not support boolean/setvar/class checks".to_string()
+                ));
+            };
+
+            // Get iterator from destination factory
+            let mut dest_iter = var_factory.list_metavariables_by_type(&dest_type);
+
+            // Map each source variable to next destination variable
+            for src_var in src_vars {
+                let dest_var = dest_iter.next().ok_or_else(|| {
+                    MguError::AllocationError(format!(
+                        "Destination metavariable implementation exhausted for type {:?}",
+                        dest_type
+                    ))
+                })?;
+                var_map.insert(src_var, dest_var);
+            }
+        }
+
+        // Step 3: Define recursive term conversion helper
+        // Note: We use a nested function instead of a closure because closures
+        // cannot be recursive without `RefCell` or similar workarounds
+
+        /// Recursively convert a term from one implementation to another.
+        ///
+        /// This helper function is used by `Statement::convert()` to recursively
+        /// transform terms by mapping variables and replicating nodes.
+        fn convert_term_impl<Ty, V, N, T, Ty2, V2, N2, T2, NF, TF>(
+            term: &T,
+            var_map: &HashMap<V, V2>,
+            node_factory: &NF,
+            term_factory: &TF,
+        ) -> Result<T2, MguError>
+        where
+            Ty: Type,
+            V: Metavariable<Type = Ty>,
+            N: Node<Type = Ty>,
+            T: Term<Ty, V, N>,
+            Ty2: Type,
+            V2: Metavariable<Type = Ty2>,
+            N2: Node<Type = Ty2>,
+            T2: Term<Ty2, V2, N2>,
+            NF: crate::NodeFactory<Node = N2, NodeType = Ty2>,
+            TF: TermFactory<T2, Ty2, V2, N2, Term = T2, TermNode = N2, TermMetavariable = V2>,
+        {
+            if term.is_metavariable() {
+                // Leaf case: look up mapped variable
+                let src_var = term.get_metavariable().ok_or_else(|| {
+                    MguError::ArgumentError(
+                        "Term is metavariable but get_metavariable returned None".to_string(),
+                    )
+                })?;
+                let dest_var = var_map.get(&src_var).ok_or_else(|| {
+                    MguError::ArgumentError("Variable not found in mapping".to_string())
+                })?;
+                term_factory.create_leaf(dest_var.clone())
+            } else {
+                // Node case: convert node and children
+                let src_node = term.get_node().ok_or_else(|| {
+                    MguError::ArgumentError("Term is node but get_node returned None".to_string())
+                })?;
+
+                // Convert node using factory's `type_and_index` method
+                let (node_type, node_index) = src_node.get_type_and_index()?;
+
+                // Convert the node's type
+                let dest_node_type = if node_type.is_boolean() {
+                    Ty2::try_boolean()?
+                } else if node_type.is_setvar() {
+                    Ty2::try_setvar()?
+                } else if node_type.is_class() {
+                    Ty2::try_class()?
+                } else {
+                    return Err(MguError::ArgumentError(
+                        "Unsupported node type conversion".to_string(),
+                    ));
+                };
+
+                let dest_node =
+                    node_factory.create_by_type_and_index(dest_node_type, node_index)?;
+
+                // Recursively convert children
+                let dest_children: Result<Vec<T2>, MguError> = term
+                    .get_children()
+                    .map(|child| convert_term_impl(child, var_map, node_factory, term_factory))
+                    .collect();
+
+                term_factory.create_node(dest_node, dest_children?)
+            }
+        }
+
+        // Step 4: Convert assertion and hypotheses
+        let new_assertion =
+            convert_term_impl(&self.assertion, &var_map, node_factory, term_factory)?;
+        let new_hypotheses: Result<Vec<T2>, MguError> = self
+            .hypotheses
+            .iter()
+            .map(|h| convert_term_impl(h, &var_map, node_factory, term_factory))
+            .collect();
+        let new_hypotheses = new_hypotheses?;
+
+        // Step 5: Convert distinctness graph
+        let mut new_distinctness = DistinctnessGraph::new();
+        for (v1, v2) in self.distinctness_graph.edges_iter() {
+            let dest_v1 = var_map.get(&v1).ok_or_else(|| {
+                MguError::ArgumentError(
+                    "Variable in distinctness graph not found in mapping".to_string(),
+                )
+            })?;
+            let dest_v2 = var_map.get(&v2).ok_or_else(|| {
+                MguError::ArgumentError(
+                    "Variable in distinctness graph not found in mapping".to_string(),
+                )
+            })?;
+            new_distinctness.add_edge(dest_v1, dest_v2)?;
+        }
+
+        // Step 6: Build new statement
+        Ok(Statement {
+            _not_used: PhantomData,
+            assertion: new_assertion,
+            hypotheses: new_hypotheses,
+            distinctness_graph: new_distinctness,
+        })
+    }
 }
