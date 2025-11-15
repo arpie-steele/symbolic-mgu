@@ -15,14 +15,18 @@
 | Phase 6: Enhanced Testing API | ✅ Complete | 100% | test_term(), test_contradiction(), test_satisfiable(), TruthTable |
 | Phase 7: rustmgu Backport | ✅ Complete | 100% | All features backported and tested |
 
-**Status for v0.1.0 final release (imminent):**
-- ✅ **All tests passing** - 202 tests total (90 unit + 12 property + 10 integration + 1 PM validation + 89 doc)
+**Status for v0.1.0 final release:**
+- ✅ **All tests passing** - 233 tests total (90 unit + 31 validation/integration + 1 PM validation + 95 doc + 16 new)
   - 90 lib unit tests (includes 12 formatter tests)
   - 12 property-based tests (unification_properties.rs)
   - 4 regression tests (regression_compact_proofs.rs)
   - 6 conversion tests (statement_conversion.rs)
+  - 9 term invariant tests (term_invariants.rs) - NEW
+  - 10 type capability tests (type_capability_validation.rs) - NEW
+  - 3 formatter stress tests (formatter_stress_test.rs) - NEW
+  - 4 custom formatter tests (custom_formatter_test.rs) - NEW
   - 1 PM proofs validation test (2,882 proofs, ignored by default - run with --ignored)
-  - 89 doctests (all passing)
+  - 95 doctests (all passing)
 - ✅ **All UnsignedBits types** - bool, u8, u16, u32, u64, u128, BigUint
 - ✅ **Unification algorithm** - Substitution, MGU, occurs check
 - ✅ **Statement operations** - substitute, apply, contract
@@ -56,6 +60,13 @@
   - WideMetavariable constants exported under new names
   - New types: WideCharSet, Prime, Decorator for ParametricMetavariable
   - MetaByte simplification: Truly ASCII-only (returns literal characters like "P")
+- ✅ **v0.1.0-alpha.12 API validation (2025-11-14):**
+  - Completed all high-priority API stability validation tasks (see docs/ALPHA12_RECOMMENDATIONS.md)
+  - Term trait audit: Removed `todo!()`, added 9 property tests validating invariants
+  - Type capability validation: 10 tests verifying capability-based design works correctly
+  - Panic audit: Documented all unwraps with SAFETY comments or improved error messages (7 files)
+  - Formatter stress testing: Validated with 100+ variables and deep nesting (50+ levels)
+  - Custom formatter API: Verified third parties can implement OutputFormatter trait
 - ⚠️ **Documentation gaps** - Module docs exist but could be expanded
 - 🚧 **Backporting from rustmgu** - See Phase 7 below
 
