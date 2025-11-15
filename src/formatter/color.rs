@@ -62,6 +62,17 @@ impl Color {
         self.html_hex
     }
 
+    // The xterm-256 color cube (colors 16-231) uses the formula:
+    // Index = 16 + 36×r + 6×g + b
+    // Where r, g, b ∈ {0, 1, 2, 3, 4, 5} map to RGB values:
+    // {0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff} = {0, 95, 135, 175, 215, 255}
+    //
+    // The xterm-256 grayscale ramp (colors 232-255) uses the formula:
+    // RGB = 8 + 10×(index - 232)
+    // Where all three components have the same value (24 shades of gray).
+    //
+    // See also: https://www.ditig.com/256-colors-cheat-sheet
+
     /// Default blue color for Boolean types.
     pub const BLUE: Color = Color::new(33, "#0087ff");
 
