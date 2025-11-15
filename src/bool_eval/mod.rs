@@ -1544,6 +1544,8 @@ where
             if let Some(Err(err)) = child_values.iter().find(|x| (*x).is_err()) {
                 return Err(err.clone());
             }
+            // SAFETY: We checked above that no errors exist in `child_values`,
+            // so all Results are Ok and unwrap() will succeed.
             let child_values = child_values
                 .into_iter()
                 .map(|x| x.unwrap())

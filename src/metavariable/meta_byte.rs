@@ -101,6 +101,8 @@ impl Metavariable for MetaByte {
                 &*self.to_string(),
             ));
         }
+        // SAFETY: We verified above that self.0 is contained in data
+        // (one of `OUR_BOOLEANS`, `OUR_SETVARS`, or `OUR_CLASSES`), so find() will succeed.
         Ok((our_type, data.find(self.0 as char).unwrap()))
     }
 

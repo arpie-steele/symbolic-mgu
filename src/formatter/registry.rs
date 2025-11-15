@@ -86,7 +86,7 @@ fn formatter_registry() -> &'static RwLock<HashMap<String, FormatterBox>> {
 pub fn register_formatter(name: impl Into<String>, formatter: impl OutputFormatter + 'static) {
     formatter_registry()
         .write()
-        .unwrap()
+        .expect("formatter registry lock poisoned")
         .insert(name.into(), Arc::new(formatter));
 }
 
@@ -118,7 +118,7 @@ pub fn register_formatter(name: impl Into<String>, formatter: impl OutputFormatt
 pub fn get_formatter(name: &str) -> FormatterBox {
     formatter_registry()
         .read()
-        .unwrap()
+        .expect("formatter registry lock poisoned")
         .get(name)
         .cloned()
         .unwrap_or_else(|| {

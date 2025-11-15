@@ -77,6 +77,9 @@ impl MetavariableFactory for WideMetavariableFactory {
     ) -> Self::MetavariableIterator<'_> {
         // Return boxed iterator for unlimited variables
         let typ = *the_type;
+        // SAFETY: WideMetavariable::try_from_type_and_index() never fails.
+        // It uses modulo arithmetic to map any usize to a valid variable
+        // (base character + decorator), so unwrap() will never panic.
         Box::new((0..).map(move |i| WideMetavariable::try_from_type_and_index(typ, i).unwrap()))
     }
 }
