@@ -63,14 +63,26 @@ impl Color {
     }
 
     /// Default blue color for Boolean types.
-    pub const BLUE: Color = Color::new(33, "#0088ff");
+    pub const BLUE: Color = Color::new(33, "#0087ff");
 
     /// Default green color for Setvar types.
-    pub const GREEN: Color = Color::new(34, "#00aa00");
+    pub const GREEN: Color = Color::new(34, "#00af00");
 
     /// Default red color for Class types.
-    pub const RED: Color = Color::new(160, "#cc0000");
+    pub const RED: Color = Color::new(160, "#d70000");
 
     /// Default orange color for operators.
     pub const ORANGE: Color = Color::new(208, "#ff8700");
+
+    /// Pure blue color (HTML standard).
+    pub const HTML_BLUE: Color = Color::new(21, "#0000ff");
+
+    /// Pure red color (HTML standard).
+    pub const HTML_RED: Color = Color::new(196, "#ff0000");
+
+    /// Purple color.
+    pub const PURPLE: Color = Color::new(170, "#d75fd7");
+
+    /// Medium gray color.
+    pub const GRAY: Color = Color::new(244, "#808080");
 }

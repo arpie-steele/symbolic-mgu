@@ -2,7 +2,7 @@
 edition = "2018"
 rust-version = "1.77.0"
 name = "symbolic-mgu"
-version = "0.1.0-alpha.12"
+version = "0.1.0-alpha.13"
 authors = ["Richard Penner <richardpenner@gmail.com>"]
 build = "build.rs"
 exclude = [
@@ -13,12 +13,18 @@ exclude = [
     "BOOL_EVAL_BACKPORT_PLAN.md",
     "docs/ALPHA12_RECOMMENDATIONS.md",
     "docs/archive/",
+    "docs/AUDIT_FINDINGS.md",
+    "docs/AUDIT_PLAN.md",
     "docs/diagrams/",
     "docs/FORMATTER_DESIGN.md",
     "docs/IMPROVEMENTS_CHECKLIST.md",
+    "docs/METAMATH_ARCHITECTURE_V2.md",
+    "docs/METAMATH_ARCHITECTURE.md",
     "docs/PARAMETRIC_METAVARIABLE_DESIGN.md",
+    "docs/PHASE2_TEST_COVERAGE.md",
     "docs/POST_RELEASE_TODO.md",
     "docs/SESSION_SUMMARY_2025-11-04.md",
+    "docs/TEST_GAPS_PLAN.md",
     "GENERIC_TAUTOLOGY_PLAN.md",
     "pmproofs_history/*.py",
     "pmproofs_history/*.txt",
