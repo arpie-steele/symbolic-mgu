@@ -67,6 +67,7 @@
 0x54
 0x58
 0x5C
+0x5f
 0x60
 0x64
 0x68
@@ -77,6 +78,7 @@
 0x7C
 0x80
 0x84
+0x87
 0x88
 0x8C
 0x90
@@ -88,6 +90,7 @@
 0xA8
 0xAA
 0xAC
+0xaf
 0xB0
 0xB4
 0xB8
@@ -98,6 +101,7 @@
 0xCC
 0xD0
 0xD4
+0xd7
 0xD8
 0xDC
 0xE0
@@ -207,6 +211,7 @@
 96px
 9700ff
 999i32
+A1
 a900ff
 a9ff00
 accessor
@@ -239,6 +244,8 @@ AsciiMetaVar
 ATPs
 axiomatization
 axiomatized
+B1
+B2
 b200ff
 backend
 backends
@@ -262,6 +269,7 @@ Booleans
 BooleanTermEnumerator
 br
 C0
+C1
 C3C
 c4ff00
 cadd
@@ -341,6 +349,7 @@ CumulativeHierarchy
 curvilinear
 CXX
 d000ff
+D1
 D13
 d14ca60
 D21
@@ -392,6 +401,7 @@ docsrs
 doctest
 drule
 dyn
+E1
 e700ff
 eine
 Electrotechnical
@@ -811,6 +821,7 @@ roadmap
 roadmaps
 Rohan
 RPN
+rrggbb
 rustc
 rustdoc
 rustdocs
@@ -881,6 +892,9 @@ StaticSlotNode
 stderr
 stdout
 Stillwell
+stmt
+stmt1
+stmt2
 str
 StrictDominance
 stringly
@@ -1069,9 +1083,12 @@ ze
 ZeroTmpReals
 ZFC
 Zmth
+0xff}
 100%
 18%
+255}
 50%
+5}
 accessor's
 accessor/MS
 allocator's
@@ -1333,9 +1350,12 @@ xᵗ
 τₖ
 φ
 φύσιν
+φ₀
 φ₁
 φ₂
 φ₃
+φ₅
+φ₇
 χ
 χ₁
 χ₂
@@ -1427,6 +1447,9 @@ xᵗ
 𝜑
 𝜒
 𝜓
+10×
+36×r
+6×g
 Bézier's
 Bézier/MS
 h·σ
@@ -1454,6 +1477,8 @@ Sₙ₋₁
 =
 >
 \
+{0
+{0x00
 {0}
 {1}
 {bot_chroma
@@ -1481,11 +1506,13 @@ Sₙ₋₁
 ∀x
 ∃y
 ∅
+∈
 ∧
 ∨
 ∪
 ≠
 ≡
+≡ᵅ
 ≥
 ⊄
 ⊆

@@ -923,3 +923,831 @@ where
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte,
+        SimpleType, Statement, TermFactory,
+    };
+    use itertools::Itertools;
+
+    type TestStatement =
+        Statement<SimpleType, MetaByte, NodeByte, EnumTerm<SimpleType, MetaByte, NodeByte>>;
+
+    // ==========================================================================
+    // Phase A1: CONTRACT Error Cases
+    // ==========================================================================
+
+    #[test]
+    fn contract_with_equal_indices_fails() {
+        // CONTRACT(stmt, 0, 0) should error: can't contract with self
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        // Create simple statement: (φ; [P, Q]; {})
+        let (phi, p, q) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let p_term = term_factory.create_leaf(p).unwrap();
+        let q_term = term_factory.create_leaf(q).unwrap();
+
+        let stmt: TestStatement =
+            Statement::new(phi_term, vec![p_term, q_term], Default::default()).unwrap();
+
+        // Try to contract hypothesis 0 with itself
+        let result = stmt.contract(&term_factory, 0, 0);
+
+        assert!(result.is_err(), "CONTRACT with equal indices should fail");
+        if let Err(e) = result {
+            let msg = format!("{:?}", e);
+            assert!(
+                msg.contains("Cannot contract a hypothesis with itself"),
+                "Error message should mention self-contraction: {}",
+                msg
+            );
+        }
+    }
+
+    #[test]
+    fn contract_with_out_of_bounds_n_fails() {
+        // CONTRACT(stmt, 99, 0) should error: index out of range
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let phi = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
+        let p = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .nth(1)
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let p_term = term_factory.create_leaf(p).unwrap();
+
+        let stmt: TestStatement =
+            Statement::new(phi_term, vec![p_term.clone()], Default::default()).unwrap();
+
+        // Try with n out of bounds (statement has only 1 hypothesis)
+        let result = stmt.contract(&term_factory, 99, 0);
+
+        assert!(result.is_err(), "CONTRACT with out-of-bounds n should fail");
+        if let Err(e) = result {
+            let msg = format!("{:?}", e);
+            assert!(
+                msg.contains("out of range") || msg.contains("Index"),
+                "Error should mention index out of range: {}",
+                msg
+            );
+        }
+    }
+
+    #[test]
+    fn contract_with_out_of_bounds_m_fails() {
+        // CONTRACT(stmt, 0, 99) should error: index out of range
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let phi = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
+        let p = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .nth(1)
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let p_term = term_factory.create_leaf(p).unwrap();
+
+        let stmt: TestStatement =
+            Statement::new(phi_term, vec![p_term], Default::default()).unwrap();
+
+        // Try with m out of bounds
+        let result = stmt.contract(&term_factory, 0, 99);
+
+        assert!(result.is_err(), "CONTRACT with out-of-bounds m should fail");
+        if let Err(e) = result {
+            let msg = format!("{:?}", e);
+            assert!(
+                msg.contains("out of range") || msg.contains("Index"),
+                "Error should mention index out of range: {}",
+                msg
+            );
+        }
+    }
+
+    // Note: Type incompatibility at the hypothesis level is prevented by Statement's
+    // type system - all hypotheses must be Boolean. Type mismatches at deeper levels
+    // (within term children) are already thoroughly tested in unification property tests.
+
+    #[test]
+    fn contract_different_operators_fails() {
+        // Hypothesis 0: P → Q
+        // Hypothesis 1: P ∧ Q
+        // CONTRACT(stmt, 0, 1) should error: Implies ≠ And
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (phi, p, q) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let p_term = term_factory.create_leaf(p).unwrap();
+        let q_term = term_factory.create_leaf(q).unwrap();
+
+        // Create P → Q
+        let p_implies_q = term_factory
+            .create_node(NodeByte::Implies, vec![p_term.clone(), q_term.clone()])
+            .unwrap();
+
+        // Create P ∧ Q
+        let p_and_q = term_factory
+            .create_node(NodeByte::And, vec![p_term, q_term])
+            .unwrap();
+
+        let stmt: TestStatement =
+            Statement::new(phi_term, vec![p_implies_q, p_and_q], Default::default()).unwrap();
+
+        // Try to contract different operators
+        let result = stmt.contract(&term_factory, 0, 1);
+
+        assert!(
+            result.is_err(),
+            "CONTRACT of different operators should fail"
+        );
+        if let Err(e) = result {
+            let msg = format!("{:?}", e);
+            assert!(
+                msg.contains("unif") || msg.contains("Node") || msg.contains("mismatch"),
+                "Error should mention unification failure or node mismatch: {}",
+                msg
+            );
+        }
+    }
+
+    // ==========================================================================
+    // Phase C1: APPLY Error Cases
+    // ==========================================================================
+
+    #[test]
+    fn apply_with_out_of_bounds_index_fails() {
+        // APPLY(stmt, 99, other) should error: index out of range
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (phi, psi) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let psi_term = term_factory.create_leaf(psi).unwrap();
+
+        let stmt1: TestStatement =
+            Statement::new(phi_term, vec![psi_term.clone()], Default::default()).unwrap();
+        let stmt2: TestStatement = Statement::simple_axiom(psi_term).unwrap();
+
+        // Try with index out of bounds (stmt1 has only 1 hypothesis at index 0)
+        let result = stmt1.apply(&var_factory, &term_factory, 99, &stmt2);
+
+        assert!(
+            result.is_err(),
+            "APPLY with out-of-bounds index should fail"
+        );
+        if let Err(e) = result {
+            let msg = format!("{:?}", e);
+            assert!(
+                msg.contains("out of range") || msg.contains("Index"),
+                "Error should mention index out of range: {}",
+                msg
+            );
+        }
+    }
+
+    // Note: Type incompatibility is prevented by Statement's type system (all hypotheses
+    // and assertions must be Boolean). Type mismatches at deeper levels are already
+    // tested in unification property tests.
+
+    #[test]
+    fn apply_unification_failure() {
+        // S1.`hypothesis`[0]: P → Q
+        // S2.assertion: P ∧ Q (different operator, won't unify)
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (phi, p, q) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let p_term = term_factory.create_leaf(p).unwrap();
+        let q_term = term_factory.create_leaf(q).unwrap();
+
+        // Create P → Q
+        let p_implies_q = term_factory
+            .create_node(NodeByte::Implies, vec![p_term.clone(), q_term.clone()])
+            .unwrap();
+
+        // Create P ∧ Q
+        let p_and_q = term_factory
+            .create_node(NodeByte::And, vec![p_term, q_term])
+            .unwrap();
+
+        // stmt1: (φ; [P → Q]; {})
+        let stmt1: TestStatement =
+            Statement::new(phi_term, vec![p_implies_q], Default::default()).unwrap();
+
+        // stmt2: (P ∧ Q; []; {})
+        let stmt2: TestStatement = Statement::simple_axiom(p_and_q).unwrap();
+
+        // Try to apply: unify `hypothesis`[0] (P → Q) with assertion (P ∧ Q)
+        let result = stmt1.apply(&var_factory, &term_factory, 0, &stmt2);
+
+        assert!(
+            result.is_err(),
+            "APPLY with unification failure should fail"
+        );
+        if let Err(e) = result {
+            let msg = format!("{:?}", e);
+            assert!(
+                msg.contains("unif") || msg.contains("Node") || msg.contains("mismatch"),
+                "Error should mention unification failure: {}",
+                msg
+            );
+        }
+    }
+
+    // ==========================================================================
+    // Phase D1: APPLY_MULTIPLE Error Cases
+    // ==========================================================================
+
+    #[test]
+    fn apply_multiple_with_empty_proofs_fails() {
+        // Statement with 2 hypotheses, proofs = []
+        // Should error: insufficient proofs
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (phi, p, q) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let p_term = term_factory.create_leaf(p).unwrap();
+        let q_term = term_factory.create_leaf(q).unwrap();
+
+        let stmt: TestStatement =
+            Statement::new(phi_term, vec![p_term, q_term], Default::default()).unwrap();
+
+        let empty_proofs: Vec<Option<TestStatement>> = vec![];
+
+        // Try with empty proofs list
+        let result = stmt.apply_multiple(&var_factory, &term_factory, &empty_proofs);
+
+        assert!(
+            result.is_err(),
+            "APPLY_MULTIPLE with empty proofs should fail"
+        );
+        if let Err(e) = result {
+            let msg = format!("{:?}", e);
+            assert!(
+                msg.contains("proof") || msg.contains("insufficient") || msg.contains("mismatch"),
+                "Error should mention insufficient proofs: {}",
+                msg
+            );
+        }
+    }
+
+    #[test]
+    fn apply_multiple_with_too_few_proofs_fails() {
+        // Statement with 3 hypotheses, proofs.len() = 2
+        // Should error: insufficient proofs
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (phi, p, q, r) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .take(4)
+            .collect_tuple()
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let p_term = term_factory.create_leaf(p).unwrap();
+        let q_term = term_factory.create_leaf(q).unwrap();
+        let r_term = term_factory.create_leaf(r).unwrap();
+
+        // Statement with 3 hypotheses
+        let stmt: TestStatement = Statement::new(
+            phi_term,
+            vec![p_term.clone(), q_term.clone(), r_term.clone()],
+            Default::default(),
+        )
+        .unwrap();
+
+        // Only 2 proofs for 3 hypotheses
+        let proof1 = Statement::simple_axiom(p_term).unwrap();
+        let proof2 = Statement::simple_axiom(q_term).unwrap();
+        let proofs = vec![Some(proof1), Some(proof2)];
+
+        let result = stmt.apply_multiple(&var_factory, &term_factory, &proofs);
+
+        assert!(
+            result.is_err(),
+            "APPLY_MULTIPLE with too few proofs should fail"
+        );
+        if let Err(e) = result {
+            let msg = format!("{:?}", e);
+            assert!(
+                msg.contains("proof") || msg.contains("insufficient") || msg.contains("mismatch"),
+                "Error should mention insufficient proofs: {}",
+                msg
+            );
+        }
+    }
+
+    #[test]
+    fn apply_multiple_with_too_many_proofs_fails() {
+        // Statement with 2 hypotheses, proofs.len() = 3
+        // Should error or ignore extras? Check implementation behavior.
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (phi, p, q, r) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .take(4)
+            .collect_tuple()
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let p_term = term_factory.create_leaf(p).unwrap();
+        let q_term = term_factory.create_leaf(q).unwrap();
+        let r_term = term_factory.create_leaf(r).unwrap();
+
+        // Statement with 2 hypotheses
+        let stmt: TestStatement = Statement::new(
+            phi_term,
+            vec![p_term.clone(), q_term.clone()],
+            Default::default(),
+        )
+        .unwrap();
+
+        // 3 proofs for 2 hypotheses
+        let proof1 = Statement::simple_axiom(p_term).unwrap();
+        let proof2 = Statement::simple_axiom(q_term).unwrap();
+        let proof3 = Statement::simple_axiom(r_term).unwrap();
+        let proofs = vec![Some(proof1), Some(proof2), Some(proof3)];
+
+        let result = stmt.apply_multiple(&var_factory, &term_factory, &proofs);
+
+        assert!(
+            result.is_err(),
+            "APPLY_MULTIPLE with too many proofs should fail"
+        );
+        if let Err(e) = result {
+            let msg = format!("{:?}", e);
+            assert!(
+                msg.contains("proof") || msg.contains("mismatch") || msg.contains("length"),
+                "Error should mention proof count mismatch: {}",
+                msg
+            );
+        }
+    }
+
+    // ==========================================================================
+    // Phase E1: `CONDENSED_DETACH` Error Cases
+    // ==========================================================================
+
+    #[test]
+    fn condensed_detach_non_implication_major_fails() {
+        // Major premise: P ∧ Q (not an implication)
+        // Should error: major premise must be implication
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (p, q) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let p_term = term_factory.create_leaf(p).unwrap();
+        let q_term = term_factory.create_leaf(q).unwrap();
+
+        // Create P ∧ Q (not an implication)
+        let p_and_q = term_factory
+            .create_node(NodeByte::And, vec![p_term.clone(), q_term])
+            .unwrap();
+
+        // Major: (P ∧ Q; []; {}) - not an implication
+        let major: TestStatement = Statement::simple_axiom(p_and_q).unwrap();
+
+        // Minor: (P; []; {})
+        let minor: TestStatement = Statement::simple_axiom(p_term).unwrap();
+
+        // Try condensed detachment with non-implication major premise
+        let result = TestStatement::condensed_detach(
+            &var_factory,
+            &term_factory,
+            &minor,
+            &major,
+            NodeByte::Implies,
+        );
+
+        assert!(
+            result.is_err(),
+            "CONDENSED_DETACH with non-implication major should fail during unification"
+        );
+        // The error comes from `apply_multiple` failing to unify (P ∧ Q) with (φ → ψ)
+        // due to node mismatch (And vs Implies)
+    }
+
+    #[test]
+    fn condensed_detach_with_unifiable_metavariables_succeeds() {
+        // Major: P → Q
+        // Minor: R (unifies with P via substitution R := P)
+        // Should succeed, yielding Q
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (p, q, r) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let p_term = term_factory.create_leaf(p).unwrap();
+        let q_term = term_factory.create_leaf(q).unwrap();
+        let r_term = term_factory.create_leaf(r).unwrap();
+
+        // Create P → Q
+        let p_implies_q = term_factory
+            .create_node(NodeByte::Implies, vec![p_term, q_term])
+            .unwrap();
+
+        // Major: (P → Q; []; {})
+        let major: TestStatement = Statement::simple_axiom(p_implies_q).unwrap();
+
+        // Minor: (R; []; {}) - won't unify with P
+        let minor: TestStatement = Statement::simple_axiom(r_term).unwrap();
+
+        // Try condensed detachment with non-matching premises
+        let result = TestStatement::condensed_detach(
+            &var_factory,
+            &term_factory,
+            &minor,
+            &major,
+            NodeByte::Implies,
+        );
+
+        // Note: This test was originally designed to test failure with "non-matching"
+        // premises (Minor: R, Major: P → Q). However, this expectation is incorrect.
+        // Since R and P are both Boolean metavariables, they unify successfully (R := P),
+        // and condensed detachment succeeds as expected, yielding Q.
+        //
+        // The test above (non-implication major) already covers the main error case
+        // (node mismatch during unification). Creating a true unification failure would
+        // require structurally incompatible terms, which is already thoroughly tested
+        // in unification property tests.
+        assert!(
+            result.is_ok(),
+            "CONDENSED_DETACH with compatible metavariables should succeed"
+        );
+    }
+
+    // Phase B1: CANONICALIZE Property Tests
+
+    #[test]
+    fn canonicalize_is_idempotent() {
+        // Property: canon(canon(S)) = canon(S)
+        // Canonicalization should reach a fixed point after one application.
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        // Create a statement with non-canonical variables: φ₂ → φ₅
+        let (_, _, phi2, _, _, phi5) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi2_term = term_factory.create_leaf(phi2).unwrap();
+        let phi5_term = term_factory.create_leaf(phi5).unwrap();
+
+        let implication = term_factory
+            .create_node(NodeByte::Implies, vec![phi2_term, phi5_term])
+            .unwrap();
+
+        let stmt: TestStatement = Statement::simple_axiom(implication).unwrap();
+
+        // First canonicalization: φ₂ → φ₅ becomes φ₀ → φ₁
+        let canon1 = stmt.canonicalize(&var_factory, &term_factory).unwrap();
+
+        // Second canonicalization: should be identical
+        let canon2 = canon1.canonicalize(&var_factory, &term_factory).unwrap();
+
+        // Compare via Debug representation since Statement doesn't implement PartialEq
+        let canon1_str = format!("{:?}", canon1);
+        let canon2_str = format!("{:?}", canon2);
+
+        assert_eq!(
+            canon1_str, canon2_str,
+            "Canonicalization should be idempotent: canon(canon(S)) = canon(S)"
+        );
+    }
+
+    #[test]
+    fn canonicalize_preserves_alpha_equivalence() {
+        // Property: if S1 ≡ᵅ S2, then canon(S1) = canon(S2)
+        // α-equivalent statements (same structure, different variables) should
+        // have identical canonical forms.
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        // Create first statement: φ₂ → φ₅
+        let (_, _, phi2, _, _, phi5) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi2_term = term_factory.create_leaf(phi2).unwrap();
+        let phi5_term = term_factory.create_leaf(phi5).unwrap();
+
+        let impl1 = term_factory
+            .create_node(NodeByte::Implies, vec![phi2_term, phi5_term])
+            .unwrap();
+
+        let stmt1: TestStatement = Statement::simple_axiom(impl1).unwrap();
+
+        // Create second statement: φ₃ → φ₇ (α-equivalent to first)
+        let (_, _, _, phi3, _, _, _, phi7) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi3_term = term_factory.create_leaf(phi3).unwrap();
+        let phi7_term = term_factory.create_leaf(phi7).unwrap();
+
+        let impl2 = term_factory
+            .create_node(NodeByte::Implies, vec![phi3_term, phi7_term])
+            .unwrap();
+
+        let stmt2: TestStatement = Statement::simple_axiom(impl2).unwrap();
+
+        // Canonicalize both
+        let canon1 = stmt1.canonicalize(&var_factory, &term_factory).unwrap();
+        let canon2 = stmt2.canonicalize(&var_factory, &term_factory).unwrap();
+
+        // They should be identical (both become φ₀ → φ₁)
+        let canon1_str = format!("{:?}", canon1);
+        let canon2_str = format!("{:?}", canon2);
+
+        assert_eq!(
+            canon1_str, canon2_str,
+            "α-equivalent statements should have identical canonical forms"
+        );
+    }
+
+    #[test]
+    fn canonicalize_preserves_logical_meaning() {
+        // Property: S and canon(S) are logically equivalent (mutually included)
+        // Canonicalization only renames variables, so the logical meaning is preserved.
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        // Create a statement with non-canonical variables
+        let (_, _, phi2, _, _, phi5, _, phi7) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi2_term = term_factory.create_leaf(phi2).unwrap();
+        let phi5_term = term_factory.create_leaf(phi5).unwrap();
+        let phi7_term = term_factory.create_leaf(phi7).unwrap();
+
+        // Create (φ₂ → φ₅) with hypothesis φ₇
+        let implication = term_factory
+            .create_node(NodeByte::Implies, vec![phi2_term, phi5_term])
+            .unwrap();
+
+        let stmt: TestStatement =
+            Statement::new(implication, vec![phi7_term], Default::default()).unwrap();
+
+        // Canonicalize
+        let canon = stmt.canonicalize(&var_factory, &term_factory).unwrap();
+
+        // Check mutual inclusion: S ⊆ canon(S) and canon(S) ⊆ S
+        let stmt_in_canon = stmt
+            .is_included_in(&var_factory, &term_factory, &canon)
+            .unwrap();
+        let canon_in_stmt = canon
+            .is_included_in(&var_factory, &term_factory, &stmt)
+            .unwrap();
+
+        assert!(
+            stmt_in_canon,
+            "Original statement should be included in canonical form"
+        );
+        assert!(
+            canon_in_stmt,
+            "Canonical form should be included in original statement"
+        );
+    }
+
+    // Phase B2: CANONICALIZE Edge Cases
+
+    #[test]
+    fn canonicalize_simple_axiom() {
+        // Edge case: Statement with no hypotheses
+        // Only assertion needs variable renumbering
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        // Create φ₅ → φ₂ (non-canonical order)
+        let (_, _, phi2, _, _, phi5) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi2_term = term_factory.create_leaf(phi2).unwrap();
+        let phi5_term = term_factory.create_leaf(phi5).unwrap();
+
+        let implication = term_factory
+            .create_node(NodeByte::Implies, vec![phi5_term, phi2_term])
+            .unwrap();
+
+        let stmt: TestStatement = Statement::simple_axiom(implication).unwrap();
+
+        // Canonicalize should produce φ₀ → φ₁
+        let canon = stmt.canonicalize(&var_factory, &term_factory).unwrap();
+
+        // Verify canonical form uses φ₀ and φ₁
+        let vars = canon.collect_metavariables().unwrap();
+        assert_eq!(vars.len(), 2, "Should have 2 variables");
+
+        let (phi0, phi1) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        assert!(
+            vars.contains(&phi0) && vars.contains(&phi1),
+            "Canonical form should use φ₀ and φ₁"
+        );
+    }
+
+    #[test]
+    fn canonicalize_single_hypothesis() {
+        // Edge case: Single hypothesis
+        // factorial(1) = 1, so no permutations to try - only variable renumbering
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        // Create (φ₃ → φ₇; [φ₅]; {})
+        let (_, _, _, phi3, _, phi5, _, phi7) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi3_term = term_factory.create_leaf(phi3).unwrap();
+        let phi5_term = term_factory.create_leaf(phi5).unwrap();
+        let phi7_term = term_factory.create_leaf(phi7).unwrap();
+
+        let implication = term_factory
+            .create_node(NodeByte::Implies, vec![phi3_term, phi7_term])
+            .unwrap();
+
+        let stmt: TestStatement =
+            Statement::new(implication, vec![phi5_term], Default::default()).unwrap();
+
+        // Canonicalize
+        let canon = stmt.canonicalize(&var_factory, &term_factory).unwrap();
+
+        // Should use φ₀, φ₁, φ₂ in some canonical order
+        let vars = canon.collect_metavariables().unwrap();
+        assert_eq!(vars.len(), 3, "Should have 3 variables");
+
+        // Verify all variables are from the beginning of the sequence
+        let (phi0, phi1, phi2) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        assert!(
+            vars.contains(&phi0) && vars.contains(&phi1) && vars.contains(&phi2),
+            "Canonical form should use φ₀, φ₁, φ₂"
+        );
+    }
+
+    #[test]
+    fn canonicalize_many_hypotheses() {
+        // Edge case: Many hypotheses (5) - factorial(5) = 120 permutations
+        // This is a performance check - should complete in reasonable time
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        // Create 6 distinct Boolean variables (1 for assertion + 5 for hypotheses)
+        // Use variables from middle of alphabet to ensure renumbering happens
+        let vars: Vec<_> = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .skip(5) // Skip P,Q,R,S,T; start with U,V,W,X,Y,Z
+            .take(6)
+            .collect();
+
+        let terms: Vec<_> = vars
+            .iter()
+            .map(|&v| term_factory.create_leaf(v).unwrap())
+            .collect();
+
+        // Create statement with 5 hypotheses
+        let assertion = terms[0].clone();
+        let hypotheses = vec![
+            terms[1].clone(),
+            terms[2].clone(),
+            terms[3].clone(),
+            terms[4].clone(),
+            terms[5].clone(),
+        ];
+
+        let stmt: TestStatement =
+            Statement::new(assertion, hypotheses, Default::default()).unwrap();
+
+        // This should complete without hanging
+        let canon = stmt.canonicalize(&var_factory, &term_factory).unwrap();
+
+        // Verify it produces a result with canonical variable names
+        let canon_vars = canon.collect_metavariables().unwrap();
+        assert_eq!(
+            canon_vars.len(),
+            6,
+            "Should still have 6 variables after canonicalization (1 in assertion + 5 in hypotheses)"
+        );
+    }
+
+    #[test]
+    fn canonicalize_duplicate_hypotheses() {
+        // Edge case: Duplicate hypotheses [P, Q, P]
+        // Multiple permutations yield same result due to duplicates
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (_, _, phi2, phi3, _, phi5) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi2_term = term_factory.create_leaf(phi2).unwrap();
+        let phi3_term = term_factory.create_leaf(phi3).unwrap();
+        let phi5_term = term_factory.create_leaf(phi5).unwrap();
+
+        // Create (φ₅; [φ₂, φ₃, φ₂]; {}) - φ₂ appears twice
+        let stmt: TestStatement = Statement::new(
+            phi5_term,
+            vec![phi2_term.clone(), phi3_term, phi2_term.clone()],
+            Default::default(),
+        )
+        .unwrap();
+
+        // Canonicalize
+        let canon = stmt.canonicalize(&var_factory, &term_factory).unwrap();
+
+        // Should handle duplicates correctly
+        let canon_vars = canon.collect_metavariables().unwrap();
+        assert_eq!(
+            canon_vars.len(),
+            3,
+            "Should have 3 distinct variables (φ₂ counted once)"
+        );
+
+        // Verify idempotence even with duplicates
+        let canon2 = canon.canonicalize(&var_factory, &term_factory).unwrap();
+        let canon1_str = format!("{:?}", canon);
+        let canon2_str = format!("{:?}", canon2);
+        assert_eq!(
+            canon1_str, canon2_str,
+            "Canonicalization should be idempotent even with duplicates"
+        );
+    }
+}

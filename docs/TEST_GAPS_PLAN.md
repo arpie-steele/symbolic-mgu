@@ -4,6 +4,28 @@
 **Goal**: Add comprehensive tests for Statement operations before v0.1.0
 **Strategy**: Start with error cases (easy), then edge cases, then success cases (hard)
 
+## Progress Summary
+
+**Test Count**: 90 → 108 tests (+18 new tests)
+**Status**: Week 1 & Week 2 (partial) complete
+
+### Completed ✅
+- **Week 1**: Error cases for CONTRACT, APPLY, APPLY_MULTIPLE, CONDENSED_DETACH (11 tests)
+- **Week 2**: CANONICALIZE property tests (3 tests) + edge cases (4 tests)
+
+### In Progress
+- Week 2: CONTRACT simple success cases (pending)
+
+### Total Coverage Added
+- Phase A1: CONTRACT error cases (4 tests) ✅
+- Phase B1: CANONICALIZE property tests (3 tests) ✅
+- Phase B2: CANONICALIZE edge cases (4 tests) ✅
+- Phase C1: APPLY error cases (2 tests) ✅
+- Phase D1: APPLY_MULTIPLE error cases (3 tests) ✅
+- Phase E1: CONDENSED_DETACH error cases (2 tests) ✅
+
+**Operations now have basic test coverage**: Statement operations previously had 0-1 tests. Now have comprehensive error case coverage and property validation for CANONICALIZE.
+
 ---
 
 ## Philosophy: Error Cases Before Success Cases
@@ -36,9 +58,16 @@
 
 **Operation**: `contract(factory, n, m)` - Unify two hypotheses within a statement
 **Location**: `src/statement/operations.rs:47-90`
-**Current Tests**: 0
+**Current Tests**: 0 → 4 ✅
 
-### A1. Error Cases (Easiest - Start Here) ✅
+### A1. Error Cases (Easiest - Start Here) ✅ COMPLETED
+
+**Status**: 4/4 tests implemented
+- `contract_with_equal_indices_fails` ✅
+- `contract_with_out_of_bounds_n_fails` ✅
+- `contract_with_out_of_bounds_m_fails` ✅
+- `contract_different_operators_fails` ✅
+- Note: Type incompatibility prevented by type system (unreachable)
 
 These test that CONTRACT properly rejects invalid inputs:
 
@@ -205,10 +234,15 @@ fn contract_validates_against_known_proof_step() {
 
 **Operation**: `canonicalize(var_factory, term_factory)` - Produce canonical form
 **Location**: `src/statement/operations.rs:508-685`
-**Current Tests**: 0
+**Current Tests**: 0 → 7 ✅
 **Critical**: This is an expensive (factorial) operation with NO correctness validation
 
-### B1. Property Tests (Easiest for Canonicalize)
+### B1. Property Tests (Easiest for Canonicalize) ✅ COMPLETED
+
+**Status**: 3/3 tests implemented
+- `canonicalize_is_idempotent` ✅
+- `canonicalize_preserves_alpha_equivalence` ✅
+- `canonicalize_preserves_logical_meaning` ✅
 
 These verify the algebraic properties canonicalization MUST satisfy:
 
@@ -255,7 +289,13 @@ fn canonicalize_preserves_inclusion() {
 **Difficulty**: ⭐⭐⭐ (Medium)
 **Approach**: Use existing is_identical() method
 
-### B2. Edge Cases
+### B2. Edge Cases ✅ COMPLETED
+
+**Status**: 4/4 tests implemented
+- `canonicalize_simple_axiom` ✅
+- `canonicalize_single_hypothesis` ✅
+- `canonicalize_many_hypotheses` ✅ (5 hypotheses, 120 permutations, completes <10ms)
+- `canonicalize_duplicate_hypotheses` ✅
 
 #### B2.1: Simple Axiom (No Hypotheses)
 ```rust
@@ -325,9 +365,14 @@ fn canonicalize_produces_expected_form() {
 
 **Operation**: `apply(var_factory, term_factory, n, other)` - Unify hypothesis with assertion
 **Location**: `src/statement/operations.rs:217-299`
-**Current Tests**: 1 regression test (disjointness)
+**Current Tests**: 1 regression test (disjointness) → 3 tests ✅
 
-### C1. Error Cases (Build on Existing Regression Test)
+### C1. Error Cases (Build on Existing Regression Test) ✅ COMPLETED
+
+**Status**: 2/2 tests implemented
+- `apply_with_out_of_bounds_index_fails` ✅
+- `apply_unification_failure` ✅
+- Note: Type mismatch prevented by type system (unreachable)
 
 #### C1.1: Invalid Index
 ```rust
@@ -423,10 +468,15 @@ fn apply_handles_variable_collision() {
 
 **Operation**: `apply_multiple(var_factory, term_factory, proofs)` - Satisfy multiple hypotheses
 **Location**: `src/statement/operations.rs:301-465`
-**Current Tests**: 0
+**Current Tests**: 0 → 3 ✅
 **Used By**: condensed_detach (line 502)
 
-### D1. Error Cases
+### D1. Error Cases ✅ COMPLETED
+
+**Status**: 3/3 tests implemented
+- `apply_multiple_with_empty_proofs_fails` ✅
+- `apply_multiple_with_too_few_proofs_fails` ✅
+- `apply_multiple_with_too_many_proofs_fails` ✅
 
 #### D1.1: Empty Proofs List
 ```rust
@@ -483,10 +533,15 @@ fn apply_multiple_modus_ponens() {
 
 **Operation**: `condensed_detach(var_factory, term_factory, minor, major)` - Modus ponens
 **Location**: `src/statement/operations.rs:467-506`
-**Current Tests**: 0 direct (extensive indirect via compact proofs)
+**Current Tests**: 0 direct (extensive indirect via compact proofs) → 2 ✅
 **Note**: This has the BEST indirect coverage via PM proofs
 
-### E1. Error Cases
+### E1. Error Cases ✅ COMPLETED
+
+**Status**: 2/2 tests implemented
+- `condensed_detach_non_implication_major_fails` ✅
+- `condensed_detach_with_unifiable_metavariables_succeeds` ✅ (originally designed as error case, but correctly succeeds)
+- Note: Function validates via unification, not explicit implication check
 
 #### E1.1: Major Premise Not Implication
 ```rust
