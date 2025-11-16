@@ -1470,12 +1470,8 @@ where
         V: Metavariable<Type = Ty>,
         No: Node<Type = Ty>,
     {
-        if term.is_metavariable() {
+        if let Some(var) = term.get_metavariable() {
             // Leaf case: extract the metavariable
-            let var = term.get_metavariable().ok_or(MguError::TermKindMismatch {
-                expected: "metavariable",
-                found: "node",
-            })?;
             let typ = var.get_type()?;
             if !typ.is_boolean() {
                 return Err(MguError::from_found_and_expected_types(

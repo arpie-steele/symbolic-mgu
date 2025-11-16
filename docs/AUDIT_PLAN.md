@@ -1,8 +1,22 @@
 # Documentation and Testing Audit Plan
 
 **Date**: 2025-11-15
-**Status**: Ready to execute
+**Status**: In Progress - Phases 1 & 2 (partial) complete
 **MSRV**: Rust 1.77.0 - ALL testing must use this toolchain
+
+## Audit Progress Summary
+
+**Completed** ✅:
+- Phase 1: Documentation Audit (FormalSpec vs Implementation, Trait Documentation)
+- Phase 2: Testing Audit - Statement Operations (18 new tests added)
+  - Test count: 90 → 108 tests
+  - All Statement operations now have basic coverage
+
+**In Progress**:
+- Phase 2: Additional edge cases and property tests
+
+**Not Started**:
+- Phase 3: API Review for Database Compatibility
 
 ## Critical: MSRV Enforcement
 
@@ -53,9 +67,13 @@ Check API for future database compatibility.
 
 ---
 
-## Phase 1: Documentation Audit
+## Phase 1: Documentation Audit ✅ COMPLETED
 
-### 1.1 FormalSpec.md vs Implementation
+**Findings**: See AUDIT_FINDINGS.md for full details
+
+### 1.1 FormalSpec.md vs Implementation ✅ COMPLETED
+
+**Status**: All operations verified and documented
 
 **Check**:
 - CONTRACT operation matches `src/statement/operations.rs`
@@ -71,9 +89,11 @@ Check API for future database compatibility.
 3. Run tests with `cargo +1.77 test`
 4. Verify behavior matches specification
 
-**Deliverable**: Confirmation of alignment or list of mismatches
+**Deliverable**: ✅ Confirmation of alignment documented in AUDIT_FINDINGS.md
 
-### 1.2 Trait Documentation Completeness
+### 1.2 Trait Documentation Completeness ✅ COMPLETED
+
+**Status**: Term trait fully documented and tested
 
 **Files**: `src/term/base.rs`, `src/mgutype/type_trait.rs`, `src/metavariable/mod.rs`, `src/node/base.rs`
 
@@ -89,9 +109,11 @@ cargo +1.77 doc --all-features --open
 # Review each trait's documentation
 ```
 
-**Deliverable**: Documentation improvement list
+**Deliverable**: ✅ Term trait improvements documented in AUDIT_FINDINGS.md
 
-### 1.3 Public API Examples
+### 1.3 Public API Examples ✅ COMPLETED
+
+**Status**: All examples verified with Rust 1.77
 
 **Check**:
 - Statement operations have usage examples
@@ -106,9 +128,11 @@ cargo +1.77 doc --all-features --open
 cargo +1.77 test --doc --all-features
 ```
 
-**Deliverable**: APIs needing examples
+**Deliverable**: ✅ All examples compile with Rust 1.77
 
-### 1.4 Academic Accessibility
+### 1.4 Academic Accessibility ✅ COMPLETED
+
+**Status**: Documentation reviewed and improved
 
 **Files**: All `*.md` in `src/` and `docs/`
 
@@ -118,13 +142,17 @@ cargo +1.77 test --doc --all-features
 - Citations properly formatted
 - Mathematical notation consistent
 
-**Deliverable**: Accessibility improvements needed
+**Deliverable**: ✅ Improvements documented in AUDIT_FINDINGS.md
 
 ---
 
-## Phase 2: Testing Audit
+## Phase 2: Testing Audit ⏳ IN PROGRESS
 
-### 2.1 Current Test Coverage
+**Current Status**: Statement operations testing complete (18 tests), additional areas pending
+
+### 2.1 Current Test Coverage ✅ COMPLETED
+
+**Status**: Coverage gaps identified and documented in PHASE2_TEST_COVERAGE.md
 
 **Commands**:
 ```bash
@@ -151,26 +179,45 @@ cargo +1.77 test --all-features -- --nocapture  # See output
 
 **Method**: Write tests, verify with `cargo +1.77 test`
 
-### 2.3 Edge Cases: Statement Operations
+### 2.3 Edge Cases: Statement Operations ✅ PARTIALLY COMPLETED
 
-**CONTRACT tests needed**:
-- Empty distinctness graph
-- Violated distinctness constraint
-- Duplicate hypotheses result
-- Unification failure
+**Status**: 18/~30 planned tests implemented (see TEST_GAPS_PLAN.md for details)
 
-**APPLY tests needed**:
-- No hypotheses
-- All hypotheses consumed
-- Distinctness violation
-- Metavariable collision
+**CONTRACT tests** ✅:
+- ✅ Equal indices error
+- ✅ Out-of-bounds indices error
+- ✅ Unification failure (different operators)
+- ⏸ Empty distinctness graph (pending)
+- ⏸ Violated distinctness constraint (pending)
+- ⏸ Duplicate hypotheses result (pending)
 
-**Canonicalization tests needed**:
-- Many hypotheses (permutations)
-- Identical hypotheses
-- Idempotence: canon(canon(s)) = canon(s)
+**APPLY tests** ✅:
+- ✅ Out-of-bounds index error
+- ✅ Unification failure
+- ⏸ No hypotheses (pending)
+- ⏸ All hypotheses consumed (pending)
+- ⏸ Distinctness violation (pending)
+- ⏸ Metavariable collision (covered by existing regression test)
 
-**Method**: Write tests, verify with `cargo +1.77 test`
+**APPLY_MULTIPLE tests** ✅:
+- ✅ Empty proofs error
+- ✅ Too few proofs error
+- ✅ Too many proofs error
+
+**CONDENSED_DETACH tests** ✅:
+- ✅ Non-implication major premise error
+- ✅ Unifiable metavariables success case
+
+**Canonicalization tests** ✅:
+- ✅ Many hypotheses (5 hypotheses, 120 permutations, <10ms)
+- ✅ Identical hypotheses (duplicates)
+- ✅ Idempotence: canon(canon(s)) = canon(s)
+- ✅ α-equivalence preservation
+- ✅ Logical meaning preservation (mutual inclusion)
+- ✅ Simple axiom (no hypotheses)
+- ✅ Single hypothesis
+
+**Method**: Write tests, verify with `cargo +1.77 test --all-features`
 
 ### 2.4 Property-Based Tests
 
@@ -292,34 +339,42 @@ Common issues to check:
 ## Execution Checklist
 
 ### Before Starting
-- [ ] `rustup install 1.77.0`
-- [ ] Verify: `cargo +1.77 --version` shows 1.77.0
+- [x] `rustup install 1.77.0`
+- [x] Verify: `cargo +1.77 --version` shows 1.77.0
 
-### Documentation Phase
-- [ ] Audit FormalSpec.md vs implementation
-- [ ] Check trait documentation
-- [ ] Verify all examples compile with 1.77
-- [ ] Review academic accessibility
+### Documentation Phase ✅ COMPLETED
+- [x] Audit FormalSpec.md vs implementation
+- [x] Check trait documentation
+- [x] Verify all examples compile with 1.77
+- [x] Review academic accessibility
+- **Findings**: Documented in AUDIT_FINDINGS.md
 
-### Testing Phase
-- [ ] Run existing tests with `cargo +1.77 test --all-features`
-- [ ] Identify coverage gaps
-- [ ] Add unification edge case tests
-- [ ] Add statement operation edge case tests
+### Testing Phase ⏳ IN PROGRESS
+- [x] Run existing tests with `cargo +1.77 test --all-features`
+- [x] Identify coverage gaps (documented in PHASE2_TEST_COVERAGE.md)
+- [ ] Add unification edge case tests (some exist, needs review)
+- [x] Add statement operation edge case tests (18 tests added)
+  - [x] CONTRACT error cases (4 tests)
+  - [x] APPLY error cases (2 tests)
+  - [x] APPLY_MULTIPLE error cases (3 tests)
+  - [x] CONDENSED_DETACH error cases (2 tests)
+  - [x] CANONICALIZE property tests (3 tests)
+  - [x] CANONICALIZE edge cases (4 tests)
+  - [ ] Additional success cases (pending, see TEST_GAPS_PLAN.md)
 - [ ] Add property-based tests
 - [ ] Add Boolean evaluation tests
 - [ ] Add distinctness graph tests
-- [ ] Verify all pass with 1.77
+- [ ] Verify all pass with 1.77 (108/108 tests passing, so far)
 
-### API Review Phase
+### API Review Phase ⏸ NOT STARTED
 - [ ] Copy vs Clone audit
 - [ ] Trait object safety check
 - [ ] Feature compatibility check with 1.77
 - [ ] Verify no >1.77 stdlib usage
 
-### Final Verification
-- [ ] `cargo +1.77 build --all-features`
-- [ ] `cargo +1.77 test --all-features`
+### Final Verification ⏸ DEFERRED
+- [ ] `cargo +1.77 build --all-features` (passes)
+- [ ] `cargo +1.77 test --all-features` (108 tests pass)
 - [ ] `cargo +1.77 clippy --all-features --all-targets`
 - [ ] `cargo +1.77 doc --all-features`
 - [ ] All pass without warnings

@@ -377,14 +377,11 @@ where
     T: Term<Ty, V, N>,
 {
     // If the term is a metavariable, check if it's the same variable
-    // Rewritten from let-chain for edition 2018 compatibility
-    if term.is_metavariable() {
-        if let Some(term_var) = term.get_metavariable() {
-            // Need to compare the metavariables
-            let (var_type, var_index) = var.get_type_and_index()?;
-            let (term_type, term_index) = term_var.get_type_and_index()?;
-            return Ok(var_type == term_type && var_index == term_index);
-        }
+    if let Some(term_var) = term.get_metavariable() {
+        // Need to compare the metavariables
+        let (var_type, var_index) = var.get_type_and_index()?;
+        let (term_type, term_index) = term_var.get_type_and_index()?;
+        return Ok(var_type == term_type && var_index == term_index);
     }
 
     // Recursively check all children
@@ -417,19 +414,17 @@ where
     TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N>,
 {
     // If this is a metavariable, check if it's in the substitution
-    if term.is_metavariable() {
-        if let Some(var) = term.get_metavariable() {
-            let (var_type, var_index) = var.get_type_and_index()?;
+    if let Some(var) = term.get_metavariable() {
+        let (var_type, var_index) = var.get_type_and_index()?;
 
-            // Look for this variable in the substitution map
-            for (subst_var, subst_term) in subst.iter() {
-                let (subst_type, subst_index) = subst_var.get_type_and_index()?;
-                if var_type == subst_type && var_index == subst_index {
-                    // Found it - return the substituted term
-                    // We don't recursively apply because we assume the substitution
-                    // is already in normal form (no chains)
-                    return Ok(subst_term.clone());
-                }
+        // Look for this variable in the substitution map
+        for (subst_var, subst_term) in subst.iter() {
+            let (subst_type, subst_index) = subst_var.get_type_and_index()?;
+            if var_type == subst_type && var_index == subst_index {
+                // Found it - return the substituted term
+                // We don't recursively apply because we assume the substitution
+                // is already in normal form (no chains)
+                return Ok(subst_term.clone());
             }
         }
         // Variable not in substitution, return as-is
@@ -516,58 +511,50 @@ where
     }
 
     // Case 1: `t1` is a metavariable
-    // Rewritten from let-chain for edition 2018 compatibility
-    if t1.is_metavariable() {
-        if let Some(var1) = t1.get_metavariable() {
-            // Type check: can `var1`'s type accept `t2`'s type?
-            // This enforces: Setvar ↦ Class is OK, but Class ↦ Setvar is forbidden
-            let var1_type = var1.get_type()?;
-            let t2_type = t2.get_type()?;
-            if !t2_type.is_subtype_of(&var1_type) {
-                return Err(MguError::from_found_and_expected_types(
-                    true, &t2_type, &var1_type,
-                ));
-            }
-
-            // Occurs check: make sure var1 doesn't appear in `t2`
-            if occurs_check(&var1, &t2)? {
-                return Err(MguError::UnificationFailure(
-                    "Occurs check failed: variable appears in term it would be bound to"
-                        .to_string(),
-                ));
-            }
-
-            // Add the binding using normalizing wrapper
-            norm_subst.extend(factory, var1, t2)?;
-            return Ok(norm_subst.into_inner());
+    if let Some(var1) = t1.get_metavariable() {
+        // Type check: can `var1`'s type accept `t2`'s type?
+        // This enforces: Setvar ↦ Class is OK, but Class ↦ Setvar is forbidden
+        let var1_type = var1.get_type()?;
+        let t2_type = t2.get_type()?;
+        if !t2_type.is_subtype_of(&var1_type) {
+            return Err(MguError::from_found_and_expected_types(
+                true, &t2_type, &var1_type,
+            ));
         }
+
+        // Occurs check: make sure var1 doesn't appear in `t2`
+        if occurs_check(&var1, &t2)? {
+            return Err(MguError::UnificationFailure(
+                "Occurs check failed: variable appears in term it would be bound to".to_string(),
+            ));
+        }
+
+        // Add the binding using normalizing wrapper
+        norm_subst.extend(factory, var1, t2)?;
+        return Ok(norm_subst.into_inner());
     }
 
     // Case 2: `t2` is a metavariable
-    // Rewritten from let-chain for edition 2018 compatibility
-    if t2.is_metavariable() {
-        if let Some(var2) = t2.get_metavariable() {
-            // Type check: can `var2`'s type accept `t1`'s type?
-            let var2_type = var2.get_type()?;
-            let t1_type = t1.get_type()?;
-            if !t1_type.is_subtype_of(&var2_type) {
-                return Err(MguError::from_found_and_expected_types(
-                    true, &t1_type, &var2_type,
-                ));
-            }
-
-            // Occurs check
-            if occurs_check(&var2, &t1)? {
-                return Err(MguError::UnificationFailure(
-                    "Occurs check failed: variable appears in term it would be bound to"
-                        .to_string(),
-                ));
-            }
-
-            // Add the binding using normalizing wrapper
-            norm_subst.extend(factory, var2, t1)?;
-            return Ok(norm_subst.into_inner());
+    if let Some(var2) = t2.get_metavariable() {
+        // Type check: can `var2`'s type accept `t1`'s type?
+        let var2_type = var2.get_type()?;
+        let t1_type = t1.get_type()?;
+        if !t1_type.is_subtype_of(&var2_type) {
+            return Err(MguError::from_found_and_expected_types(
+                true, &t1_type, &var2_type,
+            ));
         }
+
+        // Occurs check
+        if occurs_check(&var2, &t1)? {
+            return Err(MguError::UnificationFailure(
+                "Occurs check failed: variable appears in term it would be bound to".to_string(),
+            ));
+        }
+
+        // Add the binding using normalizing wrapper
+        norm_subst.extend(factory, var2, t1)?;
+        return Ok(norm_subst.into_inner());
     }
 
     // Case 3: Both are nodes - they must have the same root

@@ -842,22 +842,18 @@ where
             NF: crate::NodeFactory<Node = N2, NodeType = Ty2>,
             TF: TermFactory<T2, Ty2, V2, N2, Term = T2, TermNode = N2, TermMetavariable = V2>,
         {
-            if term.is_metavariable() {
+            if let Some(src_var) = term.get_metavariable() {
                 // Leaf case: look up mapped variable
-                let src_var = term.get_metavariable().ok_or_else(|| {
-                    MguError::ArgumentError(
-                        "Term is metavariable but get_metavariable returned None".to_string(),
-                    )
-                })?;
                 let dest_var = var_map.get(&src_var).ok_or_else(|| {
                     MguError::ArgumentError("Variable not found in mapping".to_string())
                 })?;
                 term_factory.create_leaf(dest_var.clone())
             } else {
                 // Node case: convert node and children
-                let src_node = term.get_node().ok_or_else(|| {
-                    MguError::ArgumentError("Term is node but get_node returned None".to_string())
-                })?;
+                // SAFETY: If `get_metavariable`() returned None, `get_node`() must return Some
+                let src_node = term
+                    .get_node()
+                    .expect("Term must be either metavariable or node");
 
                 // Convert node using factory's `type_and_index` method
                 let (node_type, node_index) = src_node.get_type_and_index()?;

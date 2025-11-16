@@ -43,10 +43,30 @@ where
     /// and `false` if it is a tree with a root of [`Node`]
     /// (which still might have zero children).
     ///
+    /// # Invariant
+    ///
+    /// This method MUST be consistent with [`Term::get_metavariable`]:
+    /// - `is_metavariable()` returns `true` iff `get_metavariable()` returns `Some(_)`
+    /// - `is_metavariable()` returns `false` iff `get_metavariable()` returns `None`
+    ///
+    /// The default implementation enforces this by calling `get_metavariable()`.
+    /// Implementations may override for performance if they can check without allocation.
+    ///
     /// [`Node`]: `crate::Node`
-    fn is_metavariable(&self) -> bool;
+    fn is_metavariable(&self) -> bool {
+        self.get_metavariable().is_some()
+    }
 
     /// Return the leaf if this is a bare [`Metavariable`].
+    ///
+    /// Returns `Some(metavariable)` if this term is a leaf metavariable,
+    /// or `None` if this is a node application.
+    ///
+    /// # Invariant
+    ///
+    /// This method MUST be consistent with [`Term::is_metavariable`]:
+    /// - Returns `Some(_)` iff `is_metavariable()` returns `true`
+    /// - Returns `None` iff `is_metavariable()` returns `false`
     fn get_metavariable(&self) -> Option<V>;
 
     /// Return the root [`Node`] if this is a sub-tree (which might have zero children).
