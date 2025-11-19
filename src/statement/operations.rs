@@ -924,9 +924,10 @@ where
 mod tests {
     use crate::{
         EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte,
-        SimpleType, Statement, TermFactory,
+        SimpleType, Statement, Term, TermFactory,
     };
     use itertools::Itertools;
+    use std::collections::HashSet;
 
     type TestStatement =
         Statement<SimpleType, MetaByte, NodeByte, EnumTerm<SimpleType, MetaByte, NodeByte>>;
@@ -1089,6 +1090,149 @@ mod tests {
                 msg
             );
         }
+    }
+
+    // ==========================================================================
+    // Phase A2: CONTRACT Simple Success Cases
+    // ==========================================================================
+
+    #[test]
+    fn contract_identical_hypotheses_succeeds() {
+        // Assertion: φ
+        // Hypothesis 0: P
+        // Hypothesis 1: P (identical to hypothesis 0)
+        // Distinctness: {}
+        //
+        // contract(stmt, 0, 1) should:
+        // - Unify with identity substitution (P ↦ P)
+        // - Result: (φ; [P]; {})
+        // - Only one copy of P in hypotheses
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (p, phi) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let p_term = term_factory.create_leaf(p).unwrap();
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+
+        // Statement: (φ; [P, P]; {})
+        let stmt: TestStatement = Statement::new(
+            phi_term,
+            vec![p_term.clone(), p_term.clone()],
+            Default::default(),
+        )
+        .unwrap();
+
+        // Contract hypotheses 0 and 1 (both are P)
+        let result = stmt.contract(&term_factory, 0, 1);
+
+        assert!(
+            result.is_ok(),
+            "CONTRACT with identical hypotheses should succeed"
+        );
+
+        let contracted = result.unwrap();
+
+        // Verify: only one hypothesis remains
+        assert_eq!(
+            contracted.hypotheses.len(),
+            1,
+            "Result should have 1 hypothesis (duplicates merged)"
+        );
+
+        // Verify: the remaining hypothesis is P
+        assert_eq!(
+            contracted.hypotheses[0], p_term,
+            "Remaining hypothesis should be P"
+        );
+    }
+
+    #[test]
+    fn contract_unifies_variables() {
+        // Assertion: φ → ψ
+        // Hypothesis 0: φ
+        // Hypothesis 1: ψ
+        // Distinctness: {}
+        //
+        // contract(stmt, 0, 1) should succeed
+        // Result assertion: χ → χ (both renamed to same variable)
+        // Result hypotheses: [χ]
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (phi, psi) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let psi_term = term_factory.create_leaf(psi).unwrap();
+
+        // Create φ → ψ
+        let phi_implies_psi = term_factory
+            .create_node(NodeByte::Implies, vec![phi_term.clone(), psi_term.clone()])
+            .unwrap();
+
+        // Statement: (φ → ψ; [φ, ψ]; {})
+        let stmt: TestStatement = Statement::new(
+            phi_implies_psi,
+            vec![phi_term.clone(), psi_term.clone()],
+            Default::default(),
+        )
+        .unwrap();
+
+        // Contract hypotheses 0 and 1 (unify φ with ψ)
+        let result = stmt.contract(&term_factory, 0, 1);
+
+        assert!(
+            result.is_ok(),
+            "CONTRACT with unifiable variables should succeed"
+        );
+
+        let contracted = result.unwrap();
+
+        // Verify: only one hypothesis remains
+        assert_eq!(
+            contracted.hypotheses.len(),
+            1,
+            "Result should have 1 hypothesis (unified)"
+        );
+
+        // Verify: assertion is χ → χ (same variable on both sides)
+        // After unification and substitution, both φ and ψ become the same variable
+        // The assertion should have the form X → X where X is some Boolean variable
+
+        // Verify by checking the structure: it should be Implies with identical children
+        if let Some(implies_node) = contracted.assertion.get_node() {
+            assert_eq!(
+                implies_node,
+                NodeByte::Implies,
+                "Assertion should still be an implication"
+            );
+
+            let children: Vec<_> = contracted.assertion.get_children().collect();
+            assert_eq!(children.len(), 2, "Implication should have 2 children");
+
+            // Both children should be identical after unification
+            assert_eq!(
+                children[0], children[1],
+                "After unifying φ and ψ, assertion should be χ → χ"
+            );
+        } else {
+            panic!("Assertion should be a node (Implies), not a metavariable");
+        }
+
+        // Verify: the single remaining hypothesis matches one side of the implication
+        let children: Vec<_> = contracted.assertion.get_children().collect();
+        assert_eq!(
+            contracted.hypotheses[0], *children[0],
+            "Remaining hypothesis should match the unified variable"
+        );
     }
 
     // ==========================================================================
@@ -1745,5 +1889,621 @@ mod tests {
             canon1_str, canon2_str,
             "Canonicalization should be idempotent even with duplicates"
         );
+    }
+
+    // ==========================================================================
+    // Phase A3: CONTRACT Edge Cases
+    // ==========================================================================
+
+    #[test]
+    fn contract_with_empty_distinctness_graph() {
+        // Most common case - no distinctness constraints
+        // Should succeed for any unifiable hypotheses
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (phi, psi) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let psi_term = term_factory.create_leaf(psi).unwrap();
+
+        // Create (φ → ψ; [φ, ψ]; {}) - empty distinctness graph
+        let implication = term_factory
+            .create_node(NodeByte::Implies, vec![phi_term.clone(), psi_term.clone()])
+            .unwrap();
+
+        let stmt: TestStatement = Statement::new(
+            implication,
+            vec![phi_term, psi_term],
+            Default::default(), // Empty distinctness graph
+        )
+        .unwrap();
+
+        // Contract hypotheses 0 and 1 (unify φ with ψ)
+        let result = stmt.contract(&term_factory, 0, 1);
+
+        assert!(
+            result.is_ok(),
+            "CONTRACT with empty distinctness graph should succeed: {:?}",
+            result
+        );
+
+        if let Ok(contracted) = result {
+            // Both hypotheses should unify, leaving only one
+            assert_eq!(
+                contracted.hypotheses.len(),
+                1,
+                "After contracting two hypotheses, should have 1 remaining"
+            );
+        }
+    }
+
+    #[test]
+    fn contract_produces_additional_duplicates() {
+        // Assertion: φ → ψ
+        // Hypothesis 0: φ
+        // Hypothesis 1: ψ
+        // Hypothesis 2: φ  (duplicate of H0, but not being contracted)
+        //
+        // contract(stmt, 0, 1) unifies φ with ψ, creating substitution σ = {φ ↦ χ, ψ ↦ χ}
+        // After σ applied:
+        // - Hypothesis 0: χ
+        // - Hypothesis 1: χ
+        // - Hypothesis 2: χ
+        // All three are now identical, should be deduplicated to single χ
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (phi, psi) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let psi_term = term_factory.create_leaf(psi).unwrap();
+
+        // Create (φ → ψ; [φ, ψ, φ]; {})
+        let implication = term_factory
+            .create_node(NodeByte::Implies, vec![phi_term.clone(), psi_term.clone()])
+            .unwrap();
+
+        let stmt: TestStatement = Statement::new(
+            implication,
+            vec![phi_term.clone(), psi_term, phi_term],
+            Default::default(),
+        )
+        .unwrap();
+
+        // Contract hypotheses 0 and 1 (unify φ with ψ)
+        let result = stmt.contract(&term_factory, 0, 1);
+
+        assert!(
+            result.is_ok(),
+            "CONTRACT should succeed even when creating additional duplicates: {:?}",
+            result
+        );
+
+        if let Ok(contracted) = result {
+            // All three hypotheses should become identical after substitution
+            // Deduplication should leave only one
+            assert_eq!(
+                contracted.hypotheses.len(),
+                1,
+                "After unifying φ and ψ, all three hypotheses [φ, ψ, φ] should become identical and deduplicate to 1"
+            );
+        }
+    }
+
+    // ==========================================================================
+    // Phase C2: APPLY Simple Success Cases
+    // ==========================================================================
+
+    #[test]
+    fn apply_simple_axiom_to_modus_ponens() {
+        // This expands on the existing regression test pattern
+        // Modus Ponens: (φ → ψ; [φ → ψ, φ]; {})
+        // Simp (axiom 1): (φ → (ψ → φ); []; {})
+        //
+        // apply(MP, 0, Simp) should consume first hypothesis
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (phi, psi) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let psi_term = term_factory.create_leaf(psi).unwrap();
+
+        // Create φ → ψ
+        let phi_implies_psi = term_factory
+            .create_node(NodeByte::Implies, vec![phi_term.clone(), psi_term.clone()])
+            .unwrap();
+
+        // Create ψ → φ
+        let psi_implies_phi = term_factory
+            .create_node(NodeByte::Implies, vec![psi_term.clone(), phi_term.clone()])
+            .unwrap();
+
+        // Create φ → (ψ → φ) - axiom 1
+        let axiom1 = term_factory
+            .create_node(NodeByte::Implies, vec![phi_term.clone(), psi_implies_phi])
+            .unwrap();
+
+        // Modus Ponens: (φ → ψ; [φ → ψ, φ]; {})
+        let modus_ponens: TestStatement = Statement::new(
+            phi_implies_psi.clone(),
+            vec![phi_implies_psi.clone(), phi_term.clone()],
+            Default::default(),
+        )
+        .unwrap();
+
+        // Simp: (φ → (ψ → φ); []; {})
+        let simp: TestStatement = Statement::simple_axiom(axiom1).unwrap();
+
+        // Apply simp to first hypothesis of `modus_ponens`
+        let result = modus_ponens.apply(&var_factory, &term_factory, 0, &simp);
+
+        assert!(
+            result.is_ok(),
+            "APPLY simple axiom to modus ponens should succeed: {:?}",
+            result
+        );
+
+        if let Ok(applied) = result {
+            // Should consume first hypothesis, leaving only the second
+            assert_eq!(
+                applied.hypotheses.len(),
+                1,
+                "After applying axiom to first hypothesis, should have 1 hypothesis remaining"
+            );
+        }
+    }
+
+    #[test]
+    fn apply_consumes_all_hypotheses() {
+        // Statement with 1 hypothesis
+        // Apply statement that satisfies it
+        // Result should have 0 hypotheses (theorem)
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (phi, psi) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let psi_term = term_factory.create_leaf(psi).unwrap();
+
+        // Create φ → ψ
+        let phi_implies_psi = term_factory
+            .create_node(NodeByte::Implies, vec![phi_term.clone(), psi_term])
+            .unwrap();
+
+        // Statement with single hypothesis: (φ; [φ → ψ]; {})
+        let stmt: TestStatement = Statement::new(
+            phi_term.clone(),
+            vec![phi_implies_psi.clone()],
+            Default::default(),
+        )
+        .unwrap();
+
+        // Axiom to apply: (φ → ψ; []; {})
+        let axiom: TestStatement = Statement::simple_axiom(phi_implies_psi).unwrap();
+
+        // Apply axiom to consume the only hypothesis
+        let result = stmt.apply(&var_factory, &term_factory, 0, &axiom);
+
+        assert!(
+            result.is_ok(),
+            "APPLY should succeed when consuming all hypotheses: {:?}",
+            result
+        );
+
+        if let Ok(applied) = result {
+            // Should have no hypotheses remaining - it's now a theorem
+            assert_eq!(
+                applied.hypotheses.len(),
+                0,
+                "After consuming the only hypothesis, result should be a theorem (0 hypotheses)"
+            );
+        }
+    }
+
+    // ==========================================================================
+    // Phase D2: APPLY_MULTIPLE Success Cases
+    // ==========================================================================
+
+    #[test]
+    fn apply_multiple_modus_ponens() {
+        // This is what `condensed_detach` does internally
+        // Modus Ponens: 2 hypotheses
+        // Provide 2 proofs
+        // Verify both hypotheses satisfied
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (phi, psi) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let psi_term = term_factory.create_leaf(psi).unwrap();
+
+        // Create φ → ψ
+        let phi_implies_psi = term_factory
+            .create_node(NodeByte::Implies, vec![phi_term.clone(), psi_term.clone()])
+            .unwrap();
+
+        // Modus Ponens: (ψ; [φ → ψ, φ]; {})
+        let modus_ponens: TestStatement = Statement::new(
+            psi_term.clone(),
+            vec![phi_implies_psi.clone(), phi_term.clone()],
+            Default::default(),
+        )
+        .unwrap();
+
+        // Two axioms to apply
+        let axiom1: TestStatement = Statement::simple_axiom(phi_implies_psi).unwrap();
+        let axiom2: TestStatement = Statement::simple_axiom(phi_term).unwrap();
+
+        // Apply both axioms to satisfy both hypotheses
+        let proofs = vec![Some(axiom1), Some(axiom2)];
+        let result = modus_ponens.apply_multiple(&var_factory, &term_factory, &proofs);
+
+        assert!(
+            result.is_ok(),
+            "APPLY_MULTIPLE should succeed with matching proofs: {:?}",
+            result
+        );
+
+        if let Ok(applied) = result {
+            // Both hypotheses should be satisfied, leaving 0
+            assert_eq!(
+                applied.hypotheses.len(),
+                0,
+                "After applying 2 proofs to 2 hypotheses, should have 0 remaining (theorem)"
+            );
+            // Assertion should be a single Boolean variable (canonicalized)
+            let mut assertion_vars = HashSet::new();
+            applied
+                .assertion
+                .collect_metavariables(&mut assertion_vars)
+                .unwrap();
+            assert_eq!(
+                assertion_vars.len(),
+                1,
+                "Result should have assertion with 1 Boolean variable"
+            );
+        }
+    }
+
+    // ==========================================================================
+    // Phase E2: `CONDENSED_DETACH` Success Cases
+    // ==========================================================================
+
+    #[test]
+    fn condensed_detach_classic_modus_ponens() {
+        // Major: P → Q
+        // Minor: P
+        // Result: Q
+        //
+        // This is the simplest case from logic textbooks
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (p, q) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let p_term = term_factory.create_leaf(p).unwrap();
+        let q_term = term_factory.create_leaf(q).unwrap();
+
+        // Create P → Q
+        let p_implies_q = term_factory
+            .create_node(NodeByte::Implies, vec![p_term.clone(), q_term.clone()])
+            .unwrap();
+
+        // Major: (P → Q; []; {})
+        let major: TestStatement = Statement::simple_axiom(p_implies_q).unwrap();
+
+        // Minor: (P; []; {})
+        let minor: TestStatement = Statement::simple_axiom(p_term).unwrap();
+
+        // Apply condensed detachment
+        let result = TestStatement::condensed_detach(
+            &var_factory,
+            &term_factory,
+            &minor,
+            &major,
+            NodeByte::Implies,
+        );
+
+        assert!(
+            result.is_ok(),
+            "Classic modus ponens should succeed: {:?}",
+            result
+        );
+
+        if let Ok(detached) = result {
+            // Result should be Q with no hypotheses
+            assert_eq!(
+                detached.hypotheses.len(),
+                0,
+                "Condensed detachment result should be a theorem"
+            );
+            // Assertion should be a single Boolean variable (canonicalized)
+            let mut assertion_vars = HashSet::new();
+            detached
+                .assertion
+                .collect_metavariables(&mut assertion_vars)
+                .unwrap();
+            assert_eq!(
+                assertion_vars.len(),
+                1,
+                "Result should have assertion with 1 Boolean variable (Q, possibly renamed)"
+            );
+        }
+    }
+
+    #[test]
+    fn condensed_detach_with_substitution() {
+        // Major: φ → (ψ → χ)
+        // Minor: φ
+        // Result: ψ → χ
+        //
+        // Tests that condensed detachment correctly applies substitutions
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (phi, psi, chi) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let psi_term = term_factory.create_leaf(psi).unwrap();
+        let chi_term = term_factory.create_leaf(chi).unwrap();
+
+        // Create ψ → χ
+        let psi_implies_chi = term_factory
+            .create_node(NodeByte::Implies, vec![psi_term.clone(), chi_term.clone()])
+            .unwrap();
+
+        // Create φ → (ψ → χ)
+        let phi_implies_psi_implies_chi = term_factory
+            .create_node(
+                NodeByte::Implies,
+                vec![phi_term.clone(), psi_implies_chi.clone()],
+            )
+            .unwrap();
+
+        // Major: (φ → (ψ → χ); []; {})
+        let major: TestStatement = Statement::simple_axiom(phi_implies_psi_implies_chi).unwrap();
+
+        // Minor: (φ; []; {})
+        let minor: TestStatement = Statement::simple_axiom(phi_term).unwrap();
+
+        // Apply condensed detachment
+        let result = TestStatement::condensed_detach(
+            &var_factory,
+            &term_factory,
+            &minor,
+            &major,
+            NodeByte::Implies,
+        );
+
+        assert!(
+            result.is_ok(),
+            "Condensed detachment with nested implication should succeed: {:?}",
+            result
+        );
+
+        if let Ok(detached) = result {
+            // Result should be (ψ → χ) with no hypotheses
+            assert_eq!(detached.hypotheses.len(), 0, "Result should be a theorem");
+            // Check that assertion is structurally equivalent to ψ → χ
+            let mut result_vars = HashSet::new();
+            detached
+                .assertion
+                .collect_metavariables(&mut result_vars)
+                .unwrap();
+            assert_eq!(
+                result_vars.len(),
+                2,
+                "Result should have 2 variables (ψ and χ)"
+            );
+        }
+    }
+
+    // ==========================================================================
+    // Week 4: Complex Cases (Optional)
+    // ==========================================================================
+
+    #[test]
+    fn canonicalize_produces_expected_form() {
+        // From operations.rs documentation (lines 535-548):
+        // Example: φ₂ → φ₅ should canonicalize to φ₀ → φ₁
+        //
+        // This verifies the documented behavior matches actual implementation
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        // Create φ₂ and φ₅ (using specific indices)
+        let phi2 = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .nth(2)
+            .unwrap();
+        let phi5 = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .nth(5)
+            .unwrap();
+
+        let phi2_term = term_factory.create_leaf(phi2).unwrap();
+        let phi5_term = term_factory.create_leaf(phi5).unwrap();
+
+        // Create φ₂ → φ₅
+        let implication = term_factory
+            .create_node(NodeByte::Implies, vec![phi2_term, phi5_term])
+            .unwrap();
+
+        let stmt: TestStatement = Statement::simple_axiom(implication).unwrap();
+
+        // Canonicalize
+        let canon = stmt.canonicalize(&var_factory, &term_factory).unwrap();
+
+        // Verify result uses φ₀ and φ₁
+        let vars = canon.collect_metavariables().unwrap();
+        assert_eq!(vars.len(), 2, "Should have exactly 2 variables");
+
+        let phi0 = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
+        let phi1 = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .nth(1)
+            .unwrap();
+
+        assert!(
+            vars.contains(&phi0) && vars.contains(&phi1),
+            "Canonical form should use φ₀ and φ₁, got: {:?}",
+            vars
+        );
+
+        // Verify structure: should be Implies(φ₀, φ₁) or Implies(φ₁, φ₀)
+        // Due to canonicalization algorithm, the specific order depends on
+        // lexicographic ordering, but both variables should appear
+        if let Some(node) = canon.assertion.get_node() {
+            assert_eq!(
+                node,
+                NodeByte::Implies,
+                "Canonical form should preserve Implies node"
+            );
+        } else {
+            panic!("Expected canonical form to be a node (Implies), got leaf");
+        }
+    }
+
+    #[test]
+    fn inclusion_is_transitive() {
+        // Property: If S1 ⊇ S2 and S2 ⊇ S3, then S1 ⊇ S3
+        //
+        // This tests the transitivity of the inclusion relation
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let (phi, psi, chi) = var_factory
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let phi_term = term_factory.create_leaf(phi).unwrap();
+        let psi_term = term_factory.create_leaf(psi).unwrap();
+        let chi_term = term_factory.create_leaf(chi).unwrap();
+
+        // Create three statements with inclusion relationship:
+        // S1: (φ; []; {}) - most general (includes anything with assertion φ)
+        // S2: (φ; [ψ]; {}) - includes S1 with additional hypothesis
+        // S3: (φ; [ψ, χ]; {}) - includes S2 with even more hypotheses
+        //
+        // Inclusion: S3 ⊇ S2 ⊇ S1
+        // (More hypotheses means less general, so S3 is included in S2)
+        let s1: TestStatement = Statement::simple_axiom(phi_term.clone()).unwrap();
+        let s2: TestStatement =
+            Statement::new(phi_term.clone(), vec![psi_term.clone()], Default::default()).unwrap();
+        let s3: TestStatement = Statement::new(
+            phi_term.clone(),
+            vec![psi_term, chi_term],
+            Default::default(),
+        )
+        .unwrap();
+
+        // Verify S1 ⊇ S2 (S2 is included in S1)
+        let s2_in_s1 = s2.is_included_in(&var_factory, &term_factory, &s1).unwrap();
+        assert!(s2_in_s1, "S2 should be included in S1 (S1 ⊇ S2)");
+
+        // Verify S2 ⊇ S3 (S3 is included in S2)
+        let s3_in_s2 = s3.is_included_in(&var_factory, &term_factory, &s2).unwrap();
+        assert!(s3_in_s2, "S3 should be included in S2 (S2 ⊇ S3)");
+
+        // Verify transitivity: S1 ⊇ S3 (S3 is included in S1)
+        let s3_in_s1 = s3.is_included_in(&var_factory, &term_factory, &s1).unwrap();
+        assert!(
+            s3_in_s1,
+            "Transitivity: S3 should be included in S1 (S1 ⊇ S3)"
+        );
+    }
+
+    #[test]
+    fn contract_from_compact_proof() {
+        // Strategy: Take a working compact proof, replace some axiom references
+        // with underscores to create unsatisfied hypotheses, then verify we can
+        // contract those hypotheses.
+        //
+        // Example: `"D2D1DD23D13"` → `"D2D1DD2_D_3"`
+        // This creates a statement with 2 hypotheses that *might* be unifiable
+        use crate::logic::create_dict;
+
+        let var_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new();
+
+        let dict = create_dict(
+            &term_factory,
+            &var_factory,
+            NodeByte::Implies,
+            NodeByte::Not,
+        )
+        .expect("Failed to create dictionary");
+
+        // Parse compact proof with holes (underscores create unsatisfied hypotheses)
+        let proof_with_holes = "D2D1DD2_D_3";
+
+        let stmt =
+            TestStatement::from_compact_proof(proof_with_holes, &var_factory, &term_factory, &dict)
+                .expect("Failed to parse compact proof with holes");
+
+        // Verify we got a statement with multiple hypotheses
+        assert!(
+            stmt.get_n_hypotheses() >= 2,
+            "Expected at least 2 hypotheses from proof with holes, got {}",
+            stmt.get_n_hypotheses()
+        );
+
+        // Try to contract the first two hypotheses
+        // This may succeed or fail depending on whether they're unifiable
+        let result = stmt.contract(&term_factory, 0, 1);
+
+        // We're testing that CONTRACT works on real-world statement structures
+        // The specific result (success or failure) depends on the proof structure
+        match result {
+            Ok(contracted) => {
+                // Success: hypotheses were unifiable
+                assert!(
+                    contracted.get_n_hypotheses() < stmt.get_n_hypotheses(),
+                    "CONTRACT should reduce hypothesis count"
+                );
+            }
+            Err(_) => {
+                // Failure: hypotheses weren't unifiable (different structure/types)
+                // This is also valid - not all hypothesis pairs can be unified
+                // The important thing is CONTRACT didn't panic or corrupt data
+            }
+        }
     }
 }

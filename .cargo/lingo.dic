@@ -1,4 +1,4 @@
-1550
+1600
 0000ff
 005c9c
 005eff
@@ -212,6 +212,8 @@
 9700ff
 999i32
 A1
+A2
+A3
 a900ff
 a9ff00
 accessor
@@ -270,11 +272,13 @@ BooleanTermEnumerator
 br
 C0
 C1
+C2
 C3C
 c4ff00
 cadd
 canonicalization
 canonicalize
+canonicalized
 canonicalizes
 canonicalizing
 CanonicalStatement
@@ -352,6 +356,7 @@ d000ff
 D1
 D13
 d14ca60
+D2
 D21
 D23
 d23
@@ -377,6 +382,8 @@ deallocated
 DecimalConstructor
 DecompositionValidationError
 deduplicate
+deduplicated
+deduplicates
 deduplication
 defs
 Denkens
@@ -402,6 +409,7 @@ doctest
 drule
 dyn
 E1
+E2
 e700ff
 eine
 Electrotechnical
@@ -830,6 +838,7 @@ rx
 S0
 s1
 s2
+S3
 Samiro
 satisfiable
 SaturatedBlue
@@ -1468,6 +1477,7 @@ Sₙ₋₁
 φ′
 φ″
 φ‴
+χ}
 ℂ}
 &mp_same
 &self
@@ -1492,6 +1502,7 @@ Sₙ₋₁
 {top_chroma
 {}
 {β
+{φ
 ¬
 ¬p
 ¬q

@@ -53,7 +53,6 @@
 #![allow(rustdoc::private_doc_tests)]
 
 pub mod bool_eval;
-// pub mod color;
 pub(crate) mod distinct;
 pub(crate) mod error;
 pub(crate) mod formatter;
@@ -64,11 +63,7 @@ pub(crate) mod mgutype;
 pub(crate) mod node;
 pub mod search;
 pub(crate) mod statement;
-// pub mod svg;
 pub(crate) mod term;
-// #[cfg(feature = "video")]
-// #[cfg_attr(docsrs, doc(cfg(feature = "video")))]
-// pub mod video;
 
 pub use distinct::pair::Pair;
 pub use distinct::simple_graph::check_clique;
@@ -116,13 +111,6 @@ pub use term::substitution::occurs_check;
 pub use term::substitution::unify;
 pub use term::substitution::NormalizingSubstitution;
 pub use term::substitution::Substitution;
-// pub use node::dbnode::DbNode;
-// pub use node::dbnode::NodeDatabase;
-// pub use node::dbnode::SimpleNodeDatabase;
-// pub use node::dbnode::register_database;
-// pub use node::traits::StaticSlotNode;
-// pub use term::dbterm::DbTerm;
-// pub use term::veryfinite::TinyTerm;
 
 #[cfg(test)]
 mod tests {
