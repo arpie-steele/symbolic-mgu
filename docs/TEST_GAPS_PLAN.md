@@ -6,14 +6,15 @@
 
 ## Progress Summary
 
-**Test Count**: 90 → 120 tests (+30 new tests)
-**Status**: Week 1, Week 2, Week 3, & Week 4 complete ✅
+**Test Count**: 90 → 136 tests (+46 new tests)
+**Status**: Week 1, Week 2, Week 3, & Week 4 complete ✅ + Search module added ✅
 
 ### Completed ✅
 - **Week 1**: Error cases for CONTRACT, APPLY, APPLY_MULTIPLE, CONDENSED_DETACH (11 tests)
 - **Week 2**: CANONICALIZE property tests (3 tests) + edge cases (4 tests) + CONTRACT success cases (2 tests)
 - **Week 3**: CONTRACT edge cases (2 tests) + APPLY success cases (2 tests) + APPLY_MULTIPLE success (1 test) + CONDENSED_DETACH success (2 tests)
 - **Week 4**: Complex cases (3 tests) - CANONICALIZE verification, inclusion transitivity, CONTRACT from compact proof
+- **Search Module**: New module for term enumeration (16 tests) - depth combinations, iterators, caching, type filtering
 
 ### Total Coverage Added
 - Phase A1: CONTRACT error cases (4 tests) ✅
@@ -30,12 +31,19 @@
 - Phase E1: CONDENSED_DETACH error cases (2 tests) ✅
 - Phase E2: CONDENSED_DETACH success cases (2 tests) ✅
 - Phase F3: Inclusion transitivity property (1 test) ✅
+- **Search Module**: Term enumeration (16 tests) ✅
 
 **Operations now have comprehensive test coverage**: Statement operations previously had 0-1 tests. Now have:
 - Complete error case coverage (all operations)
 - Success case coverage (APPLY, APPLY_MULTIPLE, CONDENSED_DETACH)
 - Edge case coverage (CONTRACT, CANONICALIZE)
 - Property test coverage (CANONICALIZE idempotence, α-equivalence, logical meaning preservation)
+
+**New Search Module**: Systematic term enumeration (previously did not exist):
+- DepthCombinationIterator tests (arity/depth edge cases)
+- TermSearchStaticState tests (type system, variables, nodes)
+- Iterator tests (depth 0, depth 1, depth 2, type filtering, caching)
+- Cartesian product iteration validation
 
 ---
 
@@ -694,21 +702,22 @@ fn inclusion_is_transitive() {
 
 **Minimum (v0.1.0 Release)**: ✅ **ACHIEVED**
 - ✅ All error cases tested (14 tests)
-- ✅ CANONICALIZE properties verified (7 tests)
+- ✅ CANONICALIZE properties verified (8 tests)
 - ✅ Basic success cases for each operation (6 tests)
-- **Total**: 27 tests (exceeded minimum of ~26)
+- **Total**: 30 statement tests (exceeded minimum of ~26)
 
 **Good Coverage**: ✅ **ACHIEVED**
 - Above minimum +
 - ✅ All edge cases (6 tests: 2 CONTRACT + 4 CANONICALIZE)
 - ✅ Most success cases (7 tests total across operations)
-- **Total**: 27 tests (approaches target of ~44 with existing coverage)
+- **Total**: 30 statement tests (approaches target of ~44 with existing coverage)
 
-**Comprehensive**: ✅ **ACHIEVED (Week 4)**
+**Comprehensive**: ✅ **EXCEEDED (Week 4)**
 - Above good +
 - ✅ Complex validation (CANONICALIZE verification, CONTRACT from compact proof)
 - ✅ Property tests (inclusion transitivity)
-- **Total**: 30 new tests (exceeds target of ~35-40 with existing test suite)
+- ✅ New search module (16 tests for term enumeration)
+- **Total**: 46 new tests (30 statement + 16 search, exceeds target of ~35-40)
 
 ---
 

@@ -84,9 +84,9 @@ where
     /// ```
     pub fn format_as_ascii(&self) -> String
     where
-        Ty: Into<SimpleType> + Copy,
+        Ty: Into<SimpleType>,
     {
-        let base = WideCharSet::ascii_char(&self.ty.into(), self.base_index).unwrap_or("?");
+        let base = WideCharSet::ascii_char(&self.ty.clone().into(), self.base_index).unwrap_or("?");
         let dec = self.decorator.format_ascii();
         if dec.is_empty() {
             base.to_string()
@@ -98,29 +98,29 @@ where
     /// Format as UTF-8 (Unicode mathematical symbols).
     pub fn format_as_utf8(&self) -> String
     where
-        Ty: Into<SimpleType> + Copy,
+        Ty: Into<SimpleType>,
     {
-        let base = WideCharSet::utf8_char(&self.ty.into(), self.base_index).unwrap_or("?");
+        let base = WideCharSet::utf8_char(&self.ty.clone().into(), self.base_index).unwrap_or("?");
         format!("{}{}", base, self.decorator.format_utf8())
     }
 
     /// Format as LaTeX.
     pub fn format_as_latex(&self) -> String
     where
-        Ty: Into<SimpleType> + Copy,
+        Ty: Into<SimpleType>,
     {
-        let base = WideCharSet::latex_char(&self.ty.into(), self.base_index).unwrap_or("?");
+        let base = WideCharSet::latex_char(&self.ty.clone().into(), self.base_index).unwrap_or("?");
         format!("{}{}", base, self.decorator.format_latex())
     }
 
     /// Format as HTML with optional coloring.
     pub fn format_as_html(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String
     where
-        Ty: Into<SimpleType> + Copy,
+        Ty: Into<SimpleType>,
     {
-        let base = WideCharSet::utf8_char(&self.ty.into(), self.base_index).unwrap_or("?");
+        let base = WideCharSet::utf8_char(&self.ty.clone().into(), self.base_index).unwrap_or("?");
 
-        let color_opt = match self.ty.into() {
+        let color_opt = match self.ty.clone().into() {
             SimpleType::Boolean => formatter.get_boolean_color(),
             SimpleType::Setvar => formatter.get_setvar_color(),
             SimpleType::Class => formatter.get_class_color(),
@@ -152,11 +152,11 @@ where
     /// Format as UTF-8 with ANSI color codes.
     pub fn format_as_utf8_color(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String
     where
-        Ty: Into<SimpleType> + Copy,
+        Ty: Into<SimpleType>,
     {
-        let base = WideCharSet::utf8_char(&self.ty.into(), self.base_index).unwrap_or("?");
+        let base = WideCharSet::utf8_char(&self.ty.clone().into(), self.base_index).unwrap_or("?");
 
-        let color_opt = match self.ty.into() {
+        let color_opt = match self.ty.clone().into() {
             SimpleType::Boolean => formatter.get_boolean_color(),
             SimpleType::Setvar => formatter.get_setvar_color(),
             SimpleType::Class => formatter.get_class_color(),
@@ -180,7 +180,7 @@ where
 // Default Display uses UTF-8
 impl<Ty> Display for ParametricMetavariable<Ty, usize, WideCharSet>
 where
-    Ty: Type + Clone + Into<SimpleType> + Copy,
+    Ty: Type + Clone + Into<SimpleType>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.format_as_utf8())
@@ -189,12 +189,12 @@ where
 
 impl<Ty> Metavariable for ParametricMetavariable<Ty, usize, WideCharSet>
 where
-    Ty: Type + Clone + Debug + Display + Hash + Eq + Into<SimpleType> + Copy,
+    Ty: Type + Clone + Debug + Display + Hash + Eq + Into<SimpleType>,
 {
     type Type = Ty;
 
     fn try_from_type_and_index(ty: Ty, index: usize) -> Result<Self, MguError> {
-        let max_base = WideCharSet::max_index(&ty.into());
+        let max_base = WideCharSet::max_index(&ty.clone().into());
         let base_index = index % (max_base + 1);
         let decorator_count = index / (max_base + 1);
 
@@ -207,9 +207,9 @@ where
     }
 
     fn get_type_and_index(&self) -> Result<(Ty, usize), MguError> {
-        let max_base = WideCharSet::max_index(&self.ty.into());
+        let max_base = WideCharSet::max_index(&self.ty.clone().into());
         let index = self.base_index + self.decorator * (max_base + 1);
-        Ok((self.ty, index))
+        Ok((self.ty.clone(), index))
     }
 
     fn max_index_by_type(_typ: Ty) -> usize {

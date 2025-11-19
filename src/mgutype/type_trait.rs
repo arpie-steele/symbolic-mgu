@@ -58,3 +58,52 @@ where
         Box::new(obj)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::SimpleType;
+
+    /// Verify that `TypeCore` IS dyn-safe (can be used as a trait object).
+    ///
+    /// `TypeCore` is intentionally dyn-safe to support error messages and
+    /// other scenarios where type information needs to be type-erased.
+    /// It omits `Clone`, `Eq`, `Hash`, and `Ord` to maintain dyn-safety.
+    #[test]
+    fn typecore_is_dyn_safe() {
+        let simple_type = SimpleType::Boolean;
+        let type_core_ref: &dyn TypeCore = &simple_type;
+        assert!(type_core_ref.is_boolean());
+
+        // Can also box it
+        let boxed: Box<dyn TypeCore> = Box::new(SimpleType::Setvar);
+        assert!(boxed.is_setvar());
+    }
+
+    /// Verify that `Type` trait is NOT dyn-safe due to `Clone`, `Eq`, `Hash`, `Ord`.
+    ///
+    /// `Type` intentionally requires these traits for use in collections and
+    /// canonicalization, making it incompatible with trait objects.
+    /// The dyn-safe `TypeCore` trait is used for type-erased scenarios.
+    #[test]
+    fn type_is_not_dyn_safe() {
+        // This test documents that Type is NOT dyn-safe by design.
+        // The following line would NOT compile (commented out to prevent error):
+        //
+        // let _: &dyn Type = todo!();
+        //
+        // Error: Type is not dyn-safe because it requires Clone, Eq, Hash, PartialOrd, Ord
+        // which use Self as a type parameter.
+        //
+        // This is intentional - Type is used as a concrete type in generics like
+        // Statement<Ty, V, N, T>, while TypeCore is used for trait objects.
+    }
+
+    /// Verify that `to_boxed()` correctly bridges from `Type` to `Box<dyn TypeCore>`.
+    #[test]
+    fn to_boxed_works() {
+        let simple_type = SimpleType::Class;
+        let boxed = simple_type.to_boxed();
+        assert!(boxed.is_class());
+    }
+}

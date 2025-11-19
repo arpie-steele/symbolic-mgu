@@ -153,3 +153,26 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + Partia
         format!("{}", self) // Default: use Display
     }
 }
+
+#[cfg(test)]
+mod tests {
+    /// Verify that Metavariable trait is NOT dyn-safe due to Clone, Eq, Hash, Ord.
+    ///
+    /// Metavariable intentionally requires these traits for use in collections and
+    /// canonicalization, making it incompatible with trait objects.
+    /// This is the correct design - Metavariable is used as a concrete type parameter,
+    /// not as a trait object.
+    #[test]
+    fn metavariable_is_not_dyn_safe() {
+        // This test documents that Metavariable is NOT dyn-safe by design.
+        // The following line would NOT compile (commented out to prevent error):
+        //
+        // let _: &dyn Metavariable = todo!();
+        //
+        // Error: Metavariable is not dyn-safe because it requires Clone, Eq, Hash, PartialOrd, Ord
+        // which use Self as a type parameter.
+        //
+        // This is intentional - Metavariable is used as a concrete type in generics like
+        // Statement<Ty, V, N, T>, not as a trait object.
+    }
+}

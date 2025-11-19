@@ -104,6 +104,12 @@ pub enum MguErrorType {
     /// Bit position out of range for truth table.
     BitPositionOutOfRange,
 
+    /// I/O error from file or network operations.
+    IoError,
+
+    /// Parse error in database file or data stream.
+    ParseError,
+
     /// Catch-all for bare errors created incorrectly.
     UnknownErrorType,
 

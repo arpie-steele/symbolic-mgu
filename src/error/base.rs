@@ -72,6 +72,25 @@
 //! let err = MguError::VerificationFailure("Proof step invalid".to_string());
 //! ```
 //!
+//! ## I/O and Parsing Errors
+//!
+//! For file I/O, network operations, and database parsing, use the I/O variants:
+//!
+//! ```rust
+//! use symbolic_mgu::MguError;
+//! use std::io;
+//!
+//! // IoError automatically converts from std::io::Error
+//! let io_err = io::Error::new(io::ErrorKind::NotFound, "database.mm");
+//! let err: MguError = io_err.into();
+//!
+//! // ParseError for syntax errors in database files
+//! let err = MguError::ParseError {
+//!     location: "set.mm:42:15".to_string(),
+//!     message: "Unexpected token".to_string(),
+//! };
+//! ```
+//!
 //! ## Available Constructors
 //!
 //! - [`from_type_and_var_strings`](MguError::from_type_and_var_strings) - For `UnknownMetavariable`
@@ -300,6 +319,50 @@ pub enum MguError {
         bits: usize,
     },
 
+    /// I/O error from file or network operations.
+    ///
+    /// This variant wraps errors from `std::io::Error` and similar I/O-related
+    /// failures. Use this for file reading/writing, network operations, and
+    /// other I/O that may fail.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use symbolic_mgu::MguError;
+    /// use std::io;
+    ///
+    /// // Automatic conversion from std::io::Error
+    /// let io_err = io::Error::new(io::ErrorKind::NotFound, "file.mm not found");
+    /// let mgu_err: MguError = io_err.into();
+    /// assert!(mgu_err.to_string().contains("file.mm"));
+    /// ```
+    #[error("I/O error: {0}")]
+    IoError(String),
+
+    /// Parse error in database file or data stream.
+    ///
+    /// Use this for syntax errors, invalid tokens, malformed data, or other
+    /// parsing failures when reading database files (e.g., Metamath `.mm` files).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use symbolic_mgu::MguError;
+    ///
+    /// let err = MguError::ParseError {
+    ///     location: "set.mm:42:15".to_string(),
+    ///     message: "Expected $a, found $p".to_string(),
+    /// };
+    /// assert!(err.to_string().contains("set.mm:42:15"));
+    /// ```
+    #[error("Parse error at {location}: {message}")]
+    ParseError {
+        /// Location in file (e.g., "file.mm:line:col" or byte offset).
+        location: String,
+        /// Detailed error message describing what went wrong.
+        message: String,
+    },
+
     /// Catch-all for bare errors created incorrectly.
     #[error("Error: {0:?}")]
     UnknownErrorType(MguErrorType), // err_type
@@ -526,6 +589,8 @@ impl MguError {
             MguError::FeatureRequired { .. } => MguErrorType::FeatureRequired,
             MguError::TypeCapabilityUnsupported { .. } => MguErrorType::TypeCapabilityUnsupported,
             MguError::BitPositionOutOfRange { .. } => MguErrorType::BitPositionOutOfRange,
+            MguError::IoError(_) => MguErrorType::IoError,
+            MguError::ParseError { .. } => MguErrorType::ParseError,
             MguError::UnknownErrorType(_) => MguErrorType::UnknownErrorType,
             MguError::UnknownErrorTypeMessage(_, _) => MguErrorType::UnknownErrorTypeMessage,
             MguError::UnknownError(_) => MguErrorType::UnknownError,
@@ -830,6 +895,31 @@ impl From<Infallible> for MguError {
     }
 }
 
+/// Automatic conversion from `std::io::Error` to `MguError`.
+///
+/// This enables the `?` operator to work seamlessly when reading files or
+/// performing other I/O operations in functions that return `Result<T, MguError>`.
+///
+/// # Examples
+///
+/// ```rust
+/// use symbolic_mgu::MguError;
+/// use std::fs::File;
+/// use std::io::Read;
+///
+/// fn read_database(path: &str) -> Result<String, MguError> {
+///     let mut file = File::open(path)?;  // Automatic conversion
+///     let mut contents = String::new();
+///     file.read_to_string(&mut contents)?;  // Automatic conversion
+///     Ok(contents)
+/// }
+/// ```
+impl From<std::io::Error> for MguError {
+    fn from(err: std::io::Error) -> Self {
+        MguError::IoError(err.to_string())
+    }
+}
+
 impl Hash for MguError {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         discriminant(self).hash(state);
@@ -933,6 +1023,13 @@ impl Hash for MguError {
             MguError::BitPositionOutOfRange { position, bits } => {
                 position.hash(state);
                 bits.hash(state);
+            }
+            MguError::IoError(s) => {
+                s.hash(state);
+            }
+            MguError::ParseError { location, message } => {
+                location.hash(state);
+                message.hash(state);
             }
             MguError::UnknownErrorType(mgu_error_type) => {
                 mgu_error_type.hash(state);

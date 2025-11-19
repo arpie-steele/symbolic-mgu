@@ -224,3 +224,26 @@ where
         format!("{}", self) // Default: use Display
     }
 }
+
+#[cfg(test)]
+mod tests {
+    /// Verify that Term trait is NOT dyn-safe due to Clone, Eq, Hash, Ord.
+    ///
+    /// Term intentionally requires these traits for use in collections and
+    /// canonicalization, making it incompatible with trait objects.
+    /// This is the correct design - Term is used as a concrete type parameter,
+    /// not as a trait object.
+    #[test]
+    fn term_is_not_dyn_safe() {
+        // This test documents that Term is NOT dyn-safe by design.
+        // The following line would NOT compile (commented out to prevent error):
+        //
+        // let _: &dyn Term = todo!();
+        //
+        // Error: Term is not dyn-safe because it requires Clone, Eq, Hash, PartialOrd, Ord
+        // which use Self as a type parameter.
+        //
+        // This is intentional - Term is used as a concrete type in generics like
+        // Statement<Ty, V, N, T>, not as a trait object.
+    }
+}

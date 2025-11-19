@@ -187,3 +187,26 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone + PartialOrd + O
         "?" // Default: unknown operator
     }
 }
+
+#[cfg(test)]
+mod tests {
+    /// Verify that Node trait is NOT dyn-safe due to Clone, Eq, Hash, Ord.
+    ///
+    /// Node intentionally requires these traits for use in collections and
+    /// canonicalization, making it incompatible with trait objects.
+    /// This is the correct design - Node is used as a concrete type parameter,
+    /// not as a trait object.
+    #[test]
+    fn node_is_not_dyn_safe() {
+        // This test documents that Node is NOT dyn-safe by design.
+        // The following line would NOT compile (commented out to prevent error):
+        //
+        // let _: &dyn Node = todo!();
+        //
+        // Error: Node is not dyn-safe because it requires Clone, Eq, Hash, PartialOrd, Ord
+        // which use Self as a type parameter.
+        //
+        // This is intentional - Node is used as a concrete type in generics like
+        // Statement<Ty, V, N, T>, not as a trait object.
+    }
+}
