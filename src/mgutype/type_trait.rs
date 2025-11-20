@@ -96,7 +96,7 @@ mod tests {
         // which use Self as a type parameter.
         //
         // This is intentional - Type is used as a concrete type in generics like
-        // Statement<Ty, V, N, T>, while TypeCore is used for trait objects.
+        // Statement<Ty, V, N, T>, while `TypeCore` is used for trait objects.
     }
 
     /// Verify that `to_boxed()` correctly bridges from `Type` to `Box<dyn TypeCore>`.
