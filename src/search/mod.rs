@@ -314,7 +314,10 @@ where
     ///
     /// # Errors
     ///
-    /// TODO
+    /// Returns an error if any metavariable's `get_type()` method fails, or if any
+    /// node's `get_type()` or `get_arity()` methods fail. Current implementations
+    /// (e.g., `WideMetavariable`, `BooleanSimpleNode`) never fail, but future
+    /// database-backed implementations may return errors.
     ///
     /// # Returns
     ///
@@ -532,7 +535,9 @@ where
 ///
 /// # Errors
 ///
-/// TODO
+/// Propagates any errors from [`TermSearchIterator::new_at_depth`]. Currently never
+/// fails with standard implementations, but future database-backed implementations
+/// may return errors.
 pub fn get_iterator<Ty, V, N, T, TF>(
     rc_state: &Rc<TermSearchStaticState<Ty, V, N, T, TF>>,
     term_type: Ty,
@@ -600,7 +605,9 @@ where
     ///
     /// # Errors
     ///
-    /// TODO
+    /// Currently never returns an error. The `Result` return type is reserved for
+    /// future implementations that may need to perform fallible operations (e.g.,
+    /// database queries).
     pub fn new_at_depth(
         rc_state: &Rc<TermSearchStaticState<Ty, V, N, T, TF>>,
         term_type: Ty,
@@ -616,12 +623,13 @@ where
             })
         } else {
             // Get all nodes of the specified type with non-zero arity
-            let keys: Vec<(Ty, usize)> = rc_state
+            let mut keys: Vec<(Ty, usize)> = rc_state
                 .nodes_by_type_and_arity
                 .keys()
                 .filter(|(node_type, arity)| *arity != 0 && node_type == &term_type)
                 .cloned()
                 .collect();
+            keys.sort(); // Ensure deterministic iteration order
 
             Ok(TermSearchIterator::PassN {
                 search: Rc::downgrade(rc_state),
@@ -685,7 +693,7 @@ where
             } => {
                 // For `PassN`, we need to reconstruct a fresh iterator from scratch
                 // Get the search state to rebuild the keys
-                let keys = if let Some(search_state) = search.upgrade() {
+                let mut keys = if let Some(search_state) = search.upgrade() {
                     search_state
                         .nodes_by_type_and_arity
                         .keys()
@@ -695,6 +703,7 @@ where
                 } else {
                     Vec::new()
                 };
+                keys.sort(); // Ensure deterministic iteration order
 
                 TermSearchIterator::PassN {
                     search: search.clone(),

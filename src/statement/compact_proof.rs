@@ -80,7 +80,8 @@ where
     ///
     /// # Panics
     ///
-    /// Does it?? TODO.
+    /// This function does not panic. All `unwrap()` calls are guarded by explicit
+    /// length checks with SAFETY comments explaining why they cannot fail.
     pub fn from_compact_proof<VF, TF>(
         proof: &str,
         var_factory: &VF,

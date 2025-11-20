@@ -74,6 +74,13 @@ use std::ops::{BitAnd, BitOr, BitXor, Not};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 pub struct BooleanSimpleNode<Ty: Type>(BooleanSimpleOp, PhantomData<Ty>);
 
+impl<Ty: Type> BooleanSimpleNode<Ty> {
+    /// Create a new `BooleanSimpleNode` from a `BooleanSimpleOp`.
+    pub fn from_op(op: BooleanSimpleOp) -> Self {
+        BooleanSimpleNode(op, PhantomData)
+    }
+}
+
 impl<Ty: Type> Display for BooleanSimpleNode<Ty> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&(self.0), f)
@@ -1412,7 +1419,7 @@ where
     ///
     /// # Errors
     ///
-    /// TODO.
+    /// Returns [`MguError::BitPositionOutOfRange`] if `bit_pos >= 2^N`.
     fn set_bit(&mut self, bit_pos: u64, value: bool) -> Result<(), MguError>;
 
     /// Evaluate a Boolean operation using `BooleanSimpleOp`.
