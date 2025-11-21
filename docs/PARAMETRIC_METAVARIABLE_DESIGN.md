@@ -7,7 +7,7 @@ Design document for `ParametricMetavariable<Ty, U, CharSet>`, a generic metavari
 **Status**: Design phase (planned for v0.1.1+)
 **Author**: Design discussion 2025-01-04
 **Replaces**: `WideMetavariable` (after testing)
-**Prerequisites**: Phase 7.10 (Output Formatters) - ✅ **COMPLETE** (v0.1.0-alpha.10)
+**Prerequisites**: Phase 7.10 (Output Formatters) - **COMPLETE** (v0.1.0-alpha.10)
 
 ## Motivation
 
@@ -296,16 +296,16 @@ impl WideCharSet {
 ```
 
 **Pros**:
-- ✅ Zero runtime cost (direct array indexing)
-- ✅ Aggressive inlining
-- ✅ Works in `const fn` contexts (mostly)
-- ✅ Simple to understand and maintain
-- ✅ Excellent cache locality
+- Zero runtime cost (direct array indexing)
+- Aggressive inlining
+- Works in `const fn` contexts (mostly)
+- Simple to understand and maintain
+- Excellent cache locality
 
 **Cons**:
-- ❌ Not extensible by third parties
-- ❌ Must modify source to add character sets
-- ❌ Type dispatcher can't be `const fn` in Rust 1.77
+- Not extensible by third parties
+- Must modify source to add character sets
+- Type dispatcher can't be `const fn` in Rust 1.77
 
 ### v0.1.1+ Approach: Hybrid Trait + Constants (Option C)
 
@@ -359,14 +359,14 @@ impl MetavariableCharSet<SimpleType> for CustomCharSet {
 3. No breaking changes (semver-compatible)
 
 **Pros**:
-- ✅ Zero cost for built-in character sets
-- ✅ Extensible by third parties
-- ✅ Uniform interface via trait
-- ✅ Opt-in flexibility cost
+- Zero cost for built-in character sets
+- Extensible by third parties
+- Uniform interface via trait
+- Opt-in flexibility cost
 
 **Cons**:
-- ⚠️ Two mechanisms to document
-- ⚠️ Slightly more complex implementation
+- Two mechanisms to document
+- Slightly more complex implementation
 
 ## Component 3: ParametricMetavariable Implementation
 
@@ -532,7 +532,7 @@ pub type PrimeMetavariable = ParametricMetavariable<SimpleType, Prime, WideCharS
 pub type CompactMetavariable = ParametricMetavariable<SimpleType, u8, WideCharSet>;
 ```
 
-## Integration with Phase 7.10 (Output Formatters) - ✅ COMPLETE
+## Integration with Phase 7.10 (Output Formatters) - COMPLETE
 
 Phase 7.10 has been fully implemented in v0.1.0-alpha.10. The `Metavariable` trait now includes:
 
