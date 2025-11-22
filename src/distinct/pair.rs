@@ -57,9 +57,9 @@ impl<U: fmt::Debug + PartialOrd> Pair<U> {
         } else if b < a {
             Ok(Self(b, a))
         } else {
-            Err(MguError::PairValidationFailure(
-                format!("{a:?}"),
-                format!("{b:?}"),
+            Err(MguError::from_illegal_pair(
+                &*format!("{a:?}"),
+                &*format!("{b:?}"),
             ))
         }
     }
@@ -73,9 +73,9 @@ impl<U: fmt::Debug + PartialOrd> Pair<U> {
         if self.0 < self.1 {
             Ok(())
         } else {
-            Err(MguError::PairValidationFailure(
-                format!("{0:?}", self.0),
-                format!("{0:?}", self.1),
+            Err(MguError::from_illegal_pair(
+                &*format!("{0:?}", self.0),
+                &*format!("{0:?}", self.1),
             ))
         }
     }
@@ -181,6 +181,11 @@ impl<U> Index<bool> for Pair<U> {
 }
 
 /// Implement indexing for a comma-separated list of integer types.
+///
+/// # Panics
+///
+/// Panics if index is not 0 or 1, as `Pair` contains exactly two elements.
+/// This follows the standard Rust convention for `Index` trait implementations.
 macro_rules! impl_index_for_pair {
     ($($t:ty),*) => {
         $(
@@ -191,7 +196,7 @@ macro_rules! impl_index_for_pair {
                         0 => &self.0,
                         1 => &self.1,
                         _ => {
-                            panic!("Index: {:?} is neither 0 nor 1.", index)
+                            panic!("Pair index out of bounds: {} (Pair has only 2 elements, valid indices are 0 and 1)", index)
                         }
                     }
                 }

@@ -16,67 +16,23 @@
 //! cargo run --bin compact -- --verify "DD211"
 //! ```
 
+use symbolic_mgu::bool_eval::{test_tautology, test_validity};
+use symbolic_mgu::logic::create_dict;
 use symbolic_mgu::{
-    get_formatter, logic::create_dict, test_tautology, EnumTermFactory, MetaByte, MetaByteFactory,
-    Metavariable, MetavariableFactory, MguError, MguErrorType, Node, NodeByte, SimpleType,
-    Statement, Term, TermFactory, Type, WideMetavariable, WideMetavariableFactory,
+    get_formatter, EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, Metavariable,
+    MetavariableFactory, MguError, MguErrorType, NodeByte, NodeByteFactory, SimpleType, Statement,
+    Term, TermFactory, WideMetavariable, WideMetavariableFactory,
 };
 
-/// Check if a statement with possible hypotheses is valid.
-///
-/// Builds the nested implication H₁ → (H₂ → (... → (Hₙ → A))) and tests if it's a tautology.
-/// This checks **validity**: whether the conclusion logically follows from the premises.
-///
-/// This still can work if `implies_node` is `None` when there are zero hypotheses,
-/// but in general it should be a Boolean operator with semantics identical to material implication.
-fn check_validity<Ty, V, N, T, TF>(
-    statement: &Statement<Ty, V, N, TF::Term>,
-    term_factory: &TF,
-    implies_node: &Option<N>,
-) -> Result<bool, MguError>
-where
-    Ty: Type,
-    V: Metavariable<Type = Ty>,
-    N: Node<Type = Ty>,
-    T: Term<Ty, V, N>,
-    TF: TermFactory<T, Ty, V, N, TermNode = N>,
-{
-    use MguErrorType::VerificationFailure;
-    // Check if all hypotheses and assertion are Boolean
-    if !statement.get_assertion().get_type()?.is_boolean() {
-        return Err(MguError::from_err_type_and_message(
-            VerificationFailure,
-            "Assertion is not Boolean type",
-        ));
-    }
-
-    for hyp in statement.get_hypotheses() {
-        if !hyp.get_type()?.is_boolean() {
-            return Err(MguError::from_err_type_and_message(
-                VerificationFailure,
-                "Not all hypotheses are Boolean type",
-            ));
-        }
-    }
-
-    // Build nested implication: H₁ → (H₂ → (... → (Hₙ → A)))
-    let mut implication = statement.get_assertion().clone();
-
-    // Build from right to left (innermost to outermost), but usually order does not matter.
-    for hyp in statement.get_hypotheses().iter().rev() {
-        if let Some(actual_implies) = implies_node {
-            implication =
-                term_factory.create_node(actual_implies.clone(), vec![hyp.clone(), implication])?;
-        } else {
-            return Err(MguError::from_err_type_and_message(
-            VerificationFailure,
-                "Unable to produce a single-term Statement without being supplied an implication Node."
-                ));
-        }
-    }
-
-    // Test if the nested implication is a tautology
-    test_tautology(&implication)
+/// Metavariable implementation mode
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MetavariableMode {
+    /// Use MetaByte (limited to 32 variables total)
+    Byte,
+    /// Use WideMetavariable (unlimited variables)
+    Wide,
+    /// Parse with WideMetavariable, convert to MetaByte when possible
+    Both,
 }
 
 fn main() {
@@ -97,7 +53,7 @@ fn run() -> Result<(), MguError> {
     // Parse arguments
     let mut verify = false;
     let mut proofs = Vec::new();
-    let mut short_vars: Option<bool> = None;
+    let mut mode: Option<MetavariableMode> = None;
     let mut format = "utf8"; // Default format
     let mut skip_next = false;
 
@@ -128,31 +84,41 @@ fn run() -> Result<(), MguError> {
                 }
             }
             "--no-byte" | "--wide" | "-w" => {
-                let goal = Some(false);
-                if short_vars.is_some() && short_vars != goal {
+                let goal = MetavariableMode::Wide;
+                if mode.is_some() && mode != Some(goal) {
                     return Err(MguError::from_err_type_and_message(
                         MguErrorType::ArgumentError,
-                        "The --wide and --byte flags may not be used together.",
+                        "The --wide, --byte, and --both flags are mutually exclusive.",
                     ));
                 }
-                short_vars = goal;
+                mode = Some(goal);
             }
             "--byte" | "--no-wide" | "-b" => {
-                let goal = Some(true);
-                if short_vars.is_some() && short_vars != goal {
+                let goal = MetavariableMode::Byte;
+                if mode.is_some() && mode != Some(goal) {
                     return Err(MguError::from_err_type_and_message(
                         MguErrorType::ArgumentError,
-                        "The --wide and --byte flags may not be used together.",
+                        "The --wide, --byte, and --both flags are mutually exclusive.",
                     ));
                 }
-                short_vars = goal;
+                mode = Some(goal);
+            }
+            "--both" => {
+                let goal = MetavariableMode::Both;
+                if mode.is_some() && mode != Some(goal) {
+                    return Err(MguError::from_err_type_and_message(
+                        MguErrorType::ArgumentError,
+                        "The --wide, --byte, and --both flags are mutually exclusive.",
+                    ));
+                }
+                mode = Some(goal);
             }
             proof => {
                 proofs.push(proof);
             }
         }
     }
-    let short_vars = short_vars.unwrap_or(true);
+    let mode = mode.unwrap_or(MetavariableMode::Byte);
 
     if proofs.is_empty() {
         eprintln!("No proof strings provided.");
@@ -160,18 +126,163 @@ fn run() -> Result<(), MguError> {
         return Ok(());
     }
 
-    // Create factory
-    if short_vars {
-        let var_factory = MetaByteFactory();
-        run_by_factory::<MetaByte, MetaByteFactory>(&var_factory, &proofs, verify, format)?;
-    } else {
-        let var_factory = WideMetavariableFactory();
-        run_by_factory::<WideMetavariable, WideMetavariableFactory>(
-            &var_factory,
-            &proofs,
-            verify,
-            format,
-        )?;
+    // Dispatch based on mode
+    match mode {
+        MetavariableMode::Byte => {
+            let var_factory = MetaByteFactory();
+            run_by_factory::<MetaByte, MetaByteFactory>(&var_factory, &proofs, verify, format)?;
+        }
+        MetavariableMode::Wide => {
+            let var_factory = WideMetavariableFactory();
+            run_by_factory::<WideMetavariable, WideMetavariableFactory>(
+                &var_factory,
+                &proofs,
+                verify,
+                format,
+            )?;
+        }
+        MetavariableMode::Both => {
+            run_both_mode(&proofs, verify, format)?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Run in "both" mode: parse with WideMetavariable, convert to MetaByte when possible
+fn run_both_mode(proofs: &[&str], verify: bool, format: &str) -> Result<(), MguError> {
+    let wide_var_factory = WideMetavariableFactory();
+    let wide_term_factory: EnumTermFactory<SimpleType, WideMetavariable, NodeByte> =
+        EnumTermFactory::new();
+
+    // Create standard dictionary with WideMetavariable
+    let dict = create_dict(
+        &wide_term_factory,
+        &wide_var_factory,
+        NodeByte::Implies,
+        NodeByte::Not,
+    )?;
+
+    // Get formatter
+    let formatter = get_formatter(format);
+
+    println!("Compact Proof Processor (Both Mode)");
+    println!("====================================");
+    println!("Format: {}", format);
+    println!("Mode: Parse with unlimited variables, convert to byte variables when possible\n");
+    println!("Dictionary:");
+    println!("  D = Modus Ponens: (ψ; φ, (φ → ψ); ∅)");
+    println!("  1 = Simp: ((φ → (ψ → φ)); ∅; ∅)");
+    println!("  2 = Frege: (((φ → (ψ → χ)) → ((φ → ψ) → (φ → χ))); ∅; ∅)");
+    println!("  3 = Transp: (((¬φ → ¬ψ) → (ψ → φ)); ∅; ∅)");
+    println!("  _ = Placeholder (unsatisfied hypothesis)\n");
+
+    // Process each proof
+    for (i, proof_str) in proofs.iter().copied().enumerate() {
+        println!("Proof {}: \"{}\"", i + 1, proof_str);
+        println!("{}", "─".repeat(50));
+
+        match Statement::from_compact_proof(proof_str, &wide_var_factory, &wide_term_factory, &dict)
+        {
+            Ok(wide_result) => {
+                println!("✓ Parsed successfully (wide variables)");
+
+                // IMPORTANT: Canonicalize the parsed result before conversion or display.
+                // This ensures deterministic variable ordering regardless of Rust's randomized
+                // hash function, which would otherwise cause the same proof to display
+                // differently on each run.
+                let canonical_wide =
+                    wide_result.canonicalize(&wide_var_factory, &wide_term_factory)?;
+
+                // Try to convert to MetaByte
+                let byte_var_factory = MetaByteFactory();
+                let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
+                let byte_term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> =
+                    EnumTermFactory::new();
+
+                match canonical_wide.convert::<
+                    SimpleType,
+                    MetaByte,
+                    NodeByte,
+                    EnumTerm<SimpleType, MetaByte, NodeByte>,
+                    _,
+                    _,
+                    _,
+                >(&byte_var_factory, &node_factory, &byte_term_factory)
+                {
+                    Ok(byte_result) => {
+                        println!("✓ Successfully converted to byte variables");
+                        // Note: Even though `canonical_wide` was canonical, convert() maps variables
+                        // based on the order they're encountered in the source, which may not match
+                        // the destination's canonical ordering. Re-canonicalize for consistency.
+                        let canonical_byte = byte_result.canonicalize(&byte_var_factory, &byte_term_factory)?;
+                        display_statement(&canonical_byte, &*formatter, verify, &byte_term_factory)?;
+                    }
+                    Err(e) => {
+                        println!("⚠ Cannot convert to byte variables: {}", e);
+                        println!("  Displaying with wide variables:");
+                        display_statement(&canonical_wide, &*formatter, verify, &wide_term_factory)?;
+                    }
+                }
+            }
+            Err(e) => {
+                println!("✗ Parse failed: {}", e);
+            }
+        }
+        println!();
+    }
+    Ok(())
+}
+
+/// Display a statement with verification
+fn display_statement<V, T, TF>(
+    result: &Statement<SimpleType, V, NodeByte, T>,
+    formatter: &dyn symbolic_mgu::OutputFormatter,
+    verify: bool,
+    term_factory: &TF,
+) -> Result<(), MguError>
+where
+    V: Metavariable<Type = SimpleType>,
+    T: Term<SimpleType, V, NodeByte>,
+    TF: TermFactory<
+        T,
+        SimpleType,
+        V,
+        NodeByte,
+        Term = T,
+        TermNode = NodeByte,
+        TermMetavariable = V,
+    >,
+{
+    println!(
+        "  Assertion: {}",
+        result.get_assertion().format_with(formatter)
+    );
+    println!("  Hypotheses: {}", result.get_n_hypotheses());
+
+    if result.get_n_hypotheses() > 0 {
+        for (j, hyp) in result.get_hypotheses().iter().enumerate() {
+            println!("    {}: {}", j, hyp.format_with(formatter));
+        }
+    }
+
+    // Verify tautology or validity if requested
+    if verify {
+        if result.get_n_hypotheses() == 0 {
+            // No hypotheses: verify assertion is a tautology
+            match test_tautology(result.get_assertion()) {
+                Ok(true) => println!("  ✓ Verified: This is a tautology"),
+                Ok(false) => println!("  ✗ Warning: This is NOT a tautology"),
+                Err(e) => println!("  ? Could not verify: {}", e),
+            }
+        } else {
+            // Has hypotheses: check validity
+            match test_validity(result, term_factory, &Some(NodeByte::Implies)) {
+                Ok(true) => println!("  ✓ Valid: Hypotheses logically entail the assertion"),
+                Ok(false) => println!("  ✗ Invalid: Hypotheses do NOT entail the assertion"),
+                Err(e) => println!("  ? Could not verify validity: {}", e),
+            }
+        }
     }
 
     Ok(())
@@ -184,7 +295,7 @@ fn run_by_factory<V, VF>(
     format: &str,
 ) -> Result<(), MguError>
 where
-    V: Metavariable<Type = SimpleType> + Default,
+    V: Metavariable<Type = SimpleType>,
     VF: MetavariableFactory<MetavariableType = SimpleType, Metavariable = V>,
 {
     let term_factory: EnumTermFactory<SimpleType, V, NodeByte> = EnumTermFactory::new();
@@ -213,30 +324,38 @@ where
         match Statement::from_compact_proof(proof_str, var_factory, &term_factory, &dict) {
             Ok(result) => {
                 println!("✓ Parsed successfully");
+
+                // IMPORTANT: Canonicalize before display to ensure deterministic output.
+                // Without canonicalization, variable ordering depends on Rust's randomized
+                // hash function, causing the same proof to display differently on each run.
+                // Canonicalization produces minimal lexicographic variable ordering and
+                // ensures consistent, reproducible output for mathematical results.
+                let canonical = result.canonicalize(var_factory, &term_factory)?;
+
                 println!(
                     "  Assertion: {}",
-                    result.get_assertion().format_with(&*formatter)
+                    canonical.get_assertion().format_with(&*formatter)
                 );
-                println!("  Hypotheses: {}", result.get_n_hypotheses());
+                println!("  Hypotheses: {}", canonical.get_n_hypotheses());
 
-                if result.get_n_hypotheses() > 0 {
-                    for (j, hyp) in result.get_hypotheses().iter().enumerate() {
+                if canonical.get_n_hypotheses() > 0 {
+                    for (j, hyp) in canonical.get_hypotheses().iter().enumerate() {
                         println!("    {}: {}", j, hyp.format_with(&*formatter));
                     }
                 }
 
                 // Verify tautology or validity if requested
                 if verify {
-                    if result.get_n_hypotheses() == 0 {
+                    if canonical.get_n_hypotheses() == 0 {
                         // No hypotheses: verify assertion is a tautology
-                        match test_tautology(result.get_assertion()) {
+                        match test_tautology(canonical.get_assertion()) {
                             Ok(true) => println!("  ✓ Verified: This is a tautology"),
                             Ok(false) => println!("  ✗ Warning: This is NOT a tautology"),
                             Err(e) => println!("  ? Could not verify: {}", e),
                         }
                     } else {
                         // Has hypotheses: check if all terms are Boolean, then verify validity
-                        match check_validity(&result, &term_factory, &Some(NodeByte::Implies)) {
+                        match test_validity(&canonical, &term_factory, &Some(NodeByte::Implies)) {
                             Ok(true) => {
                                 println!("  ✓ Valid: Hypotheses logically entail the assertion")
                             }
@@ -266,6 +385,7 @@ fn print_usage(program: &str) {
     println!("  -h, --help              Show this help message");
     println!("  -b, --byte              Use a small subset of ASCII letters for variables");
     println!("  -w, --wide              Use a large library of UTF-8 symbols for variables");
+    println!("      --both              Parse with wide variables, convert to byte when possible");
     println!("  -v, --verify            Verify tautologies (theorems) or validity (inferences)");
     println!("  -f, --format <FORMAT>   Output format (default: utf8)");
     println!();
@@ -304,6 +424,10 @@ fn print_usage(program: &str) {
     );
     println!(
         "  {} --verify D__                 # Check if modus ponens is valid",
+        program
+    );
+    println!(
+        "  {} --both DD211                 # Parse with wide vars, show byte vars if possible",
         program
     );
     println!("  {} D__ DD211          # Process multiple proofs", program);

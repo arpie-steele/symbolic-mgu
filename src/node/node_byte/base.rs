@@ -5,6 +5,7 @@
 //! [`Node`]: `crate::Node`
 //! [`AsciiMetaVar`]: `crate::AsciiMetaVar`
 
+use crate::bool_eval::BooleanSimpleOp;
 use crate::{enum0, MguError, Node, SimpleType};
 use strum::{
     Display, EnumCount, EnumDiscriminants, EnumString, FromRepr, VariantArray, VariantNames,
@@ -1350,14 +1351,12 @@ impl Node for NodeByte {
         if index < n {
             Ok(slice[index])
         } else {
-            Err(MguError::from_index_and_len::<SimpleType, usize, usize>(
-                None, index, n,
-            ))
+            Err(MguError::from_index_and_len(index, n))
         }
     }
 
-    fn to_boolean_op(&self) -> Option<crate::BooleanSimpleOp> {
-        use crate::BooleanSimpleOp::*;
+    fn to_boolean_op(&self) -> Option<BooleanSimpleOp> {
+        use BooleanSimpleOp::*;
         match self {
             // Nullary (0-arity) Boolean operations
             NodeByte::False => Some(False0),

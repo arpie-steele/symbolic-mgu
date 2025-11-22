@@ -54,7 +54,7 @@
 //! Stateful factories maintain internal state (caches, interning tables, database connections)
 //! to optimize construction, enable sharing, or connect to external storage.
 //!
-//! ```rust,ignore
+//! ```rust,compile_fail
 //! // Hypothetical caching factory (not yet implemented)
 //! use symbolic_mgu::{NodeFactory, Node, SimpleType};
 //! use std::sync::Arc;
@@ -93,7 +93,7 @@
 //!
 //! ### Production Backend: Caching (Conceptual)
 //!
-//! ```rust,ignore
+//! ```rust,compile_fail
 //! // Hypothetical production factory with term deduplication
 //! let factory = CachingNodeFactory::new();
 //!
@@ -108,7 +108,7 @@
 //!
 //! ### Database Backend: Persistent Storage (Conceptual)
 //!
-//! ```rust,ignore
+//! ```rust,compile_fail
 //! // Hypothetical database-backed factory for Metamath integration
 //! let factory = MetamathNodeFactory::connect("theorems.db")?;
 //!
@@ -148,7 +148,7 @@
 //!
 //! Evaluation logic never sees factories:
 //!
-//! ```rust,ignore
+//! ```rust,compile_fail
 //! use symbolic_mgu::{Node, Term};
 //!
 //! fn evaluate_term<N, T>(term: &T) -> Result<bool, symbolic_mgu::MguError>

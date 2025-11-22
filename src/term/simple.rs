@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::fmt::Display;
 
 /// A simple implementation of [`Term`] based straightforwardly on supplied [`Metavariable`] and [`Node`] implementations.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(
     feature = "serde",
     derive(serde::Serialize, serde::Deserialize),
@@ -274,7 +274,10 @@ where
         // Validate arity
         let expected_arity = node.get_arity()?;
         if children.len() != expected_arity {
-            return Err(MguError::SlotsMismatch(expected_arity, children.len()));
+            return Err(MguError::from_found_and_expected_unsigned(
+                expected_arity,
+                children.len(),
+            ));
         }
         Ok(EnumTerm::NodeOrLeaf(node, children))
     }

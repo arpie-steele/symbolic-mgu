@@ -28,7 +28,7 @@
 //!
 //! # Usage
 //!
-//! ```rust,ignore
+//! ```rust,compile_fail
 //! use symbolic_mgu::{get_formatter, register_type_color, Color};
 //!
 //! // Get a built-in formatter

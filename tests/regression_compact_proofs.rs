@@ -2,10 +2,9 @@
 //!
 //! These tests validate bug fixes discovered during rustmgu development.
 
-use symbolic_mgu::{
-    logic::create_dict, test_tautology, EnumTermFactory, MetaByteFactory, MguError, NodeByte,
-    Statement, TermFactory,
-};
+use symbolic_mgu::bool_eval::test_tautology;
+use symbolic_mgu::logic::create_dict;
+use symbolic_mgu::{EnumTermFactory, MetaByteFactory, MguError, NodeByte, Statement, TermFactory};
 
 /// Helper to parse a compact proof and verify it produces a valid statement
 fn parse_compact_proof(proof: &str) -> Result<bool, MguError> {

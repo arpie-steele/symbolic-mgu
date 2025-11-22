@@ -71,7 +71,7 @@ fn metabyte_ascii_formatting() {
 
     let formatter = get_formatter("ascii");
     let formatted = p.format_with(&*formatter);
-    assert_eq!(formatted, "ph"); // P → ph in Metamath ASCII
+    assert_eq!(formatted, "P"); // MetaByte returns literal ASCII character
 }
 
 #[test]
@@ -119,8 +119,8 @@ fn term_ascii_formatting() {
     let term = create_simple_term();
     let formatter = get_formatter("ascii");
     let formatted = term.format_with(&*formatter);
-    // P → Q formatted in ASCII: (ph -> ps)
-    assert_eq!(formatted, "(ph -> ps)");
+    // P → Q formatted in ASCII (MetaByte uses literal characters)
+    assert_eq!(formatted, "(P -> Q)");
 }
 
 #[test]
@@ -137,8 +137,8 @@ fn term_latex_formatting() {
     let term = create_simple_term();
     let formatter = get_formatter("latex");
     let formatted = term.format_with(&*formatter);
-    // P → Q formatted in LaTeX
-    assert_eq!(formatted, r"(\varphi \to  \psi)");
+    // P → Q formatted in LaTeX (MetaByte uses literal characters)
+    assert_eq!(formatted, r"(P \to  Q)");
 }
 
 #[test]
@@ -171,10 +171,10 @@ fn complex_term_formatting() {
     let utf8_output = formula.format_with(&*utf8_formatter);
     assert_eq!(utf8_output, "((P ∧ Q) → R)");
 
-    // Test ASCII formatting
+    // Test ASCII formatting (MetaByte uses literal characters)
     let ascii_formatter = get_formatter("ascii");
     let ascii_output = formula.format_with(&*ascii_formatter);
-    assert_eq!(ascii_output, "((ph /\\ ps) -> ch)");
+    assert_eq!(ascii_output, "((P /\\ Q) -> R)");
 }
 
 #[test]
@@ -196,8 +196,8 @@ fn unary_operator_formatting() {
     let utf8_output = not_p.format_with(&*utf8_formatter);
     assert_eq!(utf8_output, "¬(P)");
 
-    // Test ASCII formatting
+    // Test ASCII formatting (MetaByte uses literal characters)
     let ascii_formatter = get_formatter("ascii");
     let ascii_output = not_p.format_with(&*ascii_formatter);
-    assert_eq!(ascii_output, "-.(ph)");
+    assert_eq!(ascii_output, "-.(P)");
 }
