@@ -4,11 +4,12 @@
 //! and theorems in a logical system.
 
 use crate::{DistinctnessGraph, Metavariable, MguError, Node, Term, Type};
-use std::{collections::HashSet, marker::PhantomData};
+use std::collections::HashSet;
+use std::marker::PhantomData;
 
 /// The primary object representing an axiom, inference rule, or
 /// statement of a theorem.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 #[cfg_attr(
     feature = "serde",
     derive(serde::Serialize, serde::Deserialize),
@@ -60,7 +61,7 @@ where
         hypotheses: Vec<T>,
         distinctness_graph: DistinctnessGraph<V>,
     ) -> Result<Self, MguError> {
-        // Validate that assertion is a sentence (Boolean type)
+        // Validate that assertion is structurally well-formed
         if !assertion.is_valid_sentence()? {
             return Err(MguError::from_found_and_expected_types(
                 true,
@@ -69,12 +70,32 @@ where
             ));
         }
 
-        // Validate that all hypotheses are sentences
+        // Validate that assertion has Boolean type (is a sentence)
+        let assertion_type = assertion.get_type()?;
+        let boolean_type = Ty::try_boolean()?;
+        if !assertion_type.is_subtype_of(&boolean_type) {
+            return Err(MguError::from_found_and_expected_types(
+                true,
+                &assertion_type,
+                &boolean_type,
+            ));
+        }
+
+        // Validate that all hypotheses are structurally well-formed and have Boolean type
         for (i, hyp) in hypotheses.iter().enumerate() {
             if !hyp.is_valid_sentence()? {
                 return Err(MguError::UnificationFailure(format!(
-                    "Hypothesis {i} is not a valid sentence (type {:?})",
+                    "Hypothesis {i} is not structurally valid (type {:?})",
                     hyp.get_type()
+                )));
+            }
+
+            // Check that hypothesis has Boolean type
+            let hyp_type = hyp.get_type()?;
+            if !hyp_type.is_subtype_of(&boolean_type) {
+                return Err(MguError::UnificationFailure(format!(
+                    "Hypothesis {i} is not a Boolean sentence (type {:?})",
+                    hyp_type
                 )));
             }
         }
@@ -98,10 +119,7 @@ where
     /// # Errors
     ///
     /// Returns an error if the assertion is not a valid sentence.
-    pub fn simple_axiom(assertion: T) -> Result<Self, MguError>
-    where
-        V: Default,
-    {
+    pub fn simple_axiom(assertion: T) -> Result<Self, MguError> {
         Self::new(assertion, Vec::new(), DistinctnessGraph::default())
     }
 
@@ -132,8 +150,13 @@ where
 
     /// Collect all metavariables used in this statement.
     ///
+    /// Traverses both the assertion and all hypotheses to collect
+    /// every metavariable appearing in the statement.
+    ///
     /// # Errors
-    /// - TODO.
+    ///
+    /// Returns an error if any term's structure is malformed or if
+    /// metavariable collection fails on any sub-term.
     pub fn collect_metavariables(&self) -> Result<HashSet<V>, MguError> {
         let mut vars = HashSet::new();
 

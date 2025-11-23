@@ -66,7 +66,7 @@ fn formatter_registry() -> &'static RwLock<HashMap<String, FormatterBox>> {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```
 /// use symbolic_mgu::{register_formatter, OutputFormatter};
 ///
 /// struct MyFormatter;
@@ -86,7 +86,7 @@ fn formatter_registry() -> &'static RwLock<HashMap<String, FormatterBox>> {
 pub fn register_formatter(name: impl Into<String>, formatter: impl OutputFormatter + 'static) {
     formatter_registry()
         .write()
-        .unwrap()
+        .expect("formatter registry lock poisoned")
         .insert(name.into(), Arc::new(formatter));
 }
 
@@ -100,11 +100,14 @@ pub fn register_formatter(name: impl Into<String>, formatter: impl OutputFormatt
 ///
 /// # Examples
 ///
-/// ```rust,ignore
-/// use symbolic_mgu::get_formatter;
+/// ```rust
+/// use symbolic_mgu::{get_formatter, Metavariable, MetavariableFactory, MetaByte, MetaByteFactory, SimpleType};
 ///
-/// let formatter = get_formatter("utf8-color");
-/// let output = formatter.format_term(&my_term);
+/// let formatter = get_formatter("utf8");
+/// let vars = MetaByteFactory();
+/// let var = vars.list_metavariables_by_type(&SimpleType::Boolean).next().unwrap();
+/// let output = var.format_with(&*formatter);
+/// assert_eq!(output, "P");
 /// ```
 ///
 /// # Panics
@@ -115,7 +118,7 @@ pub fn register_formatter(name: impl Into<String>, formatter: impl OutputFormatt
 pub fn get_formatter(name: &str) -> FormatterBox {
     formatter_registry()
         .read()
-        .unwrap()
+        .expect("formatter registry lock poisoned")
         .get(name)
         .cloned()
         .unwrap_or_else(|| {

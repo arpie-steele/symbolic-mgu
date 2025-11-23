@@ -57,24 +57,12 @@ impl MetaByte {
         if my_index < n {
             Ok(MetaByte(data.as_bytes()[my_index]))
         } else {
-            Err(MguError::from_index_and_len(Some(my_type), my_index, n))
+            Err(MguError::from_type_index_and_len(my_type, my_index, n))
         }
     }
 
     /// Return an iterator over Metavariables.
     ///
-    /// Let 𝑀ₜ be the set of metavariables of TYPE t. We get this list, in canonical
-    /// order, via the iterator returned by the this method.
-    pub fn enumerate(for_type: SimpleType) -> impl Iterator<Item = Self> {
-        use SimpleType::*;
-        let data = match for_type {
-            Boolean => OUR_BOOLEANS,
-            Setvar => OUR_SETVARS,
-            Class => OUR_CLASSES,
-        };
-        data.as_bytes().iter().copied().map(MetaByte)
-    }
-
     /// Every metavariable has a string display form.
     ///
     /// This methods need not check that the item is valid data for Metavariable purposes.
@@ -84,13 +72,6 @@ impl MetaByte {
         } else {
             format!("\\{0:02x}", self.0)
         }
-    }
-}
-
-impl Default for MetaByte {
-    /// Default is the first Boolean metavariable ('P').
-    fn default() -> Self {
-        MetaByte(OUR_BOOLEANS.as_bytes()[0])
     }
 }
 
@@ -115,11 +96,13 @@ impl Metavariable for MetaByte {
             our_type = Class;
             data = OUR_CLASSES;
         } else {
-            return Err(MguError::UnknownMetavariable(
+            return Err(MguError::from_type_and_var_strings(
                 stringify!(MetaByte),
-                self.to_string(),
+                &*self.to_string(),
             ));
         }
+        // SAFETY: We verified above that self.0 is contained in data
+        // (one of `OUR_BOOLEANS`, `OUR_SETVARS`, or `OUR_CLASSES`), so find() will succeed.
         Ok((our_type, data.find(self.0 as char).unwrap()))
     }
 
@@ -129,10 +112,6 @@ impl Metavariable for MetaByte {
 
     fn try_from_type_and_index(my_type: SimpleType, my_index: usize) -> Result<Self, MguError> {
         Self::try_from_type_and_index(my_type, my_index)
-    }
-
-    fn enumerate(for_type: SimpleType) -> impl Iterator<Item = Self> {
-        Self::enumerate(for_type)
     }
 
     fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
@@ -146,52 +125,22 @@ impl Metavariable for MetaByte {
     }
 
     fn to_ascii(&self) -> String {
-        // Metamath-style ASCII names
-        match self.0 as char {
-            // Boolean variables: ph, ps, ch, th, ta, et, ze, si, rh, mu, la
-            'P' => "ph".to_string(),
-            'Q' => "ps".to_string(),
-            'R' => "ch".to_string(),
-            'S' => "th".to_string(),
-            'T' => "ta".to_string(),
-            'U' => "et".to_string(),
-            'V' => "ze".to_string(),
-            'W' => "si".to_string(),
-            'X' => "rh".to_string(),
-            'Y' => "mu".to_string(),
-            'Z' => "la".to_string(),
-            // Setvar and Class: use character as-is
-            c => format!("{}", c),
-        }
+        // MetaByte is simple: just return the ASCII character
+        self.to_str()
     }
 
     fn to_utf8(&self) -> String {
-        // Same as Display implementation for now
+        // MetaByte is ASCII-only, same as to_str()
         self.to_str()
     }
 }
 
 impl MetaByte {
     /// Get LaTeX representation.
+    ///
+    /// For `MetaByte`, this is just the ASCII character.
     fn to_latex(self) -> String {
-        match self.0 as char {
-            // Boolean variables: Greek letters in LaTeX
-            'P' => r"\varphi".to_string(),
-            'Q' => r"\psi".to_string(),
-            'R' => r"\chi".to_string(),
-            'S' => r"\theta".to_string(),
-            'T' => r"\tau".to_string(),
-            'U' => r"\eta".to_string(),
-            'V' => r"\zeta".to_string(),
-            'W' => r"\sigma".to_string(),
-            'X' => r"\rho".to_string(),
-            'Y' => r"\mu".to_string(),
-            'Z' => r"\lambda".to_string(),
-            // Setvar: lowercase variables
-            c if c.is_ascii_lowercase() => format!("{}", c),
-            // Class: uppercase variables
-            c => format!("{}", c),
-        }
+        self.to_str()
     }
 
     /// Get HTML representation with optional coloring.
@@ -267,9 +216,9 @@ impl MetavariableFactory for MetaByteFactory {
                 }
             }
         }
-        Err(MguError::UnknownMetavariable(
+        Err(MguError::from_type_and_var_strings(
             stringify!(MetaByte),
-            name.to_owned(),
+            name,
         ))
     }
 

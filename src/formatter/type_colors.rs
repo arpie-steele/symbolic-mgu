@@ -57,7 +57,7 @@ fn type_color_registry() -> &'static RwLock<HashMap<String, Color>> {
 pub fn register_type_color(type_name: impl Into<String>, color: Color) {
     type_color_registry()
         .write()
-        .unwrap()
+        .expect("type color registry lock poisoned")
         .insert(type_name.into(), color);
 }
 
@@ -91,7 +91,7 @@ pub fn register_type_color(type_name: impl Into<String>, color: Color) {
 pub fn get_type_color(type_name: &str) -> Option<Color> {
     type_color_registry()
         .read()
-        .unwrap()
+        .expect("type color registry lock poisoned")
         .get(type_name)
         .copied()
 }

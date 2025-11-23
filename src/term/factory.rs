@@ -61,7 +61,7 @@
 //!
 //! Stateful factories maintain caches for term deduplication and sharing:
 //!
-//! ```rust,ignore
+//! ```rust,compile_fail
 //! // Hypothetical caching term factory
 //! use std::collections::HashMap;
 //! use std::sync::Arc;
@@ -128,7 +128,7 @@
 //!
 //! ### Production Backend: Term Deduplication (Conceptual)
 //!
-//! ```rust,ignore
+//! ```rust,compile_fail
 //! // Hypothetical production factory with deduplication
 //! let mut factory = DeduplicatingTermFactory::new();
 //!
@@ -154,7 +154,7 @@
 //!
 //! ### Database Backend: Lazy Loading (Conceptual)
 //!
-//! ```rust,ignore
+//! ```rust,compile_fail
 //! // Hypothetical database-backed term factory
 //! let factory = DatabaseTermFactory::connect("proofs.db")?;
 //!
@@ -260,7 +260,7 @@
 //!
 //! Applications may provide a single object implementing all three traits for convenience:
 //!
-//! ```rust,ignore
+//! ```rust,compile_fail
 //! // Hypothetical unified factory (not yet implemented)
 //! struct UnifiedFactory {
 //!     nodes: NodeByteFactory,

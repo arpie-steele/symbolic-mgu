@@ -35,7 +35,9 @@ pub fn require_var_is_boolean<V: Metavariable>(some_var: &V) -> Result<(), MguEr
                 false, &some_type, &bool_type,
             ));
         } else {
-            return Err(MguError::from_error_code(0x8001_usize)); // Type does not support Boolean
+            return Err(MguError::TypeCapabilityUnsupported {
+                capability: "Boolean",
+            });
         }
     }
     Ok(())
@@ -57,15 +59,15 @@ pub fn require_var_is_boolean<V: Metavariable>(some_var: &V) -> Result<(), MguEr
 ///
 /// ```
 /// use symbolic_mgu::logic::modus_ponens;
-/// use symbolic_mgu::{EnumTermFactory, MetaByte, Metavariable, NodeByte, SimpleType};
+/// use symbolic_mgu::{EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, Metavariable, NodeByte, SimpleType};
+/// use itertools::Itertools;
 ///
 /// // Create factory for building terms
 /// let factory = EnumTermFactory::new();
 ///
 /// // Get two boolean metavariables
-/// let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-/// let phi = vars.next().unwrap();
-/// let psi = vars.next().unwrap();
+/// let vars = MetaByteFactory();
+/// let (phi, psi) = vars.list_metavariables_by_type(&SimpleType::Boolean).tuples().next().unwrap();
 ///
 /// // Create Modus Ponens: (ψ; φ, (φ → ψ); ∅)
 /// let mp = modus_ponens(&factory, phi, psi, NodeByte::Implies).unwrap();
@@ -84,7 +86,7 @@ pub fn modus_ponens<Ty, V, N, T, TF>(
 ) -> Result<Statement<Ty, V, N, T>, MguError>
 where
     Ty: Type,
-    V: Metavariable<Type = Ty> + Default,
+    V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
     TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
@@ -128,14 +130,14 @@ where
 ///
 /// ```
 /// use symbolic_mgu::logic::simp;
-/// use symbolic_mgu::{EnumTermFactory, MetaByte, Metavariable, NodeByte, SimpleType};
+/// use symbolic_mgu::{EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, Metavariable, NodeByte, SimpleType};
+/// use itertools::Itertools;
 ///
 /// // Create factory for building terms
 /// let factory = EnumTermFactory::new();
 ///
-/// let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-/// let phi = vars.next().unwrap();
-/// let psi = vars.next().unwrap();
+/// let vars = MetaByteFactory();
+/// let (phi, psi) = vars.list_metavariables_by_type(&SimpleType::Boolean).tuples().next().unwrap();
 ///
 /// // Create Simp axiom: ((φ → (ψ → φ)); ∅; ∅)
 /// let axiom = simp(&factory, phi, psi, NodeByte::Implies).unwrap();
@@ -154,7 +156,7 @@ pub fn simp<Ty, V, N, T, TF>(
 ) -> Result<Statement<Ty, V, N, T>, MguError>
 where
     Ty: Type,
-    V: Metavariable<Type = Ty> + Default,
+    V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
     TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
@@ -191,15 +193,14 @@ where
 ///
 /// ```
 /// use symbolic_mgu::logic::frege;
-/// use symbolic_mgu::{EnumTermFactory, MetaByte, Metavariable, NodeByte, SimpleType};
+/// use symbolic_mgu::{EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, Metavariable, NodeByte, SimpleType};
+/// use itertools::Itertools;
 ///
 /// // Create factory for building terms
 /// let factory = EnumTermFactory::new();
 ///
-/// let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-/// let phi = vars.next().unwrap();
-/// let psi = vars.next().unwrap();
-/// let chi = vars.next().unwrap();
+/// let vars = MetaByteFactory();
+/// let (phi, psi, chi) = vars.list_metavariables_by_type(&SimpleType::Boolean).tuples().next().unwrap();
 ///
 /// // Create Frege axiom (distributivity)
 /// let axiom = frege(&factory, phi, psi, chi, NodeByte::Implies).unwrap();
@@ -219,7 +220,7 @@ pub fn frege<Ty, V, N, T, TF>(
 ) -> Result<Statement<Ty, V, N, T>, MguError>
 where
     Ty: Type,
-    V: Metavariable<Type = Ty> + Default,
+    V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
     TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
@@ -275,14 +276,14 @@ where
 ///
 /// ```
 /// use symbolic_mgu::logic::transp;
-/// use symbolic_mgu::{EnumTermFactory, MetaByte, Metavariable, NodeByte, SimpleType};
+/// use symbolic_mgu::{EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, Metavariable, NodeByte, SimpleType};
+/// use itertools::Itertools;
 ///
 /// // Create factory for building terms
 /// let factory = EnumTermFactory::new();
 ///
-/// let mut vars = MetaByte::enumerate(SimpleType::Boolean);
-/// let phi = vars.next().unwrap();
-/// let psi = vars.next().unwrap();
+/// let vars = MetaByteFactory();
+/// let (phi, psi) = vars.list_metavariables_by_type(&SimpleType::Boolean).tuples().next().unwrap();
 ///
 /// // Create Transp axiom (contrapositive)
 /// let axiom = transp(&factory, phi, psi, NodeByte::Not, NodeByte::Implies).unwrap();
@@ -302,7 +303,7 @@ pub fn transp<Ty, V, N, T, TF>(
 ) -> Result<Statement<Ty, V, N, T>, MguError>
 where
     Ty: Type,
-    V: Metavariable<Type = Ty> + Default,
+    V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
     TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
@@ -383,7 +384,7 @@ pub fn create_dict<TF, MF, Ty, V, N, T>(
 where
     TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermNode = N, TermMetavariable = V>,
     MF: MetavariableFactory<MetavariableType = Ty, Metavariable = V>,
-    V: Metavariable<Type = Ty> + Default,
+    V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
     Ty: Type,
@@ -393,7 +394,7 @@ where
     let mut booleans = metavar_factory.list_metavariables_by_type(&our_bool);
     let (phi, psi, chi) = booleans
         .next_tuple()
-        .ok_or_else(|| MguError::from_index_and_len(Some(our_bool), 2usize, 0usize))?;
+        .ok_or_else(|| MguError::from_type_index_and_len(our_bool.clone(), 2usize, 0usize))?;
 
     let mut dict = HashMap::new();
 

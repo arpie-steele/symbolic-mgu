@@ -104,7 +104,8 @@ macro_rules! enforce_bigger_than_byte {
 ///
 /// # Syntax
 ///
-/// ```ignore
+/// ```compile_fail
+/// # use symbolic_mgu::{byte_try_from_signed, MguError};
 /// byte_try_from_signed!(DestinationType: SourceType1, SourceType2, ...);
 /// ```
 ///
@@ -212,7 +213,8 @@ macro_rules! byte_try_from_signed {
 ///
 /// # Syntax
 ///
-/// ```ignore
+/// ```compile_fail
+/// # use symbolic_mgu::{MguError, byte_try_from_unsigned};
 /// byte_try_from_unsigned!(DestinationType: SourceType1, SourceType2, ...);
 /// ```
 ///
@@ -222,7 +224,7 @@ macro_rules! byte_try_from_signed {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```compile_fail
 /// use symbolic_mgu::{
 ///     MguError, byte_try_from_signed, byte_try_from_unsigned,
 ///     enforce_bigger_than_byte, enforce_primitive_type,
@@ -339,7 +341,8 @@ macro_rules! last_ident {
 ///
 /// # Syntax
 ///
-/// ```ignore
+/// ```compile_fail
+/// # use symbolic_mgu::dlgt0;
 /// dlgt0! {
 ///     $(#[$meta:meta])*
 ///     $vis:vis fn $new_name:ident ( &$($self:ident)+ $(, $arg:ident : $typ:ty)* )
@@ -410,7 +413,8 @@ macro_rules! dlgt0 {
 ///
 /// # Syntax
 ///
-/// ```ignore
+/// ```compile_fail
+/// # use symbolic_mgu::enum0;
 /// enum0! {
 ///     $(#[$meta:meta])*
 ///     $vis:vis enum $name:ident {
@@ -475,7 +479,8 @@ macro_rules! enum0 {
 ///
 /// # Syntax
 ///
-/// ```ignore
+/// ```compile_fail
+/// # use symbolic_mgu::{MguError, ub_prim_impl};
 /// ub_prim_impl!(TraitName; prim_type, n; max_n);
 /// ```
 ///
@@ -486,7 +491,9 @@ macro_rules! enum0 {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```compile_fail
+/// # use symbolic_mgu::{MguError, ub_prim_impl};
+/// # use symbolic_mgu::bool_eval::UnsignedBits;
 /// ub_prim_impl!(UnsignedBits; u8, 3; 3);    // u8 with N=3: 2^3 = 8 bits
 /// ub_prim_impl!(UnsignedBits; u64, 6; 6);   // u64 with N=6: 2^6 = 64 bits
 /// ub_prim_impl!(UnsignedBits; u128, 7; 7);  // u128 with N=7: 2^7 = 128 bits
@@ -549,7 +556,10 @@ macro_rules! ub_prim_impl {
                     }
                     Ok(())
                 } else {
-                    Err(MguError::UnknownError(121))
+                    Err(MguError::BitPositionOutOfRange {
+                        position: bit_pos,
+                        bits: 1 << $n,
+                    })
                 }
             }
         }

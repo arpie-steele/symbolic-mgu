@@ -1,9 +1,12 @@
 //! Introduce the [`Metavariable`] trait which has ready-made short
 //! and wide toy implementations.
 
+pub(crate) mod charset;
+pub(crate) mod decorator;
 pub(crate) mod enums;
 pub(crate) mod factory;
 pub(crate) mod meta_byte;
+pub(crate) mod parametric;
 pub(crate) mod wide;
 pub(crate) mod wide_factory;
 
@@ -16,7 +19,11 @@ use std::hash::Hash;
 /// Metavariables are typed variables used in logical terms and statements.
 /// Each metavariable has a type (Boolean, Setvar, or Class) and an index
 /// that distinguishes it from other variables of the same type.
-pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq {
+///
+/// The `Ord` bound is required to support statement canonicalization,
+/// which produces a unique minimal representation by ordering variables
+/// lexicographically.
+pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + PartialOrd + Ord {
     /// Concrete implementation of the Type trait.
     type Type: Type;
 
@@ -56,13 +63,8 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq {
     ///
     /// # Errors
     /// - Returns an error if the index exceeds the maximum for this type
+    /// - Returns an error if the index is incompatible with this type
     fn try_from_type_and_index(my_type: Self::Type, my_index: usize) -> Result<Self, MguError>;
-
-    /// Enumerate all metavariables of the given type, starting from index 0.
-    ///
-    /// For implementations with unlimited variables, this iterator is infinite.
-    /// For limited implementations, it terminates at the maximum index.
-    fn enumerate(for_type: Self::Type) -> impl Iterator<Item = Self>;
 
     /// Format this metavariable with the given formatter.
     ///
@@ -82,12 +84,13 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
-    /// use symbolic_mgu::{Metavariable, OutputFormatter, get_formatter};
+    /// ```rust
+    /// use symbolic_mgu::{Metavariable, MetaByte, MetaByteFactory, MetavariableFactory, SimpleType, get_formatter};
     ///
-    /// let var = /* some metavariable */;
-    /// let formatter = get_formatter("utf8-color");
+    /// let var = MetaByteFactory().list_metavariables_by_type(&SimpleType::Boolean).next().unwrap();
+    /// let formatter = get_formatter("utf8");
     /// let output = var.format_with(&*formatter);
+    /// assert_eq!(output, "P");
     /// ```
     fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
         let _ = formatter; // Suppress unused warning
@@ -97,21 +100,26 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq {
     /// Get ASCII representation of this metavariable.
     ///
     /// This provides a pure ASCII rendering suitable for environments
-    /// that don't support Unicode (e.g., Metamath compatibility, plain text).
+    /// that don't support Unicode (e.g., plain text terminals).
+    ///
+    /// # Implementation Notes
+    ///
+    /// Different implementations may have different conventions:
+    /// - `MetaByte`: Returns the ASCII character directly (e.g., "P", "Q", "x")
+    /// - `WideMetavariable`: Returns Metamath-style ASCII names (e.g., "ph", "ps", "x")
     ///
     /// # Default Implementation
     ///
     /// The default implementation delegates to the Display trait.
-    /// Concrete implementations (like `MetaByte`) should override to provide
-    /// appropriate ASCII names (e.g., "ph", "ps", "ch").
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
-    /// use symbolic_mgu::Metavariable;
+    /// ```rust
+    /// use symbolic_mgu::{Metavariable, MetaByte, MetaByteFactory, MetavariableFactory, SimpleType};
     ///
-    /// let var = /* some metavariable */;
-    /// let ascii = var.to_ascii(); // e.g., "ph" for φ
+    /// let var = MetaByteFactory().list_metavariables_by_type(&SimpleType::Boolean).next().unwrap();
+    /// let ascii = var.to_ascii();
+    /// assert_eq!(ascii, "P"); // MetaByte returns literal character
     /// ```
     fn to_ascii(&self) -> String {
         format!("{}", self) // Default: use Display
@@ -119,24 +127,52 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq {
 
     /// Get UTF-8 representation of this metavariable.
     ///
-    /// This provides a Unicode rendering with mathematical symbols
-    /// (e.g., φ, ψ, χ for Boolean variables; x, y, z for Setvars).
+    /// This may provide Unicode rendering with mathematical symbols depending
+    /// on the implementation.
+    ///
+    /// # Implementation Notes
+    ///
+    /// Different implementations use different character sets:
+    /// - `MetaByte`: ASCII characters only (e.g., "P", "Q", "x")
+    /// - `WideMetavariable`: Unicode mathematical symbols (e.g., "𝜑", "𝜓", "𝑥")
     ///
     /// # Default Implementation
     ///
     /// The default implementation delegates to the Display trait.
-    /// Concrete implementations should override to provide appropriate
-    /// Unicode symbols.
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
-    /// use symbolic_mgu::Metavariable;
+    /// ```rust
+    /// use symbolic_mgu::{Metavariable, MetaByte, MetaByteFactory, MetavariableFactory, SimpleType};
     ///
-    /// let var = /* some metavariable */;
-    /// let utf8 = var.to_utf8(); // e.g., "φ" for Boolean var 0
+    /// let var = MetaByteFactory().list_metavariables_by_type(&SimpleType::Boolean).next().unwrap();
+    /// let utf8 = var.to_utf8();
+    /// assert_eq!(utf8, "P"); // MetaByte uses ASCII only
     /// ```
     fn to_utf8(&self) -> String {
         format!("{}", self) // Default: use Display
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// Verify that Metavariable trait is NOT dyn-safe due to Clone, Eq, Hash, Ord.
+    ///
+    /// Metavariable intentionally requires these traits for use in collections and
+    /// canonicalization, making it incompatible with trait objects.
+    /// This is the correct design - Metavariable is used as a concrete type parameter,
+    /// not as a trait object.
+    #[test]
+    fn metavariable_is_not_dyn_safe() {
+        // This test documents that Metavariable is NOT dyn-safe by design.
+        // The following line would NOT compile (commented out to prevent error):
+        //
+        // let _: &dyn Metavariable = todo!();
+        //
+        // Error: Metavariable is not dyn-safe because it requires Clone, Eq, Hash, PartialOrd, Ord
+        // which use Self as a type parameter.
+        //
+        // This is intentional - Metavariable is used as a concrete type in generics like
+        // Statement<Ty, V, N, T>, not as a trait object.
     }
 }

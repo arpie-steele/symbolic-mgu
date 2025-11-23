@@ -4,12 +4,20 @@
 //! [`Metavariable`]: `crate::Metavariable`
 //! [`Term`]: `crate::Term`
 
+use crate::bool_eval::BooleanSimpleOp;
 use crate::{MguError, Type};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
-/// TODO.
-pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
+/// Trait for nodes representing operations in logical terms.
+///
+/// Nodes are the non-leaf parts of terms, representing operations like
+/// implication, negation, conjunction, etc.
+///
+/// The `Ord` bound is required to support statement canonicalization,
+/// which produces a unique minimal representation by ordering terms
+/// lexicographically.
+pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone + PartialOrd + Ord {
     /// Concrete implementation of the Type trait.
     type Type: Type;
 
@@ -62,7 +70,8 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
     /// # Examples
     ///
     /// ```
-    /// use symbolic_mgu::{Node, NodeByte, BooleanSimpleOp};
+    /// use symbolic_mgu::{Node, NodeByte};
+    /// use symbolic_mgu::bool_eval::BooleanSimpleOp;
     ///
     /// let and_node = NodeByte::And;
     /// assert_eq!(and_node.to_boolean_op(), Some(BooleanSimpleOp::AndAB2));
@@ -74,7 +83,7 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
     /// let element_of = NodeByte::IsElementOf;
     /// assert_eq!(element_of.to_boolean_op(), None);
     /// ```
-    fn to_boolean_op(&self) -> Option<crate::BooleanSimpleOp>;
+    fn to_boolean_op(&self) -> Option<BooleanSimpleOp>;
 
     /// Format this node with the given formatter.
     ///
@@ -94,12 +103,13 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
-    /// use symbolic_mgu::{Node, OutputFormatter, get_formatter};
+    /// ```rust
+    /// use symbolic_mgu::{Node, NodeByte, get_formatter};
     ///
-    /// let node = /* some node */;
-    /// let formatter = get_formatter("utf8-color");
+    /// let node = NodeByte::Implies;
+    /// let formatter = get_formatter("utf8");
     /// let output = node.format_with(&*formatter);
+    /// assert_eq!(output, "→");
     /// ```
     fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
         let _ = formatter; // Suppress unused warning
@@ -119,11 +129,12 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
-    /// use symbolic_mgu::Node;
+    /// ```rust
+    /// use symbolic_mgu::{Node, NodeByte};
     ///
-    /// let node = /* some node */;
-    /// let ascii = node.to_ascii_symbol(); // e.g., "->" for implies
+    /// let node = NodeByte::Implies;
+    /// let ascii = node.to_ascii_symbol();
+    /// assert_eq!(ascii, "->");
     /// ```
     fn to_ascii_symbol(&self) -> &str {
         "?" // Default: unknown operator
@@ -142,11 +153,12 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
-    /// use symbolic_mgu::Node;
+    /// ```rust
+    /// use symbolic_mgu::{Node, NodeByte};
     ///
-    /// let node = /* some node */;
-    /// let utf8 = node.to_utf8_symbol(); // e.g., "→" for implies
+    /// let node = NodeByte::Implies;
+    /// let utf8 = node.to_utf8_symbol();
+    /// assert_eq!(utf8, "→");
     /// ```
     fn to_utf8_symbol(&self) -> &str {
         "?" // Default: unknown operator
@@ -164,13 +176,37 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
-    /// use symbolic_mgu::Node;
+    /// ```rust
+    /// use symbolic_mgu::{Node, NodeByte};
     ///
-    /// let node = /* some node */;
-    /// let latex = node.to_latex_symbol(); // e.g., "\\to" for implies
+    /// let node = NodeByte::Implies;
+    /// let latex = node.to_latex_symbol();
+    /// assert_eq!(latex, r"\to ");
     /// ```
     fn to_latex_symbol(&self) -> &str {
         "?" // Default: unknown operator
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// Verify that Node trait is NOT dyn-safe due to Clone, Eq, Hash, Ord.
+    ///
+    /// Node intentionally requires these traits for use in collections and
+    /// canonicalization, making it incompatible with trait objects.
+    /// This is the correct design - Node is used as a concrete type parameter,
+    /// not as a trait object.
+    #[test]
+    fn node_is_not_dyn_safe() {
+        // This test documents that Node is NOT dyn-safe by design.
+        // The following line would NOT compile (commented out to prevent error):
+        //
+        // let _: &dyn Node = todo!();
+        //
+        // Error: Node is not dyn-safe because it requires Clone, Eq, Hash, PartialOrd, Ord
+        // which use Self as a type parameter.
+        //
+        // This is intentional - Node is used as a concrete type in generics like
+        // Statement<Ty, V, N, T>, not as a trait object.
     }
 }

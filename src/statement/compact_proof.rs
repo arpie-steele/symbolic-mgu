@@ -80,7 +80,8 @@ where
     ///
     /// # Panics
     ///
-    /// Does it?? TODO.
+    /// This function does not panic. All `unwrap()` calls are guarded by explicit
+    /// length checks with SAFETY comments explaining why they cannot fail.
     pub fn from_compact_proof<VF, TF>(
         proof: &str,
         var_factory: &VF,
@@ -138,6 +139,8 @@ where
                 // Pop hypotheses in reverse order (to maintain correct order)
                 let mut proofs = Vec::new();
                 for _ in 0..n_hypotheses {
+                    // SAFETY: We checked stack.len() >= `n_hypotheses` above (line 129),
+                    // so this pop() will always succeed.
                     proofs.push(stack.pop().unwrap());
                 }
                 proofs.reverse();
@@ -164,6 +167,8 @@ where
             )));
         }
 
+        // SAFETY: We checked stack is not empty above (line 154),
+        // so this pop() will always succeed.
         stack.pop().unwrap().ok_or_else(|| {
             MguError::UnificationFailure("Final result is a placeholder (None)".to_string())
         })

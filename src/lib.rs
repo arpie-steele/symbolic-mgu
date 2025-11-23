@@ -53,7 +53,6 @@
 #![allow(rustdoc::private_doc_tests)]
 
 pub mod bool_eval;
-// pub mod color;
 pub(crate) mod distinct;
 pub(crate) mod error;
 pub(crate) mod formatter;
@@ -64,14 +63,8 @@ pub(crate) mod mgutype;
 pub(crate) mod node;
 pub mod search;
 pub(crate) mod statement;
-// pub mod svg;
 pub(crate) mod term;
-// #[cfg(feature = "video")]
-// #[cfg_attr(docsrs, doc(cfg(feature = "video")))]
-// pub mod video;
 
-pub use bool_eval::generated_enum::BooleanSimpleOp;
-pub use bool_eval::{test_contingent, test_contradiction, test_tautology, test_term};
 pub use distinct::pair::Pair;
 pub use distinct::simple_graph::check_clique;
 pub use distinct::simple_graph::check_decomposition;
@@ -85,31 +78,29 @@ pub use formatter::{
     get_formatter, get_type_color, get_type_color_from_trait, register_formatter,
     register_type_color, Color, OutputFormatter,
 };
-// pub use metavariable::InfallibleMetavariable;
+pub use metavariable::charset::WideCharSet;
+pub use metavariable::decorator::{Decorator, Prime};
 pub use metavariable::enums::AsciiMetaVar;
 pub use metavariable::factory::MetavariableFactory;
 pub use metavariable::meta_byte::MetaByte;
 pub use metavariable::meta_byte::MetaByteFactory;
+pub use metavariable::parametric::ParametricMetavariable;
 pub use metavariable::wide::WideMetavariable;
+pub use metavariable::wide::WIDE_BOOLEANS;
+pub use metavariable::wide::WIDE_BOOLEANS_ASCII;
+pub use metavariable::wide::WIDE_CLASSES;
+pub use metavariable::wide::WIDE_CLASSES_ASCII;
+pub use metavariable::wide::WIDE_SETVARS;
+pub use metavariable::wide::WIDE_SETVARS_ASCII;
 pub use metavariable::wide_factory::WideMetavariableFactory;
 pub use metavariable::Metavariable;
 pub use mgutype::base::SimpleType;
-pub use node::base::Node;
-pub use node::factory::NodeFactory;
-// pub use node::dbnode::DbNode;
-// pub use node::dbnode::NodeDatabase;
-// pub use node::dbnode::SimpleNodeDatabase;
-// pub use node::dbnode::register_database;
-pub use node::node_byte::base::NodeByte;
-pub use node::node_byte::factory::NodeByteFactory;
-// pub use node::traits::CopyableNode;
-// pub use node::traits::EnumerableNode;
-// pub use node::traits::IndexableNode;
-// pub use node::traits::InfallibleNodeCore;
-// pub use node::traits::NodeCore;
-// pub use node::traits::StaticSlotNode;
 pub use mgutype::type_trait::Type;
 pub use mgutype::type_trait::TypeCore;
+pub use node::base::Node;
+pub use node::factory::NodeFactory;
+pub use node::node_byte::base::NodeByte;
+pub use node::node_byte::factory::NodeByteFactory;
 pub use statement::Statement;
 pub use term::base::Term;
 pub use term::factory::TermFactory;
@@ -120,8 +111,6 @@ pub use term::substitution::occurs_check;
 pub use term::substitution::unify;
 pub use term::substitution::NormalizingSubstitution;
 pub use term::substitution::Substitution;
-// pub use term::dbterm::DbTerm;
-// pub use term::veryfinite::TinyTerm;
 
 #[cfg(test)]
 mod tests {

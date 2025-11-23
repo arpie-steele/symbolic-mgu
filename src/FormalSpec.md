@@ -99,6 +99,18 @@ A canonical (normalized) form of a [STATEMENT] is one where:
   metavariable ordering, and
 * Two [STATEMENTs] are equal if their canonical forms are identical.
 
+**Note on Canonicalization**: Canonicalization is an **optional** operation that does not affect the **meaning** (logical content) of a [STATEMENT]. It provides a unique representative for α-equivalent statements, useful for:
+* Comparing statements for semantic equality (mutual inclusion)
+* Deduplication in proof databases
+* Consistent presentation to users
+
+Canonicalization may be computationally expensive (factorial in the number of hypotheses), so it is typically performed:
+* Once, after a sequence of operations completes (not after each intermediate step)
+* On-demand, when comparison or storage requires it
+* Explicitly by the user or high-level operations (like condensed detachment)
+
+The operations `CONTRACT`, `APPLY`, and `APPLY_MULTIPLE` return results that are logically correct but not necessarily in canonical form. Users may call the `canonicalize` operation explicitly when needed.
+
 ## Relabeling Disjointness
 
 Given two [STATEMENTs], <span lang="und-Zmth">S₁</span> and <span lang="und-Zmth">S₂</span>,
@@ -133,7 +145,7 @@ Given two [STATEMENTs], <span lang="und-Zmth">S₁ = (A₁; H₁; D₁)</span> a
   * A₁, all H₁ (excluding H₁\[n\]), and all H₂'
 * Merge these as the new hypothesis list (eliminating duplicates, as hypotheses are treated semantically as a set)
 * Merge [DISTINCTNESS graphs] under σ: for each edge {v₁, v₂} in D₁ or D₂, if v₁σ and v₂σ contain metavariables, add edges between all pairs of distinct metavariables from v₁σ and v₂σ
-* Return a new [STATEMENT] in canonical form.
+* Return a new [STATEMENT] (not necessarily in canonical form; call `canonicalize` explicitly if needed).
 
 ## Simple Axioms and Empty Structures
 

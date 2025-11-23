@@ -1,4 +1,119 @@
 //! Common error handling via enum.
+//!
+//! # Error Construction Best Practices
+//!
+//! This module provides a comprehensive error type [`MguError`] with multiple variants
+//! for different failure modes. To ensure consistency and maintainability, follow these
+//! guidelines when creating errors:
+//!
+//! ## Use Constructors When Available
+//!
+//! Many error variants have dedicated constructor methods that provide type safety and
+//! automatic conversions. Always prefer constructors over direct instantiation:
+//!
+//! ```rust
+//! use symbolic_mgu::{MguError, SimpleType};
+//!
+//! // GOOD: Use constructor for SlotsMismatch
+//! let err = MguError::from_found_and_expected_unsigned(3usize, 2usize);
+//!
+//! // AVOID: Direct instantiation (less maintainable)
+//! // let err = MguError::SlotsMismatch(3, 2);
+//!
+//! // GOOD: Use constructor for IndexOutOfRange
+//! let err = MguError::from_type_index_and_len(SimpleType::Boolean, 5usize, 3usize);
+//!
+//! // GOOD: Use constructor for ChildIndexOutOfRange (no type info)
+//! let err = MguError::from_index_and_len(5usize, 3usize);
+//! ```
+//!
+//! ## Structured Error Variants
+//!
+//! For common error patterns, use the structured variants with specific fields rather
+//! than string-based variants. These provide better introspection and type safety:
+//!
+//! ```rust
+//! use symbolic_mgu::MguError;
+//!
+//! // GOOD: Structured variant with typed fields
+//! let err = MguError::TermKindMismatch {
+//!     expected: "metavariable",
+//!     found: "node",
+//! };
+//!
+//! // GOOD: Structured variant for Boolean errors
+//! let err = MguError::InvalidBooleanCode {
+//!     code: 0xFF,
+//!     arity: 2,
+//! };
+//!
+//! // GOOD: Feature requirements
+//! let err = MguError::FeatureRequired {
+//!     feature: "bigint",
+//!     reason: "Boolean codes > 0xFF require bigint feature".to_string(),
+//! };
+//! ```
+//!
+//! ## String-Based Variants
+//!
+//! For domain-specific errors without a dedicated variant, use the appropriate
+//! string-based variant:
+//!
+//! ```rust
+//! use symbolic_mgu::MguError;
+//!
+//! // Use ArgumentError for invalid arguments
+//! let err = MguError::ArgumentError("Expected positive value".to_string());
+//!
+//! // Use UnificationFailure for unification-specific failures
+//! let err = MguError::UnificationFailure("Cannot unify x with f(x)".to_string());
+//!
+//! // Use VerificationFailure for proof verification
+//! let err = MguError::VerificationFailure("Proof step invalid".to_string());
+//! ```
+//!
+//! ## I/O and Parsing Errors
+//!
+//! For file I/O, network operations, and database parsing, use the I/O variants:
+//!
+//! ```rust
+//! use symbolic_mgu::MguError;
+//! use std::io;
+//!
+//! // IoError automatically converts from std::io::Error
+//! let io_err = io::Error::new(io::ErrorKind::NotFound, "database.mm");
+//! let err: MguError = io_err.into();
+//!
+//! // ParseError for syntax errors in database files
+//! let err = MguError::ParseError {
+//!     location: "set.mm:42:15".to_string(),
+//!     message: "Unexpected token".to_string(),
+//! };
+//! ```
+//!
+//! ## Available Constructors
+//!
+//! - [`from_type_and_var_strings`](MguError::from_type_and_var_strings) - For `UnknownMetavariable`
+//! - [`from_found_and_expected_types`](MguError::from_found_and_expected_types) - For `TypeMismatch` / `TypeUnassignable`
+//! - [`from_found_and_expected_unsigned`](MguError::from_found_and_expected_unsigned) - For `SlotsMismatch`
+//! - [`from_index_and_len`](MguError::from_index_and_len) - For `ChildIndexOutOfRange`
+//! - [`from_type_index_and_len`](MguError::from_type_index_and_len) - For `IndexOutOfRange` with type info
+//! - [`from_value_out_of_range_signed`](MguError::from_value_out_of_range_signed) - For signed range errors
+//! - [`from_value_out_of_range_unsigned`](MguError::from_value_out_of_range_unsigned) - For unsigned range errors
+//! - [`from_unsuported_value_for_type_unsigned`](MguError::from_unsuported_value_for_type_unsigned) - For unsupported values
+//! - [`from_illegal_pair`](MguError::from_illegal_pair) - For `PairValidationFailure`
+//!
+//! ## Error Introspection
+//!
+//! All error variants can be introspected using accessor methods:
+//!
+//! ```rust
+//! use symbolic_mgu::MguError;
+//!
+//! let err = MguError::from_index_and_len(5usize, 3usize);
+//! assert_eq!(err.get_unwanted_index(), Some(5));
+//! assert_eq!(err.get_collection_size(), Some(3));
+//! ```
 
 use crate::{MguErrorType, Type, TypeCore};
 use std::convert::Infallible;
@@ -108,6 +223,146 @@ pub enum MguError {
     #[error("Color parsing error: {0}")]
     ColorParseError(String), // msg
 
+    /// Expected a metavariable but found a node, or vice versa.
+    #[error("Expected term to be a {expected}, but it is a {found}")]
+    TermKindMismatch {
+        /// The expected term kind ("metavariable" or "node").
+        expected: &'static str,
+        /// The actual term kind found.
+        found: &'static str,
+    },
+
+    /// Node is not a Boolean operation.
+    #[error("Node {node_display} is not a Boolean operation")]
+    NodeNotBooleanOp {
+        /// Display representation of the node.
+        node_display: String,
+    },
+
+    /// Invalid Boolean function code for the given arity.
+    #[error("Invalid Boolean code {code:#x} for arity {arity}")]
+    InvalidBooleanCode {
+        /// The Boolean function code.
+        code: u128,
+        /// The arity (number of arguments).
+        arity: u8,
+    },
+
+    /// Boolean operation arity not supported.
+    #[error("Boolean arity {arity} not supported (must be 0-3)")]
+    UnsupportedBooleanArity {
+        /// The unsupported arity.
+        arity: usize,
+    },
+
+    /// Boolean evaluation failed (returned `None` or we couldn't compute).
+    #[error("Boolean evaluation failed: {reason}")]
+    BooleanEvaluationFailed {
+        /// Reason for the failure.
+        reason: String,
+    },
+
+    /// Variable not found in the binding list.
+    #[error("Variable {variable} not found in binding list")]
+    VariableNotBound {
+        /// Display representation of the variable.
+        variable: String,
+    },
+
+    /// Variable index exceeds the allowed limit.
+    #[error("Variable index {index} exceeds limit {limit}")]
+    VariableIndexOutOfRange {
+        /// The variable index that was out of range.
+        index: usize,
+        /// The maximum allowed index.
+        limit: usize,
+    },
+
+    /// Unknown node name in factory method.
+    #[error("Unknown node name: {name}")]
+    UnknownNodeName {
+        /// The unrecognized node name.
+        name: String,
+    },
+
+    /// Node type doesn't match expected type.
+    #[error("Node has type {found}, expected {expected}")]
+    NodeTypeMismatch {
+        /// The actual node type found.
+        found: String,
+        /// The expected node type.
+        expected: String,
+    },
+
+    /// Required feature not enabled.
+    #[error("Feature '{feature}' required: {reason}")]
+    FeatureRequired {
+        /// The name of the required feature (e.g., `"bigint"`).
+        feature: &'static str,
+        /// Explanation of why the feature is needed.
+        reason: String,
+    },
+
+    /// Type doesn't support the required capability.
+    #[error("Type does not support {capability} capability")]
+    TypeCapabilityUnsupported {
+        /// The capability name ("Boolean", "Setvar", or "Class").
+        capability: &'static str,
+    },
+
+    /// Bit position out of range for truth table.
+    #[error("Bit position {position} out of range for {bits}-bit value")]
+    BitPositionOutOfRange {
+        /// The bit position that was out of range.
+        position: u64,
+        /// The total number of bits available.
+        bits: usize,
+    },
+
+    /// I/O error from file or network operations.
+    ///
+    /// This variant wraps errors from `std::io::Error` and similar I/O-related
+    /// failures. Use this for file reading/writing, network operations, and
+    /// other I/O that may fail.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use symbolic_mgu::MguError;
+    /// use std::io;
+    ///
+    /// // Automatic conversion from std::io::Error
+    /// let io_err = io::Error::new(io::ErrorKind::NotFound, "file.mm not found");
+    /// let mgu_err: MguError = io_err.into();
+    /// assert!(mgu_err.to_string().contains("file.mm"));
+    /// ```
+    #[error("I/O error: {0}")]
+    IoError(String),
+
+    /// Parse error in database file or data stream.
+    ///
+    /// Use this for syntax errors, invalid tokens, malformed data, or other
+    /// parsing failures when reading database files (e.g., Metamath `.mm` files).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use symbolic_mgu::MguError;
+    ///
+    /// let err = MguError::ParseError {
+    ///     location: "set.mm:42:15".to_string(),
+    ///     message: "Expected $a, found $p".to_string(),
+    /// };
+    /// assert!(err.to_string().contains("set.mm:42:15"));
+    /// ```
+    #[error("Parse error at {location}: {message}")]
+    ParseError {
+        /// Location in file (e.g., "file.mm:line:col" or byte offset).
+        location: String,
+        /// Detailed error message describing what went wrong.
+        message: String,
+    },
+
     /// Catch-all for bare errors created incorrectly.
     #[error("Error: {0:?}")]
     UnknownErrorType(MguErrorType), // err_type
@@ -164,18 +419,43 @@ impl MguError {
         MguError::SlotsMismatch(found.into(), expected.into())
     }
 
-    /// Constructor.
-    pub fn from_index_and_len<T, U, V>(for_type: Option<T>, index: U, length: V) -> MguError
+    /// Constructor for `ChildIndexOutOfRange` (no type information).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use symbolic_mgu::MguError;
+    ///
+    /// let err = MguError::from_index_and_len(5usize, 3usize);
+    /// assert_eq!(err.get_unwanted_index(), Some(5));
+    /// assert_eq!(err.get_collection_size(), Some(3));
+    /// ```
+    pub fn from_index_and_len<U, V>(index: U, length: V) -> MguError
+    where
+        U: Into<usize>,
+        V: Into<usize>,
+    {
+        MguError::ChildIndexOutOfRange(index.into(), length.into())
+    }
+
+    /// Constructor for `IndexOutOfRange` (with type information).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use symbolic_mgu::{MguError, SimpleType};
+    ///
+    /// let err = MguError::from_type_index_and_len(SimpleType::Boolean, 5usize, 3usize);
+    /// assert_eq!(err.get_unwanted_index(), Some(5));
+    /// assert_eq!(err.get_collection_size(), Some(3));
+    /// ```
+    pub fn from_type_index_and_len<T, U, V>(for_type: T, index: U, length: V) -> MguError
     where
         T: Type,
         U: Into<usize>,
         V: Into<usize>,
     {
-        if let Some(the_type) = for_type {
-            MguError::IndexOutOfRange(Rc::new(the_type.to_boxed()), index.into(), length.into())
-        } else {
-            MguError::ChildIndexOutOfRange(index.into(), length.into())
-        }
+        MguError::IndexOutOfRange(Rc::new(for_type.to_boxed()), index.into(), length.into())
     }
 
     /// Constructor.
@@ -297,6 +577,20 @@ impl MguError {
             MguError::AllocationError(_) => MguErrorType::AllocationError,
             MguError::NumericConversionError(_) => MguErrorType::NumericConversionError,
             MguError::ColorParseError(_) => MguErrorType::ColorParseError,
+            MguError::TermKindMismatch { .. } => MguErrorType::TermKindMismatch,
+            MguError::NodeNotBooleanOp { .. } => MguErrorType::NodeNotBooleanOp,
+            MguError::InvalidBooleanCode { .. } => MguErrorType::InvalidBooleanCode,
+            MguError::UnsupportedBooleanArity { .. } => MguErrorType::UnsupportedBooleanArity,
+            MguError::BooleanEvaluationFailed { .. } => MguErrorType::BooleanEvaluationFailed,
+            MguError::VariableNotBound { .. } => MguErrorType::VariableNotBound,
+            MguError::VariableIndexOutOfRange { .. } => MguErrorType::VariableIndexOutOfRange,
+            MguError::UnknownNodeName { .. } => MguErrorType::UnknownNodeName,
+            MguError::NodeTypeMismatch { .. } => MguErrorType::NodeTypeMismatch,
+            MguError::FeatureRequired { .. } => MguErrorType::FeatureRequired,
+            MguError::TypeCapabilityUnsupported { .. } => MguErrorType::TypeCapabilityUnsupported,
+            MguError::BitPositionOutOfRange { .. } => MguErrorType::BitPositionOutOfRange,
+            MguError::IoError(_) => MguErrorType::IoError,
+            MguError::ParseError { .. } => MguErrorType::ParseError,
             MguError::UnknownErrorType(_) => MguErrorType::UnknownErrorType,
             MguError::UnknownErrorTypeMessage(_, _) => MguErrorType::UnknownErrorTypeMessage,
             MguError::UnknownError(_) => MguErrorType::UnknownError,
@@ -491,11 +785,93 @@ impl PartialEq for MguError {
                 l0 == r0 && l1 == r1
             }
             (Self::UnificationFailure(l0), Self::UnificationFailure(r0)) => l0 == r0,
+            (Self::ArgumentError(l0), Self::ArgumentError(r0)) => l0 == r0,
+            (Self::VerificationFailure(l0), Self::VerificationFailure(r0)) => l0 == r0,
             (Self::DistinctnessViolation(l0), Self::DistinctnessViolation(r0)) => l0 == r0,
             (Self::SubstitutionCycle(l0), Self::SubstitutionCycle(r0)) => l0 == r0,
             (Self::AllocationError(l0), Self::AllocationError(r0)) => l0 == r0,
             (Self::NumericConversionError(l0), Self::NumericConversionError(r0)) => l0 == r0,
             (Self::ColorParseError(l0), Self::ColorParseError(r0)) => l0 == r0,
+            (
+                Self::TermKindMismatch {
+                    expected: l_exp,
+                    found: l_found,
+                },
+                Self::TermKindMismatch {
+                    expected: r_exp,
+                    found: r_found,
+                },
+            ) => l_exp == r_exp && l_found == r_found,
+            (
+                Self::NodeNotBooleanOp { node_display: l0 },
+                Self::NodeNotBooleanOp { node_display: r0 },
+            ) => l0 == r0,
+            (
+                Self::InvalidBooleanCode {
+                    code: l_code,
+                    arity: l_arity,
+                },
+                Self::InvalidBooleanCode {
+                    code: r_code,
+                    arity: r_arity,
+                },
+            ) => l_code == r_code && l_arity == r_arity,
+            (
+                Self::UnsupportedBooleanArity { arity: l0 },
+                Self::UnsupportedBooleanArity { arity: r0 },
+            ) => l0 == r0,
+            (
+                Self::BooleanEvaluationFailed { reason: l0 },
+                Self::BooleanEvaluationFailed { reason: r0 },
+            ) => l0 == r0,
+            (Self::VariableNotBound { variable: l0 }, Self::VariableNotBound { variable: r0 }) => {
+                l0 == r0
+            }
+            (
+                Self::VariableIndexOutOfRange {
+                    index: l_idx,
+                    limit: l_lim,
+                },
+                Self::VariableIndexOutOfRange {
+                    index: r_idx,
+                    limit: r_lim,
+                },
+            ) => l_idx == r_idx && l_lim == r_lim,
+            (Self::UnknownNodeName { name: l0 }, Self::UnknownNodeName { name: r0 }) => l0 == r0,
+            (
+                Self::NodeTypeMismatch {
+                    found: l_found,
+                    expected: l_exp,
+                },
+                Self::NodeTypeMismatch {
+                    found: r_found,
+                    expected: r_exp,
+                },
+            ) => l_found == r_found && l_exp == r_exp,
+            (
+                Self::FeatureRequired {
+                    feature: l_feat,
+                    reason: l_reason,
+                },
+                Self::FeatureRequired {
+                    feature: r_feat,
+                    reason: r_reason,
+                },
+            ) => l_feat == r_feat && l_reason == r_reason,
+            (
+                Self::TypeCapabilityUnsupported { capability: l0 },
+                Self::TypeCapabilityUnsupported { capability: r0 },
+            ) => l0 == r0,
+            (
+                Self::BitPositionOutOfRange {
+                    position: l_pos,
+                    bits: l_bits,
+                },
+                Self::BitPositionOutOfRange {
+                    position: r_pos,
+                    bits: r_bits,
+                },
+            ) => l_pos == r_pos && l_bits == r_bits,
             (Self::UnknownErrorType(l0), Self::UnknownErrorType(r0)) => l0 == r0,
             (Self::UnknownErrorTypeMessage(l0, l1), Self::UnknownErrorTypeMessage(r0, r1)) => {
                 l0 == r0 && l1 == r1
@@ -516,6 +892,31 @@ impl Eq for MguError {}
 impl From<Infallible> for MguError {
     fn from(x: Infallible) -> Self {
         match x {}
+    }
+}
+
+/// Automatic conversion from `std::io::Error` to `MguError`.
+///
+/// This enables the `?` operator to work seamlessly when reading files or
+/// performing other I/O operations in functions that return `Result<T, MguError>`.
+///
+/// # Examples
+///
+/// ```rust
+/// use symbolic_mgu::MguError;
+/// use std::fs::File;
+/// use std::io::Read;
+///
+/// fn read_database(path: &str) -> Result<String, MguError> {
+///     let mut file = File::open(path)?;  // Automatic conversion
+///     let mut contents = String::new();
+///     file.read_to_string(&mut contents)?;  // Automatic conversion
+///     Ok(contents)
+/// }
+/// ```
+impl From<std::io::Error> for MguError {
+    fn from(err: std::io::Error) -> Self {
+        MguError::IoError(err.to_string())
     }
 }
 
@@ -581,6 +982,55 @@ impl Hash for MguError {
             MguError::CliqueOrderingError
             | MguError::CliqueMinimumSizeError
             | MguError::DecompositionValidationError => {}
+            MguError::TermKindMismatch { expected, found } => {
+                (*expected).hash(state);
+                (*found).hash(state);
+            }
+            MguError::NodeNotBooleanOp { node_display } => {
+                node_display.hash(state);
+            }
+            MguError::InvalidBooleanCode { code, arity } => {
+                code.hash(state);
+                arity.hash(state);
+            }
+            MguError::UnsupportedBooleanArity { arity } => {
+                arity.hash(state);
+            }
+            MguError::BooleanEvaluationFailed { reason } => {
+                reason.hash(state);
+            }
+            MguError::VariableNotBound { variable } => {
+                variable.hash(state);
+            }
+            MguError::VariableIndexOutOfRange { index, limit } => {
+                index.hash(state);
+                limit.hash(state);
+            }
+            MguError::UnknownNodeName { name } => {
+                name.hash(state);
+            }
+            MguError::NodeTypeMismatch { found, expected } => {
+                found.hash(state);
+                expected.hash(state);
+            }
+            MguError::FeatureRequired { feature, reason } => {
+                (*feature).hash(state);
+                reason.hash(state);
+            }
+            MguError::TypeCapabilityUnsupported { capability } => {
+                (*capability).hash(state);
+            }
+            MguError::BitPositionOutOfRange { position, bits } => {
+                position.hash(state);
+                bits.hash(state);
+            }
+            MguError::IoError(s) => {
+                s.hash(state);
+            }
+            MguError::ParseError { location, message } => {
+                location.hash(state);
+                message.hash(state);
+            }
             MguError::UnknownErrorType(mgu_error_type) => {
                 mgu_error_type.hash(state);
             }

@@ -70,7 +70,9 @@ where
         Self: 'a;
 
     fn create_by_name(&self, name: &str, arity: usize) -> Result<Self::Node, crate::MguError> {
-        let node = NodeByte::from_str(name).map_err(|_| MguError::from_error_code::<u16>(4321))?;
+        let node = NodeByte::from_str(name).map_err(|_| MguError::UnknownNodeName {
+            name: name.to_string(),
+        })?;
         let found_arity = node.get_arity()?;
         if found_arity == arity {
             Ok(node)
@@ -91,11 +93,11 @@ where
             0 => match (code & 1) as u8 {
                 0 => Ok(NodeByte::False),
                 1 => Ok(NodeByte::True),
-                _ => Err(MguError::from_error_code::<u16>(4322)),
+                _ => Err(MguError::InvalidBooleanCode { code, arity: 0 }),
             },
             1 => match (code & 3) as u8 {
                 0b01 => Ok(NodeByte::Not),
-                _ => Err(MguError::from_error_code::<u16>(4323)),
+                _ => Err(MguError::InvalidBooleanCode { code, arity: 1 }),
             },
             2 => match (code & 15) as u8 {
                 0b0001 => Ok(NodeByte::NotOr),
@@ -105,7 +107,7 @@ where
                 0b1001 => Ok(NodeByte::Biimp),
                 0b1101 => Ok(NodeByte::Implies),
                 0b1110 => Ok(NodeByte::Or),
-                _ => Err(MguError::from_error_code::<u16>(4324)),
+                _ => Err(MguError::InvalidBooleanCode { code, arity: 2 }),
             },
             3 => match (code & 255) as u8 {
                 0b1000_0000 => Ok(NodeByte::And3),
@@ -113,9 +115,9 @@ where
                 0b1101_1000 => Ok(NodeByte::LogicalIf),
                 0b1110_1000 => Ok(NodeByte::CarryFromAdder),
                 0b1111_1110 => Ok(NodeByte::Or3),
-                _ => Err(MguError::from_error_code::<u16>(4325)),
+                _ => Err(MguError::InvalidBooleanCode { code, arity: 3 }),
             },
-            _ => Err(MguError::from_error_code::<u16>(4326)),
+            _ => Err(MguError::UnsupportedBooleanArity { arity }),
         }
     }
 
@@ -128,12 +130,22 @@ where
     ) -> Result<Self::Node, MguError> {
         let mask: BigUint = 0xffu32.into();
         if code > mask {
-            return Err(MguError::from_error_code::<u16>(4328));
+            return Err(MguError::FeatureRequired {
+                feature: "bigint",
+                reason: format!(
+                    "Boolean codes > 0xFF require bigint feature (got {:#x})",
+                    code
+                ),
+            });
         }
         let value = code.clone() & mask;
-        let value: u128 = value
-            .try_into()
-            .map_err(|_| MguError::from_error_code::<u16>(4329))?;
+        let value_clone = value.clone();
+        let value: u128 = value.try_into().map_err(|_| {
+            MguError::NumericConversionError(format!(
+                "Failed to convert BigUint to u128: {:?}",
+                value_clone
+            ))
+        })?;
         self.create_by_boolean_function_code(value, arity)
     }
 
@@ -144,11 +156,14 @@ where
     ) -> Result<Self::Node, crate::MguError> {
         let node = NodeByte::ALL_NODES
             .get(index)
-            .ok_or_else(|| MguError::from_error_code::<u16>(4330))?;
+            .ok_or_else(|| MguError::ChildIndexOutOfRange(index, NodeByte::ALL_NODES.len()))?;
         if node.to_type() == the_type {
             Ok(*node)
         } else {
-            Err(MguError::from_error_code::<u16>(4331))
+            Err(MguError::NodeTypeMismatch {
+                found: format!("{:?}", node.to_type()),
+                expected: format!("{:?}", the_type),
+            })
         }
     }
 

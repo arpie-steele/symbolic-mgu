@@ -20,8 +20,13 @@ use std::hash::Hash;
 /// * TYPE(xᵗ) = t
 /// * TYPE(N(τ₁,...,τₖ)) = TYPE(N)
 ///
+/// The `Ord` bound is required to support statement canonicalization,
+/// which produces a unique minimal representation by ordering terms
+/// lexicographically.
+///
 /// [`Node`]: `crate::Node`
-pub trait Term<T, V, N>: Debug + Display + PartialEq + Eq + Hash + Clone
+pub trait Term<T, V, N>:
+    Debug + Display + PartialEq + Eq + Hash + Clone + PartialOrd + Ord
 where
     T: Type,
     V: Metavariable<Type = T>,
@@ -38,10 +43,30 @@ where
     /// and `false` if it is a tree with a root of [`Node`]
     /// (which still might have zero children).
     ///
+    /// # Invariant
+    ///
+    /// This method MUST be consistent with [`Term::get_metavariable`]:
+    /// - `is_metavariable()` returns `true` iff `get_metavariable()` returns `Some(_)`
+    /// - `is_metavariable()` returns `false` iff `get_metavariable()` returns `None`
+    ///
+    /// The default implementation enforces this by calling `get_metavariable()`.
+    /// Implementations may override for performance if they can check without allocation.
+    ///
     /// [`Node`]: `crate::Node`
-    fn is_metavariable(&self) -> bool;
+    fn is_metavariable(&self) -> bool {
+        self.get_metavariable().is_some()
+    }
 
     /// Return the leaf if this is a bare [`Metavariable`].
+    ///
+    /// Returns `Some(metavariable)` if this term is a leaf metavariable,
+    /// or `None` if this is a node application.
+    ///
+    /// # Invariant
+    ///
+    /// This method MUST be consistent with [`Term::is_metavariable`]:
+    /// - Returns `Some(_)` iff `is_metavariable()` returns `true`
+    /// - Returns `None` iff `is_metavariable()` returns `false`
     fn get_metavariable(&self) -> Option<V>;
 
     /// Return the root [`Node`] if this is a sub-tree (which might have zero children).
@@ -65,30 +90,67 @@ where
     /// Alternate to an iterator.
     fn get_children_as_slice(&self) -> &[Self];
 
-    /// TODO.
+    /// Check if this term is structurally well-formed.
+    ///
+    /// A term is structurally valid if:
+    /// - All metavariables are well-formed (have valid type and index)
+    /// - All nodes have the correct number of children for their arity
+    /// - All children have types compatible with the node's slot types
+    ///
+    /// Note: This does NOT check if the root has Boolean type. That check
+    /// is performed separately by [`Statement::new`] to allow flexibility
+    /// for users who want different type requirements.
     ///
     /// # Errors
-    /// - TODO.
+    ///
+    /// Returns an error if type checking fails or structural validation encounters
+    /// malformed nodes/metavariables.
+    ///
+    /// [`Statement::new`]: `crate::Statement::new`
     fn is_valid_sentence(&self) -> Result<bool, MguError>;
 
-    /// TODO.
+    /// Check if this term is a valid sentence, returning `false` on any error.
+    ///
+    /// This is a convenience method that converts errors to `false`.
+    /// Use [`Term::is_valid_sentence`] if you need to distinguish between
+    /// validation failures and structural errors.
     fn is_valid_sentence_unchecked(&self) -> bool {
         self.is_valid_sentence().unwrap_or(false)
     }
 
     /// Return the [`Type`] of this tree/sub-tree.
     ///
-    /// # Errors
-    /// - TODO.
-    fn get_type(&self) -> Result<T, MguError>;
-
-    /// TODO.
+    /// For a metavariable, returns its declared type.
+    /// For a node application, returns the node's output type.
     ///
     /// # Errors
-    /// - TODO.
-    fn collect_metavariables(&self, _vars: &mut HashSet<V>) -> Result<(), MguError> {
-        todo!();
-    }
+    ///
+    /// Returns an error if the term structure is malformed or if
+    /// type information cannot be determined.
+    fn get_type(&self) -> Result<T, MguError>;
+
+    /// Recursively collect all metavariables appearing in this term.
+    ///
+    /// This method traverses the term tree and inserts all metavariables
+    /// into the provided `HashSet`. For a leaf metavariable, inserts just
+    /// that variable. For a node application, recursively collects from
+    /// all children.
+    ///
+    /// # Arguments
+    ///
+    /// * `vars` - `HashSet` to insert metavariables into
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The term structure is malformed
+    /// - Metavariable information cannot be accessed
+    /// - Database-backed implementations encounter I/O errors
+    ///
+    /// Note: The current `EnumTerm` implementation never returns an error,
+    /// but the trait allows for fallible implementations to support
+    /// database-backed or validated term structures.
+    fn collect_metavariables(&self, vars: &mut HashSet<V>) -> Result<(), MguError>;
 
     /// Pre-flight syntax check to see if the supplied children are compatible with the supplied [`Node`].
     ///
@@ -103,10 +165,16 @@ where
         let wanted_children = node.get_arity()?;
         let actual_children = children.len();
         if wanted_children < actual_children {
-            return Err(MguError::SlotsMismatch(actual_children, wanted_children));
+            return Err(MguError::from_found_and_expected_unsigned(
+                actual_children,
+                wanted_children,
+            ));
         }
         if wanted_children > actual_children {
-            return Err(MguError::SlotsMismatch(actual_children, wanted_children));
+            return Err(MguError::from_found_and_expected_unsigned(
+                actual_children,
+                wanted_children,
+            ));
         }
         for (i, term) in children.iter().enumerate() {
             let slot_type = node.get_slot_type(i)?;
@@ -138,15 +206,44 @@ where
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
-    /// use symbolic_mgu::{Term, get_formatter};
+    /// ```rust
+    /// use symbolic_mgu::{Term, EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, get_formatter};
     ///
-    /// let term = /* some term */;
-    /// let formatter = get_formatter("utf8-color");
+    /// let vars = MetaByteFactory();
+    /// let var = vars
+    ///     .list_metavariables_by_type(&SimpleType::Boolean)
+    ///     .next()
+    ///     .unwrap();
+    /// let term: EnumTerm<SimpleType, MetaByte, NodeByte> = EnumTerm::Leaf(var);
+    /// let formatter = get_formatter("utf8");
     /// let output = term.format_with(&*formatter);
+    /// assert_eq!(output, "P");
     /// ```
     fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
         let _ = formatter; // Suppress unused warning
         format!("{}", self) // Default: use Display
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// Verify that Term trait is NOT dyn-safe due to Clone, Eq, Hash, Ord.
+    ///
+    /// Term intentionally requires these traits for use in collections and
+    /// canonicalization, making it incompatible with trait objects.
+    /// This is the correct design - Term is used as a concrete type parameter,
+    /// not as a trait object.
+    #[test]
+    fn term_is_not_dyn_safe() {
+        // This test documents that Term is NOT dyn-safe by design.
+        // The following line would NOT compile (commented out to prevent error):
+        //
+        // let _: &dyn Term = todo!();
+        //
+        // Error: Term is not dyn-safe because it requires Clone, Eq, Hash, PartialOrd, Ord
+        // which use Self as a type parameter.
+        //
+        // This is intentional - Term is used as a concrete type in generics like
+        // Statement<Ty, V, N, T>, not as a trait object.
     }
 }
