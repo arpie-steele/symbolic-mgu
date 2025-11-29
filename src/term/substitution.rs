@@ -292,6 +292,7 @@ where
     /// - The metavariable is already mapped to a different term
     /// - Normalization fails during substitution application
     pub fn extend(&mut self, factory: &TF, var: V, term: T) -> Result<(), MguError> {
+        let term = apply_substitution(factory, &self.clone_inner(), &term)?;
         // Check for conflicts - rewritten from let-chain for edition 2018 compatibility
         if let Some(existing) = self.inner.map.get(&var) {
             if existing != &term {
@@ -522,7 +523,7 @@ where
             ));
         }
 
-        // Occurs check: make sure var1 doesn't appear in `t2`
+        // Occurs check: make sure `var1` doesn't appear in `t2`
         if occurs_check(&var1, &t2)? {
             return Err(MguError::UnificationFailure(
                 "Occurs check failed: variable appears in term it would be bound to".to_string(),
@@ -663,14 +664,26 @@ mod tests {
     #[test]
     fn single_binding() {
         let vars = MetaByteFactory();
-        let var = vars
+        let (var, other_var) = vars
             .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
             .next()
             .unwrap();
         let term = TestTerm::Leaf(var);
+        let other_term = TestTerm::Leaf(other_var);
 
         let mut subst = Substitution::new();
         assert!(subst.extend(var, term.clone()).is_ok());
+        assert_eq!(subst.len(), 1);
+        assert!(subst.contains(&var));
+        assert_eq!(subst.get(&var), Some(&term));
+
+        assert!(subst.extend(var, term.clone()).is_ok());
+        assert_eq!(subst.len(), 1);
+        assert!(subst.contains(&var));
+        assert_eq!(subst.get(&var), Some(&term));
+
+        assert!(subst.extend(var, other_term.clone()).is_err());
         assert_eq!(subst.len(), 1);
         assert!(subst.contains(&var));
         assert_eq!(subst.get(&var), Some(&term));
@@ -799,20 +812,371 @@ mod tests {
         let term1 = TestTerm::Leaf(var1);
         let term2 = TestTerm::Leaf(var2);
 
-        // Create And(var1, var1)
+        // Create And(`var1`, `var1`)
         let and_node = NodeByte::And;
         let and_term = TestTerm::NodeOrLeaf(and_node, vec![term1.clone(), term1.clone()]);
 
-        // Substitution: map var1 to var2
+        // Substitution: map `var1` to `var2`
         let mut subst = Substitution::new();
         subst.extend(var1, term2.clone()).unwrap();
 
-        // Apply should give And(var2, var2)
+        // Apply should give And(`var2`, `var2`)
         let result = apply_substitution(&factory, &subst, &and_term);
         assert!(result.is_ok());
         let result_term = result.unwrap();
 
         let expected = TestTerm::NodeOrLeaf(and_node, vec![term2.clone(), term2.clone()]);
         assert_eq!(result_term, expected);
+    }
+
+    #[test]
+    fn substitution_iter() {
+        let vars = MetaByteFactory();
+        let mut var_iter = vars.list_metavariables_by_type(&SimpleType::Boolean);
+        let var1 = var_iter.next().unwrap();
+        let var2 = var_iter.next().unwrap();
+        let var3 = var_iter.next().unwrap();
+        let var4 = var_iter.next().unwrap();
+
+        let term1 = TestTerm::Leaf(var2);
+        let term2 = TestTerm::Leaf(var3);
+        let term3 = TestTerm::Leaf(var4);
+
+        let mut subst = Substitution::new();
+        subst.extend(var1, term1.clone()).unwrap();
+        subst.extend(var2, term2.clone()).unwrap();
+        subst.extend(var3, term3.clone()).unwrap();
+
+        // Test iter()
+        let collected: Vec<_> = subst.iter().collect();
+        assert_eq!(collected.len(), 3);
+
+        // Verify all mappings are present
+        assert!(collected.iter().any(|(v, _)| **v == var1));
+        assert!(collected.iter().any(|(v, _)| **v == var2));
+        assert!(collected.iter().any(|(v, _)| **v == var3));
+    }
+
+    #[test]
+    fn substitution_iter_mut() {
+        let vars = MetaByteFactory();
+        let (var1, var2) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+        let term1 = TestTerm::Leaf(var1);
+        let term2 = TestTerm::Leaf(var2);
+
+        let mut subst = Substitution::new();
+        subst.extend(var1, term1.clone()).unwrap();
+
+        // Mutate through `iter_mut`
+        for (_var, term) in subst.iter_mut() {
+            *term = term2.clone();
+        }
+
+        // Verify mutation
+        assert_eq!(subst.get(&var1), Some(&term2));
+    }
+
+    #[test]
+    fn ensure_acyclic_direct_cycle() {
+        let vars = MetaByteFactory();
+        let var1 = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
+
+        // Create term: Not(`var1`), forming cycle `{var1 ↦ Not(var1)}`
+        let not_node = NodeByte::Not;
+        let term_not = TestTerm::NodeOrLeaf(not_node, vec![TestTerm::Leaf(var1)]);
+
+        let mut subst = Substitution::new();
+        subst.extend(var1, term_not).unwrap();
+
+        // `ensure_acyclic` should detect the direct cycle
+        let result = subst.ensure_acyclic::<SimpleType, NodeByte>();
+        assert!(
+            result.is_err(),
+            "{}",
+            &"ensure_acyclic should detect direct cycle {var1 ↦ Not(var1)}"
+        );
+    }
+
+    #[test]
+    fn ensure_acyclic_two_element_cycle() {
+        let vars = MetaByteFactory();
+        let (var1, var2) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        // Create cycle: `{var1 ↦ Not(var2), var2 ↦ Not(var1)}`
+        let not_node = NodeByte::Not;
+        let term1 = TestTerm::NodeOrLeaf(not_node, vec![TestTerm::Leaf(var2)]);
+        let term2 = TestTerm::NodeOrLeaf(not_node, vec![TestTerm::Leaf(var1)]);
+
+        let mut subst = Substitution::new();
+        subst.extend(var1, term1).unwrap();
+        subst.extend(var2, term2).unwrap();
+
+        // `ensure_acyclic` should detect the two-element cycle
+        let result = subst.ensure_acyclic::<SimpleType, NodeByte>();
+        assert!(
+            result.is_err(),
+            "ensure_acyclic should detect two-element cycle"
+        );
+    }
+
+    #[test]
+    fn ensure_acyclic_longer_chain_cycle() {
+        let vars = MetaByteFactory();
+        let (var1, var2, var3) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        // Create cycle: `{var1 ↦ var2, var2 ↦ var3, var3 ↦ var1}`
+        let term1 = TestTerm::Leaf(var2);
+        let term2 = TestTerm::Leaf(var3);
+        let term3 = TestTerm::Leaf(var1);
+
+        let mut subst = Substitution::new();
+        subst.extend(var1, term1).unwrap();
+        subst.extend(var2, term2).unwrap();
+        subst.extend(var3, term3).unwrap();
+
+        // `ensure_acyclic` should detect the three-element cycle
+        let result = subst.ensure_acyclic::<SimpleType, NodeByte>();
+        assert!(
+            result.is_err(),
+            "ensure_acyclic should detect three-element cycle"
+        );
+    }
+
+    #[test]
+    fn ensure_acyclic_accepts_acyclic() {
+        let vars = MetaByteFactory();
+        let (var1, var2, var3) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        // Create acyclic chain: `{var1 ↦ var2, var2 ↦ var3}`
+        let term1 = TestTerm::Leaf(var2);
+        let term2 = TestTerm::Leaf(var3);
+
+        let mut subst = Substitution::new();
+        subst.extend(var1, term1).unwrap();
+        subst.extend(var2, term2).unwrap();
+
+        // `ensure_acyclic` should accept this
+        let result = subst.ensure_acyclic::<SimpleType, NodeByte>();
+        assert!(result.is_ok(), "ensure_acyclic should accept acyclic chain");
+    }
+
+    #[test]
+    fn normalizing_substitution_simple_chain() {
+        let factory = TestTermFactory;
+        let vars = MetaByteFactory();
+        let (var1, var2, var3) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        // Create chain: `{var1 ↦ var2, var2 ↦ var3}`
+        let mut norm_subst = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory>::new();
+
+        norm_subst
+            .extend(&factory, var1, TestTerm::Leaf(var2))
+            .unwrap();
+        norm_subst
+            .extend(&factory, var2, TestTerm::Leaf(var3))
+            .unwrap();
+
+        // After normalization: `{var1 ↦ var3, var2 ↦ var3}`
+        let inner = norm_subst.clone_inner();
+        assert_eq!(inner.get(&var1), Some(&TestTerm::Leaf(var3)));
+        assert_eq!(inner.get(&var2), Some(&TestTerm::Leaf(var3)));
+    }
+
+    #[test]
+    fn normalizing_substitution_complex_chain() {
+        let factory = TestTermFactory;
+        let vars = MetaByteFactory();
+        let (var_p, var_t, var_s, var_q) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        // Create: {P ↦ (T → S), T ↦ Q}
+        let implies_node = NodeByte::Implies;
+        let term_implies = TestTerm::NodeOrLeaf(
+            implies_node,
+            vec![TestTerm::Leaf(var_t), TestTerm::Leaf(var_s)],
+        );
+
+        let mut norm_subst = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory>::new();
+
+        norm_subst.extend(&factory, var_p, term_implies).unwrap();
+        norm_subst
+            .extend(&factory, var_t, TestTerm::Leaf(var_q))
+            .unwrap();
+
+        // After normalization: {P ↦ (Q → S), T ↦ Q}
+        let inner = norm_subst.clone_inner();
+        let expected_p = TestTerm::NodeOrLeaf(
+            implies_node,
+            vec![TestTerm::Leaf(var_q), TestTerm::Leaf(var_s)],
+        );
+        assert_eq!(inner.get(&var_p), Some(&expected_p));
+        assert_eq!(inner.get(&var_t), Some(&TestTerm::Leaf(var_q)));
+    }
+
+    #[test]
+    fn normalizing_substitution_extend() {
+        let factory = TestTermFactory;
+        let vars = MetaByteFactory();
+        let (var1, var2, var3, var4) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+        let term1 = factory.create_leaf(var1);
+        assert!(term1.is_ok());
+        let term1 = term1.unwrap();
+        let term2 = factory.create_leaf(var2);
+        assert!(term2.is_ok());
+        let term2 = term2.unwrap();
+        let term3 = factory.create_leaf(var3);
+        assert!(term3.is_ok());
+        let term3 = term3.unwrap();
+        let term4 = factory.create_leaf(var4);
+        assert!(term4.is_ok());
+        let term4 = term4.unwrap();
+
+        let mut subst = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory>::new();
+        assert!(subst.extend(&factory, var1, term2.clone()).is_ok());
+        assert_eq!(subst.clone_inner().len(), 1);
+        assert!(subst.clone_inner().contains(&var1));
+        assert_eq!(subst.clone_inner().get(&var1), Some(&term2));
+
+        assert!(subst.extend(&factory, var1, term2.clone()).is_ok());
+        assert_eq!(subst.clone_inner().len(), 1);
+        assert!(subst.clone_inner().contains(&var1));
+        assert_eq!(subst.clone_inner().get(&var1), Some(&term2));
+
+        assert!(subst.extend(&factory, var1, term3.clone()).is_err());
+        assert_eq!(subst.clone_inner().len(), 1);
+        assert!(subst.clone_inner().contains(&var1));
+        assert_eq!(subst.clone_inner().get(&var1), Some(&term2));
+
+        assert!(subst.extend(&factory, var3, term1.clone()).is_ok());
+        assert_eq!(subst.clone_inner().len(), 2);
+        assert!(subst.clone_inner().contains(&var1));
+        assert!(subst.clone_inner().contains(&var3));
+        assert_eq!(subst.clone_inner().get(&var1), Some(&term2));
+        assert_eq!(subst.clone_inner().get(&var3), Some(&term2));
+
+        assert!(subst.extend(&factory, var2, term4.clone()).is_ok());
+        assert_eq!(subst.clone_inner().len(), 3);
+        assert!(subst.clone_inner().contains(&var1));
+        assert!(subst.clone_inner().contains(&var2));
+        assert!(subst.clone_inner().contains(&var3));
+        assert_eq!(subst.clone_inner().get(&var1), Some(&term4));
+        assert_eq!(subst.clone_inner().get(&var2), Some(&term4));
+        assert_eq!(subst.clone_inner().get(&var3), Some(&term4));
+    }
+
+    #[test]
+    fn normalizing_substitution_order_independence() {
+        let factory = TestTermFactory;
+        let vars = MetaByteFactory();
+        let (var1, var2, var3) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        // Order 1: `{var1 ↦ var2, var2 ↦ var3}`
+        let mut subst1 = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory>::new();
+        subst1.extend(&factory, var1, TestTerm::Leaf(var2)).unwrap();
+        subst1.extend(&factory, var2, TestTerm::Leaf(var3)).unwrap();
+
+        // Order 2: `{var2 ↦ var3, var1 ↦ var2}`
+        let mut subst2 = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory>::new();
+        subst2.extend(&factory, var2, TestTerm::Leaf(var3)).unwrap();
+        subst2.extend(&factory, var1, TestTerm::Leaf(var2)).unwrap();
+
+        // Both should normalize to `{var1 ↦ var3, var2 ↦ var3}`
+        let inner1 = subst1.clone_inner();
+        let inner2 = subst2.clone_inner();
+
+        assert_eq!(inner1.get(&var1), Some(&TestTerm::Leaf(var3)));
+        assert_eq!(inner1.get(&var2), Some(&TestTerm::Leaf(var3)));
+        assert_eq!(inner2.get(&var1), Some(&TestTerm::Leaf(var3)));
+        assert_eq!(inner2.get(&var2), Some(&TestTerm::Leaf(var3)));
+    }
+
+    #[test]
+    fn normalizing_substitution_try_normalize() {
+        let factory = TestTermFactory;
+        let vars = MetaByteFactory();
+        let (var1, var2, var3) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        // Create plain substitution with chain
+        let mut plain_subst = Substitution::new();
+        plain_subst.extend(var1, TestTerm::Leaf(var2)).unwrap();
+        plain_subst.extend(var2, TestTerm::Leaf(var3)).unwrap();
+
+        // Normalize using `try_normalize`
+        let norm_result = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory>::try_normalize(
+            &factory,
+            plain_subst,
+        );
+        assert!(norm_result.is_ok());
+
+        let norm_subst = norm_result.unwrap();
+        let inner = norm_subst.into_inner();
+
+        // Should be normalized
+        assert_eq!(inner.get(&var1), Some(&TestTerm::Leaf(var3)));
+        assert_eq!(inner.get(&var2), Some(&TestTerm::Leaf(var3)));
+    }
+
+    #[test]
+    fn normalizing_substitution_try_normalize_rejects_cycle() {
+        let factory = TestTermFactory;
+        let vars = MetaByteFactory();
+        let (var1, var2) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        // Create cyclic substitution
+        let mut plain_subst = Substitution::new();
+        plain_subst.extend(var1, TestTerm::Leaf(var2)).unwrap();
+        plain_subst.extend(var2, TestTerm::Leaf(var1)).unwrap();
+
+        // `try_normalize` should reject cycles
+        let norm_result = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory>::try_normalize(
+            &factory,
+            plain_subst,
+        );
+        assert!(
+            norm_result.is_err(),
+            "try_normalize should reject cyclic substitution"
+        );
     }
 }

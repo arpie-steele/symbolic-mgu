@@ -1580,4 +1580,28 @@ mod tests {
             max_len = n_slots;
         }
     }
+
+    #[test]
+    fn factory_rejects_metabyte_discriminant() {
+        let factory: NodeByteFactory<SimpleType> = NodeByteFactory::default();
+
+        // MetaByte uses ASCII letters. Test with 'A' (65) which is a valid MetaByte
+        // but should NOT be a valid NodeByte discriminant.
+        let result = factory.lookup_by_discriminant(65);
+        assert!(
+            result.is_err(),
+            "lookup_by_discriminant should reject MetaByte discriminant 65 ('A')"
+        );
+
+        // Also test a few other ASCII letters to verify the contract
+        for discriminant in [b'A', b'Z', b'a', b'z', b'x', b'P'] {
+            let result = factory.lookup_by_discriminant(discriminant);
+            assert!(
+                result.is_err(),
+                "lookup_by_discriminant should reject MetaByte discriminant {} ('{}')",
+                discriminant,
+                discriminant as char
+            );
+        }
+    }
 }

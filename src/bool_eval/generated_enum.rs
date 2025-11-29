@@ -876,22 +876,22 @@ pub enum BooleanSimpleOp {
     /// Expression: `!((a ^ b) | (a ^ c))`
     #[strum(props(Expr = "!((a ^ b) | (a ^ c))"))]
     NotOrXorABXorAC3 = 0x3_81,
-    /// TODO at line=999. `AndABiimpBC3`
+    /// True iff a is true and b == c.
     ///
     /// Expression: `(a & !(b ^ c))`
     #[strum(props(Expr = "(a & !(b ^ c))"))]
     AndABiimpBC3 = 0x3_82,
-    /// TODO at line=962. `AndBiimpBCOrANotB3`
+    /// True iff b == c and b == ( a and c ).
     ///
     /// Expression: `(!(b ^ c) & (a | !b))`
     #[strum(props(Expr = "(!(b ^ c) & (a | !b))"))]
     AndBiimpBCOrANotB3 = 0x3_83,
-    /// TODO at line=1000. `AndBBiimpAC3`
+    /// True iff b is true and a == c.
     ///
     /// Expression: `(b & !(a ^ c))`
     #[strum(props(Expr = "(b & !(a ^ c))"))]
     AndBBiimpAC3 = 0x3_84,
-    /// TODO at line=951. `AndBiimpACOrNotAB3`
+    /// True iff a == c and a == ( b and c ).
     ///
     /// Expression: `(!(a ^ c) & (!a | b))`
     #[strum(props(Expr = "(!(a ^ c) & (!a | b))"))]
@@ -913,7 +913,7 @@ pub enum BooleanSimpleOp {
     /// Note: Promoted from `AndAB2` (arity 2).
     #[strum(props(Expr = "(a & b)"))]
     AndAB3 = 0x3_88,
-    /// TODO at line=942. `AndBiimpABOrANotC3`
+    /// True iff a == b and a == ( b or c ).
     ///
     /// Expression: `(!(a ^ b) & (a | !c))`
     #[strum(props(Expr = "(!(a ^ b) & (a | !c))"))]
@@ -952,12 +952,12 @@ pub enum BooleanSimpleOp {
     /// Expression: `(!c | (a & b))`
     #[strum(props(Expr = "(!c | (a & b))"))]
     ImpliesCAndAB3 = 0x3_8f,
-    /// TODO at line=1001. `AndCBiimpAB3`
+    /// True iff c is true and a == b.
     ///
     /// Expression: `(c & !(a ^ b))`
     #[strum(props(Expr = "(c & !(a ^ b))"))]
     AndCBiimpAB3 = 0x3_90,
-    /// TODO at line=941. `AndBiimpABOrNotAC3`
+    /// True iff a == b and a == ( b and c ).
     ///
     /// Expression: `(!(a ^ b) & (!a | c))`
     #[strum(props(Expr = "(!(a ^ b) & (!a | c))"))]
@@ -987,7 +987,7 @@ pub enum BooleanSimpleOp {
     /// Expression: `(a ^ b ^ c)`
     #[strum(props(Expr = "(a ^ b ^ c)"))]
     Xor3ABC3 = 0x3_96,
-    /// TODO at line=928. `OrXor3ABCNotOrAB3`
+    /// True iff zero or an odd number of a, b, and c are true.
     ///
     /// Expression: `((a ^ b ^ c) | !(a | b))`
     #[strum(props(Expr = "((a ^ b ^ c) | !(a | b))"))]
@@ -1041,7 +1041,7 @@ pub enum BooleanSimpleOp {
     /// Expression: `(a & c)`
     #[strum(props(Expr = "(a & c)"))]
     AndAC3 = 0x3_a0,
-    /// TODO at line=952. `AndBiimpACOrANotB3`
+    /// True iff a == c and a == ( b or c ).
     ///
     /// Expression: `(!(a ^ c) & (a | !b))`
     #[strum(props(Expr = "(!(a ^ c) & (a | !b))"))]
@@ -1215,7 +1215,7 @@ pub enum BooleanSimpleOp {
     /// Expression: `(b & c)`
     #[strum(props(Expr = "(b & c)"))]
     AndBC3 = 0x3_c0,
-    /// TODO at line=961. `AndBiimpBCOrNotAB3`
+    /// True iff b == c and b == ( a or c ).
     ///
     /// Expression: `(!(b ^ c) & (!a | b))`
     #[strum(props(Expr = "(!(b ^ c) & (!a | b))"))]

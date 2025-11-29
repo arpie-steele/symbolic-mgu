@@ -925,7 +925,7 @@ class NameGenerator:
             ('Or(NotXor3(a, b, c), And(a, ~c))', todo()),
             ('Or(NotXor3(a, b, c), And(b, ~c))', todo()),
 
-            ('Or(Xor3(a, b, c), NotOr(a, b))', todo()),
+            ('Or(Xor3(a, b, c), NotOr(a, b))', 'True iff zero or an odd number of a, b, and c are true.'),
             ('Or(Xor3(a, b, c), NotOr(a, c))', todo()),
             ('Or(Xor3(a, b, c), NotOr(b, c))', todo()),
             ('Or(NotXor3(a, b, c), NotOr(a, b))', todo()),
@@ -938,8 +938,8 @@ class NameGenerator:
             ('And(Xor(a, b), NotAnd(a, c))', todo()),
 
             ('And(NotXor(a, b), Or(a, c))', todo()),
-            ('And(NotXor(a, b), Or(~a, c))', todo()),
-            ('And(NotXor(a, b), Or(a, ~c))', todo()),
+            ('And(NotXor(a, b), Or(~a, c))', 'True iff a == b and a == ( b and c ).'),
+            ('And(NotXor(a, b), Or(a, ~c))', 'True iff a == b and a == ( b or c ).'),
             ('NotOr(Xor(a, b), And(a, c))', todo()),
 
             ('And(Xor(a, c), Or(a, b))', todo()),
@@ -948,8 +948,8 @@ class NameGenerator:
             ('And(Xor(a, c), NotAnd(a, b))', todo()),
 
             ('And(NotXor(a, c), Or(a, b))', todo()),
-            ('And(NotXor(a, c), Or(~a, b))', todo()),
-            ('And(NotXor(a, c), Or(a, ~b))', todo()),
+            ('And(NotXor(a, c), Or(~a, b))', 'True iff a == c and a == ( b and c ).'),
+            ('And(NotXor(a, c), Or(a, ~b))', 'True iff a == c and a == ( b or c ).'),
             ('NotOr(Xor(a, c), And(a, b))', todo()),
 
             ('And(Xor(b, c), Or(a, b))', todo()),
@@ -958,8 +958,8 @@ class NameGenerator:
             ('And(Xor(b, c), NotAnd(a, b))', todo()),
 
             ('And(NotXor(b, c), Or(a, b))', todo()),
-            ('And(NotXor(b, c), Or(~a, b))', todo()),
-            ('And(NotXor(b, c), Or(a, ~b))', todo()),
+            ('And(NotXor(b, c), Or(~a, b))', 'True iff b == c and b == ( a or c ).'),
+            ('And(NotXor(b, c), Or(a, ~b))', 'True iff b == c and b == ( a and c ).'),
             ('NotOr(Xor(b, c), And(a, b))', todo()),
 
             ('And(Xor(a, b), Or(b, c))', todo()),
@@ -996,9 +996,9 @@ class NameGenerator:
             ('And(b, Xor(a, c))', todo()),
             ('And(c, Xor(a, b))', todo()),
 
-            ('And(a, NotXor(b, c))', todo()),
-            ('And(b, NotXor(a, c))', todo()),
-            ('And(c, NotXor(a, b))', todo()),
+            ('And(a, NotXor(b, c))', 'True iff a is true and b == c.'),
+            ('And(b, NotXor(a, c))', 'True iff b is true and a == c.'),
+            ('And(c, NotXor(a, b))', 'True iff c is true and a == b.'),
 
             ('And(~a, Xor(b, c))', todo()),
             ('And(~b, Xor(a, c))', todo()),

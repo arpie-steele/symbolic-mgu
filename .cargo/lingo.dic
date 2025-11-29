@@ -1016,9 +1016,6 @@ v0
 v1
 v2
 validator
-var0
-var1
-var2
 variadic
 varphi
 VarType
@@ -1490,6 +1487,7 @@ Sₙ₋₁
 =
 >
 \
+{
 {0
 {0x00
 {0}
