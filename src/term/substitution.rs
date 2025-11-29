@@ -513,13 +513,48 @@ where
 
     // Case 1: `t1` is a metavariable
     if let Some(var1) = t1.get_metavariable() {
-        // Type check: can `var1`'s type accept `t2`'s type?
-        // This enforces: Setvar ↦ Class is OK, but Class ↦ Setvar is forbidden
-        let var1_type = var1.get_type()?;
+        let t1_type = t1.get_type()?;
         let t2_type = t2.get_type()?;
-        if !t2_type.is_subtype_of(&var1_type) {
+        if let Some(var2) = t2.get_metavariable() {
+            // Case `1a`: `t1` and `t2` are metavariables
+
+            // Type check: can `var1`'s type accept `t2`'s type?
+            // This enforces: Setvar ↦ Class is OK, but Class ↦ Setvar is forbidden
+            if t2_type.is_subtype_of(&t1_type) {
+                // Occurs check: make sure `var1` doesn't appear in `t2`
+                if occurs_check(&var1, &t2)? {
+                    return Err(MguError::UnificationFailure(
+                        "Occurs check failed: variable appears in term it would be bound to"
+                            .to_string(),
+                    ));
+                }
+                // Add the binding using normalizing wrapper
+                norm_subst.extend(factory, var1, t2)?;
+                return Ok(norm_subst.into_inner());
+            } else if t1_type.is_subtype_of(&t2_type) {
+                // Occurs check: make sure `var2` doesn't appear in `t1`
+                if occurs_check(&var2, &t1)? {
+                    return Err(MguError::UnificationFailure(
+                        "Occurs check failed: variable appears in term it would be bound to"
+                            .to_string(),
+                    ));
+                }
+
+                // Add the binding using normalizing wrapper
+                norm_subst.extend(factory, var2, t1)?;
+                return Ok(norm_subst.into_inner());
+            } else {
+                return Err(MguError::UnificationFailure(format!(
+                    "Metavariables {} and {} have incompatible types and cannot be unified.",
+                    var1, var2
+                )));
+            }
+        }
+
+        // Case `1b`: `t1` is a metavariable and `t2` is a node
+        if !t2_type.is_subtype_of(&t1_type) {
             return Err(MguError::from_found_and_expected_types(
-                true, &t2_type, &var1_type,
+                true, &t2_type, &t1_type,
             ));
         }
 
@@ -1177,6 +1212,275 @@ mod tests {
         assert!(
             norm_result.is_err(),
             "try_normalize should reject cyclic substitution"
+        );
+    }
+
+    // =========================================================================
+    // Error Path Tests
+    // =========================================================================
+
+    #[test]
+    fn normalizing_substitution_extend_conflict() {
+        // Test that NormalizingSubstitution::extend() properly detects
+        // conflicting bindings (lines 298-303)
+        let factory = TestTermFactory;
+        let vars = MetaByteFactory();
+        let (var1, var2, var3) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+
+        let mut norm_subst = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory>::new();
+
+        // First binding: `var1` ↦ `var2`
+        norm_subst
+            .extend(&factory, var1, TestTerm::Leaf(var2))
+            .unwrap();
+
+        // Try to add conflicting binding: `var1` ↦ `var3` (should fail)
+        let result = norm_subst.extend(&factory, var1, TestTerm::Leaf(var3));
+
+        assert!(
+            result.is_err(),
+            "Should reject conflicting binding for same variable"
+        );
+
+        let err_msg = format!("{}", result.unwrap_err());
+        assert!(
+            err_msg.contains("already mapped to different term"),
+            "Error should mention conflicting mapping, got: {}",
+            err_msg
+        );
+    }
+
+    #[test]
+    fn occurs_check_reverse_case() {
+        // Test occurs check when the second term is the variable
+        // (unifying f(x) with x, not just x with f(x))
+        let factory = TestTermFactory;
+        let vars = MetaByteFactory();
+        let var = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
+
+        let var_term = TestTerm::Leaf(var);
+        let not_node = NodeByte::Not;
+        let not_var = TestTerm::NodeOrLeaf(not_node, vec![var_term.clone()]);
+
+        // Unify Not(var) with var (reverse of usual occurs check test)
+        let result = unify(&factory, &not_var, &var_term);
+
+        assert!(
+            result.is_err(),
+            "Should fail occurs check when second term is variable"
+        );
+
+        let err_msg = format!("{}", result.unwrap_err());
+        assert!(
+            err_msg.contains("Occurs check failed"),
+            "Error should mention occurs check, got: {}",
+            err_msg
+        );
+    }
+
+    #[test]
+    fn type_error_both_directions() {
+        // Test type mismatch errors in both directions of unification
+        let factory = TestTermFactory;
+        let vars = MetaByteFactory();
+
+        let var_bool = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
+        let var_class = vars
+            .list_metavariables_by_type(&SimpleType::Class)
+            .next()
+            .unwrap();
+
+        let term_bool = TestTerm::Leaf(var_bool);
+        let term_class = TestTerm::Leaf(var_class);
+
+        // Test both directions
+        let result1 = unify(&factory, &term_bool, &term_class);
+        let result2 = unify(&factory, &term_class, &term_bool);
+
+        assert!(
+            result1.is_err(),
+            "Boolean ↔ Class should fail (direction 1)"
+        );
+        assert!(
+            result2.is_err(),
+            "Boolean ↔ Class should fail (direction 2)"
+        );
+    }
+
+    #[test]
+    fn unify_setvar_with_class_variable() {
+        // Test that Setvar can unify with Class variable (Setvar ⊆ Class)
+        // but the binding goes the right direction
+        let factory = TestTermFactory;
+        let vars = MetaByteFactory();
+
+        let var_setvar = vars
+            .list_metavariables_by_type(&SimpleType::Setvar)
+            .next()
+            .unwrap();
+        let var_class = vars
+            .list_metavariables_by_type(&SimpleType::Class)
+            .next()
+            .unwrap();
+
+        let term_setvar = TestTerm::Leaf(var_setvar);
+        let term_class = TestTerm::Leaf(var_class);
+
+        // Unifying should succeed by binding `class_var` → `setvar_term`
+        let result = unify(&factory, &term_setvar, &term_class);
+        assert!(
+            result.is_ok(),
+            "Setvar should unify with Class (Setvar ⊆ Class)"
+        );
+
+        let subst = result.unwrap();
+        // The class variable should be bound to the `setvar` term
+        assert!(
+            subst.contains(&var_class),
+            "Class variable should be in substitution"
+        );
+        assert_eq!(subst.get(&var_class), Some(&term_setvar));
+    }
+
+    // =========================================================================
+    // Pathological Mock Term Tests
+    // =========================================================================
+
+    /// A malformed term that violates the Term trait invariants.
+    ///
+    /// This term returns `None` for both `get_metavariable()` and `get_node()`,
+    /// which should never happen for well-formed terms like `EnumTerm`.
+    /// This is used to test defensive error handling.
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct PathologicalTerm;
+
+    impl std::fmt::Display for PathologicalTerm {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            std::fmt::Debug::fmt(&self, f)
+        }
+    }
+
+    impl Term<SimpleType, MetaByte, NodeByte> for PathologicalTerm {
+        type Type = SimpleType;
+        type Metavariable = MetaByte;
+        type Node = NodeByte;
+
+        fn is_valid_sentence(&self) -> Result<bool, MguError> {
+            Ok(false) // Deliberately invalid
+        }
+
+        fn get_type(&self) -> Result<SimpleType, MguError> {
+            Ok(SimpleType::Boolean)
+        }
+
+        fn is_metavariable(&self) -> bool {
+            false // Lies: claims not to be a metavariable
+        }
+
+        fn get_metavariable(&self) -> Option<MetaByte> {
+            None // But returns None for metavariable
+        }
+
+        fn collect_metavariables(
+            &self,
+            _vars: &mut std::collections::HashSet<MetaByte>,
+        ) -> Result<(), MguError> {
+            Ok(())
+        }
+
+        fn get_node(&self) -> Option<NodeByte> {
+            None // ALSO returns None for node - violates invariant!
+        }
+
+        fn get_n_children(&self) -> usize {
+            0
+        }
+
+        fn get_child(&self, _index: usize) -> Option<&Self> {
+            None
+        }
+
+        fn get_children(&self) -> impl Iterator<Item = &Self> {
+            std::iter::empty()
+        }
+
+        fn get_children_as_slice(&self) -> &[Self] {
+            &[]
+        }
+
+        fn format_with(&self, _formatter: &dyn crate::formatter::OutputFormatter) -> String {
+            "PathologicalTerm".to_string()
+        }
+    }
+
+    /// Factory for creating pathological terms (always returns the singleton).
+    #[derive(Debug)]
+    struct PathologicalFactory;
+
+    impl TermFactory<PathologicalTerm, SimpleType, MetaByte, NodeByte> for PathologicalFactory {
+        type TermType = SimpleType;
+        type Term = PathologicalTerm;
+        type TermNode = NodeByte;
+        type TermMetavariable = MetaByte;
+
+        fn from_factories<VF, NF>(_vars: VF, _nodes: NF) -> Self
+        where
+            VF: MetavariableFactory<Metavariable = MetaByte>,
+            NF: NodeFactory<Node = NodeByte>,
+        {
+            PathologicalFactory
+        }
+
+        fn create_leaf(&self, _var: MetaByte) -> Result<PathologicalTerm, MguError> {
+            Ok(PathologicalTerm) // Ignores the variable!
+        }
+
+        fn create_node(
+            &self,
+            _node: NodeByte,
+            _children: Vec<PathologicalTerm>,
+        ) -> Result<PathologicalTerm, MguError> {
+            Ok(PathologicalTerm) // Ignores everything!
+        }
+    }
+
+    #[test]
+    fn pathological_term_triggers_defensive_error() {
+        // This test verifies that the defensive error at lines 444-446
+        // can be triggered by a malformed Term implementation.
+        //
+        // For EnumTerm, this error is UNREACHABLE by construction because:
+        // - EnumTerm::Leaf always has `get_metavariable`() = Some(...)
+        // - EnumTerm::`NodeOrLeaf` always has `get_node`() = Some(...)
+        //
+        // But a pathological Term could violate this invariant.
+
+        let factory = PathologicalFactory;
+        let subst = Substitution::<MetaByte, PathologicalTerm>::new();
+        let pathological = PathologicalTerm;
+
+        // Attempting to apply substitution to a pathological term should fail
+        // with the defensive error "Non-metavariable term has no node"
+        let result = apply_substitution(&factory, &subst, &pathological);
+
+        assert!(result.is_err(), "Should fail for pathological term");
+
+        let err = result.unwrap_err();
+        let err_msg = format!("{}", err);
+        assert!(
+            err_msg.contains("Non-metavariable term has no node"),
+            "Error message should be 'Non-metavariable term has no node', got: {}",
+            err_msg
         );
     }
 }
