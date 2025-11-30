@@ -2,9 +2,50 @@
 //!
 //! "C" here refers to material implication and "N" to the not operator.
 //!
+//! As tabulated by Prior following Bochenski and Łukasiewicz:
+//!
+//! | Table        | Łukasiewicz | [`BooleanSimpleOp`] | Table        | Łukasiewicz | [`BooleanSimpleOp`] |
+//! | ------------ | ----------- | ------------------- | ------------ | ----------- | ------------------- |
+//! | (1, 0)       |             | [`IdA1`]            | (0, 1)       | N           | [`NotA1`]           |
+//! | (1, 1, 1, 0) | A           | [`OrAB2`]           | (0, 0, 0, 1) | X           | [`NotOrAB2`]        |
+//! | (1, 1, 0, 1) | B           | [`ImpliesBA2`]      | (0, 0, 1, 0) | M           | [`NotImpliesBA2`]   |
+//! | (1, 0, 1, 1) | C           | [`ImpliesAB2`]      | (0, 1, 0, 0) | L           | [`NotImpliesAB2`]   |
+//! | (0, 1, 1, 1) | D           | [`NotAndAB2`]       | (1, 0, 0, 0) | K           | [`AndAB2`]          |
+//! | (1, 0, 0, 1) | E           | [`BiimpAB2`]        | (0, 1, 1, 0) | J           | [`XorAB2`]          |
+//! | (0, 0, 1, 1) | F           | [`NotA2`]           | (1, 1, 0, 0) | I           | [`IdA2`]            |
+//! | (0, 1, 0, 1) | G           | [`NotB2`]           | (1, 0, 1, 0) | H           | [`IdB2`]            |
+//! | (0, 0, 0, 0) | O           | [`False2`]          | (1, 1, 1, 1) | V           | [`True2`]           |
+//!
 //! - Metamath standard following Łukasiewicz: [`simp()`], [`frege()`], and [`transp()`].
 //! - Frege's system (1879): [`simp()`], [`frege()`], [`pm2_04()`], [`pm2_16()`], [`pm2_12()`], and [`pm2_14()`].
 //! - Łukasiewicz's Standard C-N System (1929): [`pm2_06()`], [`pm2_18()`], and [`pm2_24()`]
+//! - Meredith's Single-Axiom C-N System (1953): [`meredith_cn()`]
+//!
+//!
+//! Adopted from:
+//!
+//! **Prior, A. N.** (1955) *Formal Logic*, pp. 4-13, 301-303.
+//! Available at <https://archive.org/details/formallogic0000anpr>
+//!
+//! [`BooleanSimpleOp`]: `crate::bool_eval::BooleanSimpleOp`
+//! [`IdA1`]: `crate::bool_eval::BooleanSimpleOp::IdA1`
+//! [`NotA1`]: `crate::bool_eval::BooleanSimpleOp::NotA1`
+//! [`False2`]: `crate::bool_eval::BooleanSimpleOp::False2`
+//! [`NotOrAB2`]: `crate::bool_eval::BooleanSimpleOp::NotOrAB2`
+//! [`NotImpliesAB2`]: `crate::bool_eval::BooleanSimpleOp::NotImpliesAB2`
+//! [`NotB2`]: `crate::bool_eval::BooleanSimpleOp::NotB2`
+//! [`NotImpliesBA2`]: `crate::bool_eval::BooleanSimpleOp::NotImpliesBA2`
+//! [`NotA2`]: `crate::bool_eval::BooleanSimpleOp::NotA2`
+//! [`XorAB2`]: `crate::bool_eval::BooleanSimpleOp::XorAB2`
+//! [`NotAndAB2`]: `crate::bool_eval::BooleanSimpleOp::NotAndAB2`
+//! [`AndAB2`]: `crate::bool_eval::BooleanSimpleOp::AndAB2`
+//! [`BiimpAB2`]: `crate::bool_eval::BooleanSimpleOp::BiimpAB2`
+//! [`IdA2`]: `crate::bool_eval::BooleanSimpleOp::IdA2`
+//! [`ImpliesBA2`]: `crate::bool_eval::BooleanSimpleOp::ImpliesBA2`
+//! [`IdB2`]: `crate::bool_eval::BooleanSimpleOp::IdB2`
+//! [`ImpliesAB2`]: `crate::bool_eval::BooleanSimpleOp::ImpliesAB2`
+//! [`OrAB2`]: `crate::bool_eval::BooleanSimpleOp::OrAB2`
+//! [`True2`]: `crate::bool_eval::BooleanSimpleOp::True2`
 
 use crate::logic::require_var_is_boolean;
 use crate::{Metavariable, MguError, Node, Statement, Term, TermFactory, Type};
@@ -530,6 +571,86 @@ where
     Statement::simple_axiom(assertion)
 }
 
+/// Build the Axiom: (((((𝜑 → 𝜓) → (¬ 𝜒 → ¬ 𝜃)) → 𝜒) → 𝜏) → ((𝜏 → 𝜑) → (𝜃 → 𝜑)))
+///
+/// # Errors
+///
+/// Returns an error if term construction or statement validation fails.
+#[allow(clippy::too_many_arguments)]
+pub fn meredith_cn<Ty, V, N, T, TF>(
+    factory: &TF,
+    phi_var: V,
+    psi_var: V,
+    chi_var: V,
+    theta_var: V,
+    tau_var: V,
+    not_node: N,
+    implies_node: N,
+) -> Result<Statement<Ty, V, N, T>, MguError>
+where
+    Ty: Type,
+    V: Metavariable<Type = Ty>,
+    N: Node<Type = Ty>,
+    T: Term<Ty, V, N>,
+    TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+{
+    // Verify all variables are Boolean
+    require_var_is_boolean(&phi_var)?;
+    require_var_is_boolean(&psi_var)?;
+    require_var_is_boolean(&chi_var)?;
+    require_var_is_boolean(&theta_var)?;
+    require_var_is_boolean(&tau_var)?;
+
+    // Build terms for 𝜑, 𝜓, 𝜒, 𝜃, and 𝜏
+    let phi = factory.create_leaf(phi_var)?;
+    let psi = factory.create_leaf(psi_var)?;
+    let chi = factory.create_leaf(chi_var)?;
+    let theta = factory.create_leaf(theta_var)?;
+    let tau = factory.create_leaf(tau_var)?;
+
+    // Build (𝜑 → 𝜓)
+    let phi_implies_psi =
+        factory.create_node(implies_node.clone(), vec![phi.clone(), psi.clone()])?;
+
+    // Build ¬ 𝜒
+    let not_chi = factory.create_node(not_node.clone(), vec![chi.clone()])?;
+
+    // Build ¬ 𝜃
+    let not_theta = factory.create_node(not_node.clone(), vec![theta.clone()])?;
+
+    // Build (¬ 𝜒 → ¬ 𝜃)
+    let theta_implies_chi = factory.create_node(implies_node.clone(), vec![not_chi, not_theta])?;
+
+    // Build ((𝜑 → 𝜓) → (¬ 𝜒 → ¬ 𝜃))
+    let left = factory.create_node(
+        implies_node.clone(),
+        vec![phi_implies_psi, theta_implies_chi],
+    )?;
+
+    // Build (((𝜑 → 𝜓) → (¬ 𝜒 → ¬ 𝜃)) → 𝜒)
+    let left = factory.create_node(implies_node.clone(), vec![left, chi])?;
+
+    // Build ((((𝜑 → 𝜓) → (¬ 𝜒 → ¬ 𝜃)) → 𝜒) → 𝜏)
+    let left = factory.create_node(implies_node.clone(), vec![left, tau.clone()])?;
+
+    // Build (𝜏 → 𝜑)
+    let tau_implies_phi = factory.create_node(implies_node.clone(), vec![tau, phi.clone()])?;
+
+    // Build (𝜃 → 𝜑)
+    let theta_implies_phi = factory.create_node(implies_node.clone(), vec![theta, phi])?;
+
+    // Build ((𝜏 → 𝜑) → (𝜃 → 𝜑))
+    let right = factory.create_node(
+        implies_node.clone(),
+        vec![tau_implies_phi, theta_implies_phi],
+    )?;
+
+    // Build (((((𝜑 → 𝜓) → (¬ 𝜒 → ¬ 𝜃)) → 𝜒) → 𝜏) → ((𝜏 → 𝜑) → (𝜃 → 𝜑)))
+    let assertion = factory.create_node(implies_node, vec![left, right])?;
+
+    Statement::simple_axiom(assertion)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -703,6 +824,29 @@ mod tests {
             &factory,
             phi,
             psi,
+            MyNode::from_op(NotA1),
+            MyNode::from_op(ImpliesAB2),
+        );
+        assert!(statement.is_ok());
+        let statement = statement.unwrap();
+        assert_eq!(test_tautology(statement.get_assertion()), Ok(true));
+    }
+
+    #[test]
+    fn meredith_cn_tautology() {
+        let (phi, psi, chi, theta, tau) = WideMetavariableFactory::new()
+            .list_metavariables_by_type(&MyType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+        let factory = EnumTermFactory::new();
+        let statement = meredith_cn(
+            &factory,
+            phi,
+            psi,
+            chi,
+            theta,
+            tau,
             MyNode::from_op(NotA1),
             MyNode::from_op(ImpliesAB2),
         );
