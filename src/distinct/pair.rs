@@ -358,7 +358,7 @@ mod tests {
         let pair1 = Pair::new(1, 5).unwrap();
         let pair2 = Pair::new(2, 3).unwrap();
 
-        // Ord::cmp should match PartialOrd::partial_cmp
+        // Ord::`cmp` should match PartialOrd::`partial_cmp`
         assert_eq!(pair1.cmp(&pair2), Ordering::Less);
         assert_eq!(pair1.partial_cmp(&pair2), Some(Ordering::Less));
     }
@@ -523,7 +523,7 @@ mod tests {
     #[test]
     fn works_with_chars() {
         let pair = Pair::new('z', 'a').unwrap();
-        // Should normalize to ('a', 'z')
+        // Should normalize to `(a, z)`
         assert_eq!(pair.0, 'a');
         assert_eq!(pair.1, 'z');
     }

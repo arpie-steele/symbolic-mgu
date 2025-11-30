@@ -1314,6 +1314,7 @@ whitespace/MS
 workspace's
 workspace/MS
 xᵗ
+Łukasiewicz
 α
 αὐτὰ
 β
@@ -1472,6 +1473,7 @@ Schütte/M
 S₁'s
 S₂'s
 Sₙ₋₁
+Łukasiewicz's
 α}
 φ′
 φ″
@@ -1507,6 +1509,7 @@ Sₙ₋₁
 ¬
 ¬p
 ¬q
+¬¬φ
 ¬φ
 ¬ψ
 –

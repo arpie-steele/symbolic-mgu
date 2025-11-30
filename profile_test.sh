@@ -128,6 +128,8 @@ $LLVM_COV show \
 echo "Generating text summary..."
 $LLVM_COV report \
     --instr-profile=combined.profdata \
+    --ignore-filename-regex='/.cargo/registry' \
+    --ignore-filename-regex='/library/std/src/sys/thread_local/native/mod.rs' \
     $(find target/debug/deps -type f -perm +111 -name '*-[0-9a-f]*' | \
       grep -v '\.d$' | \
       sed 's/^/--object /') | \
