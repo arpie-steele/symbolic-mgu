@@ -272,4 +272,130 @@ mod tests {
         let statement = statement.unwrap();
         assert_eq!(test_tautology(statement.get_assertion()), Ok(true));
     }
+
+    // Tests comparing definition builders with Polish notation builder
+
+    use crate::logic::build_boolean_statement_from_polish;
+
+    #[test]
+    fn define_biimp_equals_polish() {
+        let var_factory = WideMetavariableFactory::new();
+        let vars = var_factory
+            .list_metavariables_by_type(&MyType::Boolean)
+            .take(2)
+            .collect::<Vec<_>>();
+        let factory = EnumTermFactory::new();
+
+        let from_builder = define_biimp(
+            &factory,
+            MyNode::from_op(BiimpAB2),
+            vars[0],
+            vars[1],
+            MyNode::from_op(NotA1),
+            MyNode::from_op(ImpliesAB2),
+        )
+        .unwrap();
+
+        // ((𝜑 ↔ 𝜓) ↔ ((𝜑 → 𝜓) ∧ (𝜓 → 𝜑)))
+        // Expanded: ¬(((𝜑 ↔ 𝜓) → ¬((𝜑 → 𝜓) → ¬(𝜓 → 𝜑))) → ¬(¬((𝜑 → 𝜓) → ¬(𝜓 → 𝜑)) → (𝜑 ↔ 𝜓)))
+        let from_polish = build_boolean_statement_from_polish(
+            "NCCEpqNCCpqNCqpNCNCCpqNCqpEpq",
+            &factory,
+            &vars,
+            &[
+                MyNode::from_op(BiimpAB2),
+                MyNode::from_op(ImpliesAB2),
+                MyNode::from_op(NotA1),
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(from_builder.get_assertion(), from_polish.get_assertion());
+        assert_eq!(
+            from_builder.get_n_hypotheses(),
+            from_polish.get_n_hypotheses()
+        );
+    }
+
+    #[test]
+    fn define_and_equals_polish() {
+        let var_factory = WideMetavariableFactory::new();
+        let vars = var_factory
+            .list_metavariables_by_type(&MyType::Boolean)
+            .take(2)
+            .collect::<Vec<_>>();
+        let factory = EnumTermFactory::new();
+
+        let from_builder = define_and(
+            &factory,
+            MyNode::from_op(AndAB2),
+            vars[0],
+            vars[1],
+            MyNode::from_op(BiimpAB2),
+            MyNode::from_op(NotA1),
+            MyNode::from_op(ImpliesAB2),
+        )
+        .unwrap();
+
+        // ((𝜑 ∧ 𝜓) ↔ ¬(𝜑 → ¬𝜓))
+        let from_polish = build_boolean_statement_from_polish(
+            "EKpqNCpNq",
+            &factory,
+            &vars,
+            &[
+                MyNode::from_op(AndAB2),
+                MyNode::from_op(BiimpAB2),
+                MyNode::from_op(ImpliesAB2),
+                MyNode::from_op(NotA1),
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(from_builder.get_assertion(), from_polish.get_assertion());
+        assert_eq!(
+            from_builder.get_n_hypotheses(),
+            from_polish.get_n_hypotheses()
+        );
+    }
+
+    #[test]
+    fn define_or_equals_polish() {
+        let var_factory = WideMetavariableFactory::new();
+        let vars = var_factory
+            .list_metavariables_by_type(&MyType::Boolean)
+            .take(2)
+            .collect::<Vec<_>>();
+        let factory = EnumTermFactory::new();
+
+        let from_builder = define_or(
+            &factory,
+            MyNode::from_op(OrAB2),
+            vars[0],
+            vars[1],
+            MyNode::from_op(BiimpAB2),
+            MyNode::from_op(NotA1),
+            MyNode::from_op(ImpliesAB2),
+        )
+        .unwrap();
+
+        // ((𝜑 ∨ 𝜓) ↔ (¬𝜑 → 𝜓))
+        let from_polish = build_boolean_statement_from_polish(
+            "EApqCNpq",
+            &factory,
+            &vars,
+            &[
+                MyNode::from_op(OrAB2),
+                MyNode::from_op(BiimpAB2),
+                MyNode::from_op(ImpliesAB2),
+                MyNode::from_op(NotA1),
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(from_builder.get_assertion(), from_polish.get_assertion());
+        assert_eq!(
+            from_builder.get_n_hypotheses(),
+            from_polish.get_n_hypotheses()
+        );
+    }
 }

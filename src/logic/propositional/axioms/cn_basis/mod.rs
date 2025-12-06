@@ -854,4 +854,353 @@ mod tests {
         let statement = statement.unwrap();
         assert_eq!(test_tautology(statement.get_assertion()), Ok(true));
     }
+
+    // Tests comparing axiom builders with Polish notation builder
+
+    use crate::logic::build_boolean_statement_from_polish;
+
+    #[test]
+    fn simp_equals_polish() {
+        let vars = WideMetavariableFactory::new()
+            .list_metavariables_by_type(&MyType::Boolean)
+            .take(2)
+            .collect::<Vec<_>>();
+        let factory = EnumTermFactory::new();
+
+        let from_builder = simp(&factory, vars[0], vars[1], MyNode::from_op(ImpliesAB2)).unwrap();
+
+        let from_polish = build_boolean_statement_from_polish(
+            "CpCqp",
+            &factory,
+            &vars,
+            &[MyNode::from_op(ImpliesAB2)],
+        )
+        .unwrap();
+
+        assert_eq!(from_builder.get_assertion(), from_polish.get_assertion());
+        assert_eq!(
+            from_builder.get_n_hypotheses(),
+            from_polish.get_n_hypotheses()
+        );
+    }
+
+    #[test]
+    fn frege_equals_polish() {
+        let vars = WideMetavariableFactory::new()
+            .list_metavariables_by_type(&MyType::Boolean)
+            .take(3)
+            .collect::<Vec<_>>();
+        let factory = EnumTermFactory::new();
+
+        let from_builder = frege(
+            &factory,
+            vars[0],
+            vars[1],
+            vars[2],
+            MyNode::from_op(ImpliesAB2),
+        )
+        .unwrap();
+
+        let from_polish = build_boolean_statement_from_polish(
+            "CCpCqrCCpqCpr",
+            &factory,
+            &vars,
+            &[MyNode::from_op(ImpliesAB2)],
+        )
+        .unwrap();
+
+        assert_eq!(from_builder.get_assertion(), from_polish.get_assertion());
+        assert_eq!(
+            from_builder.get_n_hypotheses(),
+            from_polish.get_n_hypotheses()
+        );
+    }
+
+    #[test]
+    fn transp_equals_polish() {
+        let vars = WideMetavariableFactory::new()
+            .list_metavariables_by_type(&MyType::Boolean)
+            .take(2)
+            .collect::<Vec<_>>();
+        let factory = EnumTermFactory::new();
+
+        let from_builder = transp(
+            &factory,
+            vars[0],
+            vars[1],
+            MyNode::from_op(NotA1),
+            MyNode::from_op(ImpliesAB2),
+        )
+        .unwrap();
+
+        let from_polish = build_boolean_statement_from_polish(
+            "CCNpNqCqp",
+            &factory,
+            &vars,
+            &[MyNode::from_op(ImpliesAB2), MyNode::from_op(NotA1)],
+        )
+        .unwrap();
+
+        assert_eq!(from_builder.get_assertion(), from_polish.get_assertion());
+        assert_eq!(
+            from_builder.get_n_hypotheses(),
+            from_polish.get_n_hypotheses()
+        );
+    }
+
+    #[test]
+    fn pm2_04_equals_polish() {
+        let vars = WideMetavariableFactory::new()
+            .list_metavariables_by_type(&MyType::Boolean)
+            .take(3)
+            .collect::<Vec<_>>();
+        let factory = EnumTermFactory::new();
+
+        let from_builder = pm2_04(
+            &factory,
+            vars[0],
+            vars[1],
+            vars[2],
+            MyNode::from_op(ImpliesAB2),
+        )
+        .unwrap();
+
+        let from_polish = build_boolean_statement_from_polish(
+            "CCpCqrCqCpr",
+            &factory,
+            &vars,
+            &[MyNode::from_op(ImpliesAB2)],
+        )
+        .unwrap();
+
+        assert_eq!(from_builder.get_assertion(), from_polish.get_assertion());
+        assert_eq!(
+            from_builder.get_n_hypotheses(),
+            from_polish.get_n_hypotheses()
+        );
+    }
+
+    #[test]
+    fn pm2_06_equals_polish() {
+        let vars = WideMetavariableFactory::new()
+            .list_metavariables_by_type(&MyType::Boolean)
+            .take(3)
+            .collect::<Vec<_>>();
+        let factory = EnumTermFactory::new();
+
+        let from_builder = pm2_06(
+            &factory,
+            vars[0],
+            vars[1],
+            vars[2],
+            MyNode::from_op(ImpliesAB2),
+        )
+        .unwrap();
+
+        let from_polish = build_boolean_statement_from_polish(
+            "CCpqCCqrCpr",
+            &factory,
+            &vars,
+            &[MyNode::from_op(ImpliesAB2)],
+        )
+        .unwrap();
+
+        assert_eq!(from_builder.get_assertion(), from_polish.get_assertion());
+        assert_eq!(
+            from_builder.get_n_hypotheses(),
+            from_polish.get_n_hypotheses()
+        );
+    }
+
+    #[test]
+    fn pm2_12_equals_polish() {
+        let vars = WideMetavariableFactory::new()
+            .list_metavariables_by_type(&MyType::Boolean)
+            .take(1)
+            .collect::<Vec<_>>();
+        let factory = EnumTermFactory::new();
+
+        let from_builder = pm2_12(
+            &factory,
+            vars[0],
+            MyNode::from_op(NotA1),
+            MyNode::from_op(ImpliesAB2),
+        )
+        .unwrap();
+
+        let from_polish = build_boolean_statement_from_polish(
+            "CpNNp",
+            &factory,
+            &vars,
+            &[MyNode::from_op(ImpliesAB2), MyNode::from_op(NotA1)],
+        )
+        .unwrap();
+
+        assert_eq!(from_builder.get_assertion(), from_polish.get_assertion());
+        assert_eq!(
+            from_builder.get_n_hypotheses(),
+            from_polish.get_n_hypotheses()
+        );
+    }
+
+    #[test]
+    fn pm2_14_equals_polish() {
+        let vars = WideMetavariableFactory::new()
+            .list_metavariables_by_type(&MyType::Boolean)
+            .take(1)
+            .collect::<Vec<_>>();
+        let factory = EnumTermFactory::new();
+
+        let from_builder = pm2_14(
+            &factory,
+            vars[0],
+            MyNode::from_op(NotA1),
+            MyNode::from_op(ImpliesAB2),
+        )
+        .unwrap();
+
+        let from_polish = build_boolean_statement_from_polish(
+            "CNNpp",
+            &factory,
+            &vars,
+            &[MyNode::from_op(ImpliesAB2), MyNode::from_op(NotA1)],
+        )
+        .unwrap();
+
+        assert_eq!(from_builder.get_assertion(), from_polish.get_assertion());
+        assert_eq!(
+            from_builder.get_n_hypotheses(),
+            from_polish.get_n_hypotheses()
+        );
+    }
+
+    #[test]
+    fn pm2_16_equals_polish() {
+        let vars = WideMetavariableFactory::new()
+            .list_metavariables_by_type(&MyType::Boolean)
+            .take(2)
+            .collect::<Vec<_>>();
+        let factory = EnumTermFactory::new();
+
+        let from_builder = pm2_16(
+            &factory,
+            vars[0],
+            vars[1],
+            MyNode::from_op(NotA1),
+            MyNode::from_op(ImpliesAB2),
+        )
+        .unwrap();
+
+        let from_polish = build_boolean_statement_from_polish(
+            "CCpqCNqNp",
+            &factory,
+            &vars,
+            &[MyNode::from_op(ImpliesAB2), MyNode::from_op(NotA1)],
+        )
+        .unwrap();
+
+        assert_eq!(from_builder.get_assertion(), from_polish.get_assertion());
+        assert_eq!(
+            from_builder.get_n_hypotheses(),
+            from_polish.get_n_hypotheses()
+        );
+    }
+
+    #[test]
+    fn pm2_18_equals_polish() {
+        let vars = WideMetavariableFactory::new()
+            .list_metavariables_by_type(&MyType::Boolean)
+            .take(1)
+            .collect::<Vec<_>>();
+        let factory = EnumTermFactory::new();
+
+        let from_builder = pm2_18(
+            &factory,
+            vars[0],
+            MyNode::from_op(NotA1),
+            MyNode::from_op(ImpliesAB2),
+        )
+        .unwrap();
+
+        let from_polish = build_boolean_statement_from_polish(
+            "CCNppp",
+            &factory,
+            &vars,
+            &[MyNode::from_op(ImpliesAB2), MyNode::from_op(NotA1)],
+        )
+        .unwrap();
+
+        assert_eq!(from_builder.get_assertion(), from_polish.get_assertion());
+        assert_eq!(
+            from_builder.get_n_hypotheses(),
+            from_polish.get_n_hypotheses()
+        );
+    }
+
+    #[test]
+    fn pm2_24_equals_polish() {
+        let vars = WideMetavariableFactory::new()
+            .list_metavariables_by_type(&MyType::Boolean)
+            .take(2)
+            .collect::<Vec<_>>();
+        let factory = EnumTermFactory::new();
+
+        let from_builder = pm2_24(
+            &factory,
+            vars[0],
+            vars[1],
+            MyNode::from_op(NotA1),
+            MyNode::from_op(ImpliesAB2),
+        )
+        .unwrap();
+
+        let from_polish = build_boolean_statement_from_polish(
+            "CpCNpq",
+            &factory,
+            &vars,
+            &[MyNode::from_op(ImpliesAB2), MyNode::from_op(NotA1)],
+        )
+        .unwrap();
+
+        assert_eq!(from_builder.get_assertion(), from_polish.get_assertion());
+        assert_eq!(
+            from_builder.get_n_hypotheses(),
+            from_polish.get_n_hypotheses()
+        );
+    }
+
+    #[test]
+    fn meredith_cn_equals_polish() {
+        let vars = WideMetavariableFactory::new()
+            .list_metavariables_by_type(&MyType::Boolean)
+            .take(5)
+            .collect::<Vec<_>>();
+        let factory = EnumTermFactory::new();
+
+        let from_builder = meredith_cn(
+            &factory,
+            vars[0],
+            vars[1],
+            vars[2],
+            vars[3],
+            vars[4],
+            MyNode::from_op(NotA1),
+            MyNode::from_op(ImpliesAB2),
+        )
+        .unwrap();
+
+        let from_polish = build_boolean_statement_from_polish(
+            "CCCCCpqCNrNsrtCCtpCsp",
+            &factory,
+            &vars,
+            &[MyNode::from_op(ImpliesAB2), MyNode::from_op(NotA1)],
+        )
+        .unwrap();
+
+        assert_eq!(from_builder.get_assertion(), from_polish.get_assertion());
+        assert_eq!(
+            from_builder.get_n_hypotheses(),
+            from_polish.get_n_hypotheses()
+        );
+    }
 }

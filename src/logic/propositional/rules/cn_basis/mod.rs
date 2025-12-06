@@ -84,3 +84,108 @@ where
 
     Statement::new(assertion, hypotheses, dist_graph)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bool_eval::BooleanSimpleNode;
+    use crate::bool_eval::BooleanSimpleOp::ImpliesAB2;
+    use crate::logic::build_boolean_statement_from_polish;
+    use crate::{EnumTermFactory, MetavariableFactory, SimpleType, WideMetavariableFactory};
+
+    type MyType = SimpleType;
+    type MyNode = BooleanSimpleNode<MyType>;
+
+    #[test]
+    fn modus_ponens_equals_polish() {
+        let var_factory = WideMetavariableFactory::new();
+        let vars = var_factory
+            .list_metavariables_by_type(&MyType::Boolean)
+            .take(2)
+            .collect::<Vec<_>>();
+        let factory = EnumTermFactory::new();
+
+        let from_builder =
+            modus_ponens(&factory, vars[0], vars[1], MyNode::from_op(ImpliesAB2)).unwrap();
+
+        let from_polish = build_boolean_statement_from_polish(
+            "p;Cpq;q",
+            &factory,
+            &vars,
+            &[MyNode::from_op(ImpliesAB2)],
+        )
+        .unwrap();
+
+        assert_eq!(
+            from_builder
+                .canonicalize(&var_factory, &factory)
+                .unwrap()
+                .get_assertion(),
+            from_polish.get_assertion()
+        );
+
+        assert_ne!(
+            from_builder.get_assertion().get_metavariable().unwrap(),
+            from_builder
+                .get_hypothesis(MP_MINOR_PREMISE)
+                .unwrap()
+                .get_metavariable()
+                .unwrap()
+        );
+
+        assert_ne!(
+            from_polish.get_assertion().get_metavariable().unwrap(),
+            from_polish
+                .get_hypothesis(MP_MINOR_PREMISE)
+                .unwrap()
+                .get_metavariable()
+                .unwrap()
+        );
+
+        assert_eq!(
+            from_builder.get_assertion().get_node(),
+            from_polish.get_assertion().get_node()
+        );
+        assert_eq!(
+            from_builder.get_n_hypotheses(),
+            from_polish.get_n_hypotheses()
+        );
+
+        for i in 0..from_builder.get_n_hypotheses() {
+            assert_eq!(
+                from_builder.get_hypothesis(i).unwrap().get_node(),
+                from_polish.get_hypothesis(i).unwrap().get_node()
+            );
+        }
+
+        assert_eq!(
+            from_builder.is_identical(&var_factory, &factory, &from_polish),
+            Ok(true)
+        );
+    }
+
+    #[test]
+    fn modus_ponens_constants() {
+        let vars = WideMetavariableFactory::new()
+            .list_metavariables_by_type(&MyType::Boolean)
+            .take(2)
+            .collect::<Vec<_>>();
+        let factory = EnumTermFactory::new();
+
+        let mp = modus_ponens(&factory, vars[0], vars[1], MyNode::from_op(ImpliesAB2)).unwrap();
+
+        // Verify the index constants are correct
+        assert_eq!(
+            mp.get_hypothesis(MP_MINOR_PREMISE)
+                .unwrap()
+                .get_metavariable(),
+            Some(vars[0])
+        );
+        assert!(mp
+            .get_hypothesis(MP_MAJOR_PREMISE)
+            .unwrap()
+            .get_node()
+            .is_some());
+        assert_eq!(mp.get_assertion().get_metavariable(), Some(vars[1]));
+    }
+}
