@@ -4,15 +4,14 @@
 //! using the propositional calculus with Implies (→), Not (¬), and
 //! Biimplication (↔).
 
+pub mod polish;
 pub mod propositional;
 
-use crate::bool_eval::BooleanSimpleOp;
 use crate::{
-    DistinctnessGraph, Metavariable, MetavariableFactory, MguError, Node, Statement, Term,
-    TermFactory, Type, TypeCore,
+    Metavariable, MetavariableFactory, MguError, Node, Statement, Term, TermFactory, Type, TypeCore,
 };
 use itertools::Itertools;
-use std::collections::hash_map::Entry;
+use polish::PolishNotationEngine;
 use std::collections::HashMap;
 
 /// Gating function.
@@ -33,67 +32,6 @@ pub fn require_var_is_boolean<V: Metavariable>(some_var: &V) -> Result<(), MguEr
                 capability: "Boolean",
             });
         }
-    }
-    Ok(())
-}
-
-/// Match invisible characters and semicolon.
-///
-/// Used to segment hypotheses and assertion from a single string.
-fn match_ws_and_semicolon(ch: char) -> bool {
-    ch.is_whitespace() || ch.is_control() || ch == ';'
-}
-
-/// Apply an operator to the top of the stack.
-///
-/// - `ch` the code for the operation
-/// - `op` the corresponding operation
-/// - `factory` a factory to create new terms
-/// - `node_map` a map to the nodes used by the factory
-/// - `stack` a stack of Term and their Polish notation
-///
-/// # Errors
-///
-/// TODO
-///
-fn apply_op<Ty, V, N, T, TF>(
-    ch: char,
-    op: BooleanSimpleOp,
-    factory: &TF,
-    node_map: &HashMap<BooleanSimpleOp, N>,
-    stack: &mut Vec<(T, String)>,
-) -> Result<(), MguError>
-where
-    Ty: Type,
-    V: Metavariable<Type = Ty>,
-    N: Node<Type = Ty>,
-    T: Term<Ty, V, N>,
-    TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
-{
-    if let Some(node) = node_map.get(&op) {
-        let arity = op.get_arity() as usize;
-        let mut term_args = Vec::with_capacity(arity);
-        let mut tree_args = Vec::with_capacity(arity);
-        for i in 0..arity {
-            if let Some((term, tree)) = stack.pop() {
-                term_args.push(term);
-                tree_args.push(tree);
-            } else {
-                return Err(MguError::UnificationFailure(format!(
-                    "Stack underflow at '{ch}', wanted {arity} terms but found only {i}."
-                )));
-            }
-        }
-        let term = factory.create_node(node.clone(), term_args)?;
-        let mut tree = ch.to_string();
-        for t in tree_args.iter() {
-            tree.push_str(t);
-        }
-        stack.push((term, tree));
-    } else {
-        return Err(MguError::ArgumentError(format!(
-            "For '{ch}', no node supplied that maps to {op}."
-        )));
     }
     Ok(())
 }
@@ -132,7 +70,13 @@ where
 /// Available at <https://archive.org/details/formallogic0000anpr>
 ///
 /// # Errors
-/// TODO
+///
+/// Returns an error if:
+/// - Variables are not Boolean type
+/// - Duplicate variables or nodes are provided
+/// - Unknown characters appear in the notation
+/// - Stack underflow/overflow occurs during parsing
+/// - No terms are specified
 ///
 /// [`BooleanSimpleOp`]: `crate::bool_eval::BooleanSimpleOp`
 /// [`NotA1`]: `crate::bool_eval::BooleanSimpleOp::NotA1`
@@ -172,201 +116,45 @@ where
     T: Term<Ty, V, N>,
     TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
 {
-    let mut node_map = HashMap::with_capacity(nodes.len());
-    let mut var_map = HashMap::with_capacity(vars.len());
-    for n in nodes {
-        if let Some(op) = n.to_boolean_op() {
-            if let Some(n2) = node_map.insert(op, n.clone()) {
-                return Err(MguError::ArgumentError(format!(
-                    "Both {n2:?} and {n:?} map to {op:?}. Such duplicates are not allowed."
-                )));
-            }
-        } else {
-            return Err(MguError::ArgumentError(format!(
-                "The node {n:?} is not associated with a BooleanSimpleOp."
-            )));
-        }
-    }
-    let mut unique_vars = Vec::with_capacity(vars.len());
-    for v in vars {
-        require_var_is_boolean(v)?;
-        if unique_vars.contains(v) {
-            return Err(MguError::ArgumentError(format!(
-                "Variable {v:?} has been seen twice. Such duplicates are not allowed."
-            )));
-        } else {
-            unique_vars.push(v.clone());
-        }
-    }
-    unique_vars.reverse();
-    for part in polish.split(match_ws_and_semicolon).rev() {
-        for ch in part.chars() {
-            match ch {
-                '&' | '+' | '0' | '1' | '?' | 'A'..='O' | 'V' | 'X' | '^' | '|' => {
-                    continue;
-                }
-                'a'..='z' => {
-                    if let Entry::Vacant(e) = var_map.entry(ch) {
-                        if let Some(var) = unique_vars.pop() {
-                            e.insert(var);
-                        } else {
-                            return Err(MguError::ArgumentError(format!(
-                "Exhausted variables while trying to accommodate '{ch}'. Already seen: {}", var_map.len()
-            )));
-                        }
-                    }
-                }
-                _ => {
-                    return Err(MguError::ArgumentError(format!(
-                        "Unknown character in Łukasiewicz notation: '{ch}' = {ch:?}"
-                    )));
-                }
-            }
-        }
-    }
-    drop(unique_vars);
+    let mut engine = PolishNotationEngine::default();
+    build_boolean_statement_from_polish_with_engine(polish, factory, vars, nodes, &mut engine)
+}
 
-    let mut terms = Vec::new();
-    let mut stack = Vec::new();
-    for part in polish.split(match_ws_and_semicolon) {
-        if part.is_empty() {
-            continue;
-        }
-        stack.clear();
-        for ch in part.chars().rev() {
-            match ch {
-                '&' => {
-                    let op = BooleanSimpleOp::And3ABC3;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                '+' => {
-                    let op = BooleanSimpleOp::Xor3ABC3;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                '0' => {
-                    let op = BooleanSimpleOp::False0;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                '1' => {
-                    let op = BooleanSimpleOp::True0;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                '?' => {
-                    let op = BooleanSimpleOp::IfABC3;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'A' => {
-                    let op = BooleanSimpleOp::OrAB2;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'B' => {
-                    let op = BooleanSimpleOp::ImpliesBA2;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'C' => {
-                    let op = BooleanSimpleOp::ImpliesAB2;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'D' => {
-                    let op = BooleanSimpleOp::NotAndAB2;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'E' => {
-                    let op = BooleanSimpleOp::BiimpAB2;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'F' => {
-                    let op = BooleanSimpleOp::NotA2;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'G' => {
-                    let op = BooleanSimpleOp::NotB2;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'H' => {
-                    let op = BooleanSimpleOp::IdB2;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'I' => {
-                    let op = BooleanSimpleOp::IdA2;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'J' => {
-                    let op = BooleanSimpleOp::XorAB2;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'K' => {
-                    let op = BooleanSimpleOp::AndAB2;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'L' => {
-                    let op = BooleanSimpleOp::NotImpliesAB2;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'M' => {
-                    let op = BooleanSimpleOp::NotImpliesBA2;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'N' => {
-                    let op = BooleanSimpleOp::NotA1;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'O' => {
-                    let op = BooleanSimpleOp::False2;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'V' => {
-                    let op = BooleanSimpleOp::True2;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                'X' => {
-                    let op = BooleanSimpleOp::NotOrAB2;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                '^' => {
-                    let op = BooleanSimpleOp::Majority3ABC3;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                '|' => {
-                    let op = BooleanSimpleOp::Or3ABC3;
-                    apply_op(ch, op, factory, &node_map, &mut stack)?;
-                }
-                _ => {
-                    if ch.is_ascii_lowercase() {
-                        if let Some(var) = var_map.get(&ch) {
-                            let var = factory.create_leaf(var.clone())?;
-                            stack.push((var, ch.to_string()));
-                            continue;
-                        } else {
-                            return Err(MguError::ArgumentError(format!(
-                                "Unknown letter in Łukasiewicz notation: '{ch}' = {ch:?}"
-                            )));
-                        }
-                    } else {
-                        return Err(MguError::ArgumentError(format!(
-                            "Unknown character in Łukasiewicz notation: '{ch}' = {ch:?}"
-                        )));
-                    }
-                }
-            }
-        }
-        let n = stack.len();
-        if n != 1 {
-            return Err(MguError::UnificationFailure(format!(
-                "Łukasiewicz notation: '{part}' resulted in stack depth of {n}."
-            )));
-        }
-        if let Some((term, _)) = stack.pop() {
-            terms.push(term);
-        }
-    }
-    if let Some(assertion) = terms.pop() {
-        terms.shrink_to_fit();
-        let s = Statement::new(assertion, terms, DistinctnessGraph::default())?;
-        Ok(s)
-    } else {
-        Err(MguError::ArgumentError("No terms specified.".to_string()))
-    }
+/// Take a string in Polish notation and return the corresponding Statement using a custom engine.
+///
+/// This is the internal implementation that uses a [`PolishNotationEngine`] for parsing.
+/// For standard Łukasiewicz notation, use [`build_boolean_statement_from_polish`] instead.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - Variables are not Boolean type
+/// - Duplicate variables or nodes are provided
+/// - Unknown characters appear in the notation
+/// - Stack underflow/overflow occurs during parsing
+/// - No terms are specified
+///
+/// [`PolishNotationEngine`]: `crate::logic::polish::PolishNotationEngine`
+pub fn build_boolean_statement_from_polish_with_engine<Ty, V, N, T, TF>(
+    polish: &str,
+    factory: &TF,
+    vars: &[V],
+    nodes: &[N],
+    engine: &mut PolishNotationEngine<V, N, T, TF>,
+) -> Result<Statement<Ty, V, N, T>, MguError>
+where
+    Ty: Type,
+    V: Metavariable<Type = Ty>,
+    N: Node<Type = Ty>,
+    T: Term<Ty, V, N>,
+    TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+{
+    // Clear any previous state
+    engine.clear_state();
+
+    engine.setup_nodes(nodes)?;
+    engine.setup_vars(vars, polish)?;
+    engine.build_statement(polish, factory)
 }
 
 /// Type alias for statement dictionaries used in compact proof parsing.
@@ -470,7 +258,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bool_eval::BooleanSimpleNode;
+    use crate::bool_eval::{BooleanSimpleNode, BooleanSimpleOp};
     use crate::{EnumTermFactory, SimpleType, WideMetavariableFactory};
     use strum::VariantArray;
 
