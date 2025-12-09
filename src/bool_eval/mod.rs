@@ -63,9 +63,7 @@ use crate::{
     TermFactory, Type,
 };
 pub use generated_enum::BooleanSimpleOp;
-pub use generated_enum::BooleanSimpleOpDiscriminants;
 use std::collections::HashSet;
-use std::convert::TryFrom;
 use std::fmt::{Debug as DebugTrait, Display};
 use std::marker::PhantomData;
 use std::ops::{BitAnd, BitOr, BitXor, Not};
@@ -76,6 +74,7 @@ pub struct BooleanSimpleNode<Ty: Type>(BooleanSimpleOp, PhantomData<Ty>);
 
 impl<Ty: Type> BooleanSimpleNode<Ty> {
     /// Create a new `BooleanSimpleNode` from a `BooleanSimpleOp`.
+    #[must_use]
     pub fn from_op(op: BooleanSimpleOp) -> Self {
         BooleanSimpleNode(op, PhantomData)
     }
@@ -112,20 +111,11 @@ impl<Ty: Type> Node for BooleanSimpleNode<Ty> {
     }
 }
 
-impl TryFrom<NodeByte> for BooleanSimpleOp {
-    type Error = MguError;
-
-    fn try_from(node: NodeByte) -> Result<Self, Self::Error> {
-        node.to_boolean_op().ok_or_else(|| {
-            MguError::ArgumentError(format!("NodeByte::{:?} is not a Boolean operation", node))
-        })
-    }
-}
-
 impl BooleanSimpleOp {
     /// Evaluate the Boolean operator on 0 inputs.
     ///
     /// This works only for `BooleanSimpleOp::True0 `and `BooleanSimpleOp::False0` and returns None for operators with higher arities.
+    #[must_use]
     pub fn eval0<B, U, const N: usize>(&self) -> Option<B>
     where
         B: UnsignedBits<U, N>,
@@ -147,6 +137,7 @@ impl BooleanSimpleOp {
     /// This works for `BooleanSimpleOp::True0` and `BooleanSimpleOp::False0`. but ignores the argument.
     /// This works similarly for `BooleanSimpleOp::True1` and `BooleanSimpleOp::False1` and as expected for `BooleanSimpleOp::NotA1` and `BooleanSimpleOp::IdA1`
     /// and returns None for operators with higher arities.
+    #[must_use]
     pub fn eval1<B, U, const N: usize>(&self, a: &B) -> Option<B>
     where
         B: UnsignedBits<U, N>,
@@ -169,6 +160,7 @@ impl BooleanSimpleOp {
     ///
     /// This silently ignores the last arguments if the operator has arity lower than 2
     /// and returns None for higher arities.
+    #[must_use]
     pub fn eval2<B, U, const N: usize>(&self, a: &B, b: &B) -> Option<B>
     where
         B: UnsignedBits<U, N>,
@@ -203,6 +195,7 @@ impl BooleanSimpleOp {
     ///
     /// This silently ignores the last arguments if the operator has arity lower than 3
     /// and returns None for higher arities, if any are ever defined.
+    #[must_use]
     pub fn eval3<B, U, const N: usize>(&self, a: &B, b: &B, c: &B) -> Option<B>
     where
         B: UnsignedBits<U, N>,
@@ -541,6 +534,7 @@ use num_bigint::BigUint;
 /// [`SumFromAdder`]: `crate::NodeByte::SumFromAdder`
 /// [`CarryFromAdder`]: `crate::NodeByte::CarryFromAdder`
 /// [`LogicalIf`]: `crate::NodeByte::LogicalIf`
+#[must_use]
 pub fn is_supported_op(node: &NodeByte) -> bool {
     use NodeByte::*;
     matches!(
@@ -1146,6 +1140,7 @@ pub struct TruthTable<V> {
 
 impl<V> TruthTable<V> {
     /// Returns the number of rows in this truth table (`2^n` where n is the number of variables).
+    #[must_use]
     pub fn num_rows(&self) -> usize {
         match &self.backing {
             TruthTableBacking::Constant(_) => 1,
@@ -1160,6 +1155,7 @@ impl<V> TruthTable<V> {
     }
 
     /// Returns the number of variables in this truth table.
+    #[must_use]
     pub fn num_vars(&self) -> usize {
         self.vars.len()
     }
@@ -1622,6 +1618,7 @@ pub struct SomeBits<const N: usize>(BigUint);
 #[cfg(feature = "bigint")]
 impl<const N: usize> SomeBits<N> {
     /// A mask with `2^(2^N)` ones.
+    #[must_use]
     pub fn all_ones_mask() -> Self {
         let one: BigUint = 1u32.into();
         Self((one.clone() << (1 << N)) - one)

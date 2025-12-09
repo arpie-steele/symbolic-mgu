@@ -319,6 +319,7 @@ where
     type TermMetavariable: Metavariable<Type = Ty>;
 
     /// Create new `TermFactory` from other factories.
+    #[must_use]
     fn from_factories<VF, NF>(vars: VF, nodes: NF) -> Self
     where
         VF: MetavariableFactory<Metavariable = V>,

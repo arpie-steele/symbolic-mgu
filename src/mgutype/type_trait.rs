@@ -7,12 +7,15 @@ use std::hash::Hash;
 /// Dyn-safe prototype Trait for type systems in formal logic
 pub trait TypeCore: Debug + Display {
     /// Is this the Boolean type?
+    #[must_use]
     fn is_boolean(&self) -> bool;
 
     /// Is this a Setvar type (or sub-type thereof)?
+    #[must_use]
     fn is_setvar(&self) -> bool;
 
     /// Is this a Class type (or sub-type thereof)?
+    #[must_use]
     fn is_class(&self) -> bool;
 }
 
@@ -32,6 +35,7 @@ where
     /// Can this type be substituted where `other` is expected?
     ///
     /// Implements sub-typing relationship (e.g., Setvar <: Class in Metamath)
+    #[must_use]
     fn is_subtype_of(&self, other: &Self) -> bool;
 
     /// Return an object which behaves like the expected Boolean type.
@@ -53,6 +57,7 @@ where
     fn try_class() -> Result<Self, MguError>;
 
     /// Box what is effectively a clone of this object.
+    #[must_use]
     fn to_boxed(&self) -> Box<dyn TypeCore> {
         let obj = self.clone();
         Box::new(obj)

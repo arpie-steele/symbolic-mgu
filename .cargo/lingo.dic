@@ -216,8 +216,10 @@ A2
 A3
 a900ff
 a9ff00
+absurdum
 accessor
 accessors
+Ackermann
 ACM
 acyclic
 AddPosFracs
@@ -312,6 +314,7 @@ ClassIf
 ClassIntersection
 ClassUnion
 claude
+Clavius
 cli
 clippy
 CliqueMinimumSizeError
@@ -382,6 +385,7 @@ De
 deallocated
 DecimalConstructor
 DecompositionValidationError
+deducibility
 deduplicate
 deduplicated
 deduplicates
@@ -398,6 +402,8 @@ discriminants
 DisjointFamily
 disjointness
 DisjointUnion
+disjunct
+disjunction
 DistinctnessGraph
 DistinctnessViolation
 distributivity
@@ -805,6 +811,7 @@ recurses
 RecursiveGenerator
 RedOrange
 ReducePosRats
+reductio
 RedViolet
 reflow
 reflown
@@ -1460,6 +1467,7 @@ xᵗ
 10×
 36×r
 6×g
+A–N
 Bézier's
 Bézier/MS
 h·σ

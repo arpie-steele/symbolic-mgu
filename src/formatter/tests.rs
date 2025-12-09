@@ -7,6 +7,7 @@ use crate::{
 };
 
 /// Helper to create a simple term: P → Q
+#[must_use]
 fn create_simple_term() -> EnumTerm<SimpleType, MetaByte, NodeByte> {
     let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> = EnumTermFactory::new();
     let metavar_factory = MetaByteFactory();

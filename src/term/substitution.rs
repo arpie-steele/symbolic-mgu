@@ -38,6 +38,7 @@ where
     T: Clone + PartialEq,
 {
     /// Create a new empty substitution (identity mapping).
+    #[must_use]
     pub fn new() -> Self {
         Self {
             map: HashMap::new(),
@@ -45,6 +46,7 @@ where
     }
 
     /// Get the term mapped to a metavariable, if any.
+    #[must_use]
     pub fn get(&self, var: &V) -> Option<&T> {
         self.map.get(var)
     }
@@ -69,16 +71,19 @@ where
     }
 
     /// Check if this substitution contains a mapping for the given variable.
+    #[must_use]
     pub fn contains(&self, var: &V) -> bool {
         self.map.contains_key(var)
     }
 
     /// Get the number of mappings in this substitution.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.map.len()
     }
 
     /// Check if this substitution is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.map.is_empty()
     }
@@ -220,6 +225,7 @@ where
     TF: TermFactory<T, V::Type, V, N, Term = T, TermNode = N>,
 {
     /// Create a new empty normalizing substitution.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             inner: Substitution::new(),
@@ -229,6 +235,7 @@ where
     }
 
     /// Create from an existing substitution (assumes it's already in normal form).
+    #[must_use]
     pub fn from_substitution(subst: Substitution<V, T>) -> Self {
         Self {
             inner: subst,
@@ -277,6 +284,7 @@ where
     }
 
     /// Convert back to a plain Substitution.
+    #[must_use]
     pub fn into_inner(self) -> Substitution<V, T> {
         self.inner
     }
@@ -346,6 +354,7 @@ where
     }
 
     /// Clone the underlying substitution.
+    #[must_use]
     pub fn clone_inner(&self) -> Substitution<V, T> {
         self.inner.clone()
     }

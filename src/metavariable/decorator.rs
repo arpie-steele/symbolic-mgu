@@ -41,6 +41,7 @@ pub trait Decorator: Copy + Eq + Hash + Debug + Default {
     /// - `()` → `""`
     /// - `1usize` → `"1"`
     /// - `Prime::Single` → `"'"`
+    #[must_use]
     fn format_ascii(&self) -> String;
 
     /// Format for UTF-8 output (Unicode subscripts, primes, etc.).
@@ -50,6 +51,7 @@ pub trait Decorator: Copy + Eq + Hash + Debug + Default {
     /// - `()` → `""`
     /// - `1usize` → `"₁"`
     /// - `Prime::Single` → `"′"` (U+2032)
+    #[must_use]
     fn format_utf8(&self) -> String;
 
     /// Format for LaTeX output.
@@ -59,11 +61,13 @@ pub trait Decorator: Copy + Eq + Hash + Debug + Default {
     /// - `()` → `""`
     /// - `1usize` → `"_{1}"`
     /// - `Prime::Single` → `"'"`
+    #[must_use]
     fn format_latex(&self) -> String;
 
     /// Next decorator in sequence (for enumeration).
     ///
     /// Returns `None` when the decorator space is exhausted.
+    #[must_use]
     fn next(&self) -> Option<Self>;
 }
 

@@ -124,26 +124,31 @@ where
     }
 
     /// Access the Assertion Sentence.
+    #[must_use]
     pub fn get_assertion(&self) -> &T {
         &self.assertion
     }
 
     /// Access the Hypotheses Sentences.
+    #[must_use]
     pub fn get_hypotheses(&self) -> &Vec<T> {
         &self.hypotheses
     }
 
     /// Access the Hypotheses Sentences.
+    #[must_use]
     pub fn get_n_hypotheses(&self) -> usize {
         self.hypotheses.len()
     }
 
     /// Access the Hypotheses Sentences.
+    #[must_use]
     pub fn get_hypothesis(&self, index: usize) -> Option<&T> {
         self.hypotheses.get(index)
     }
 
     /// Access the `DistinctnessGraph`.
+    #[must_use]
     pub fn get_distinctness_graph(&self) -> &DistinctnessGraph<V> {
         &self.distinctness_graph
     }

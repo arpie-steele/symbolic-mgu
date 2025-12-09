@@ -83,6 +83,7 @@ impl<V, N, T, TF> PolishNotationEngine<V, N, T, TF> {
     /// engine.insert_operator('C', BooleanSimpleOp::ImpliesAB2).unwrap();
     /// assert_eq!(engine.get_operator('C'), Some(&BooleanSimpleOp::ImpliesAB2));
     /// ```
+    #[must_use]
     pub fn new() -> Self {
         Self {
             operator_map: HashMap::new(),
@@ -157,6 +158,7 @@ impl<V, N, T, TF> PolishNotationEngine<V, N, T, TF> {
     /// assert_eq!(engine.get_operator('C'), Some(&BooleanSimpleOp::ImpliesAB2));
     /// assert_eq!(engine.get_operator('z'), None); // Variables have no mapping
     /// ```
+    #[must_use]
     pub fn get_operator(&self, ch: char) -> Option<&BooleanSimpleOp> {
         self.operator_map.get(&ch)
     }

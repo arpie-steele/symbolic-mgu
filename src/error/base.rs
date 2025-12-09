@@ -378,6 +378,7 @@ pub enum MguError {
 
 impl MguError {
     /// Constructor.
+    #[must_use]
     pub fn from_type_and_var_strings<'a, S>(the_type: &'static str, metavariable: S) -> MguError
     where
         S: Into<&'a str>,
@@ -386,6 +387,7 @@ impl MguError {
     }
 
     /// Constructor.
+    #[must_use]
     pub fn from_found_and_expected_types<T: Type>(
         found_type_is_tree: bool,
         found: &T,
@@ -411,6 +413,7 @@ impl MguError {
     }
 
     /// Constructor.
+    #[must_use]
     pub fn from_found_and_expected_unsigned<U, V>(found: U, expected: V) -> MguError
     where
         U: Into<usize>,
@@ -430,6 +433,7 @@ impl MguError {
     /// assert_eq!(err.get_unwanted_index(), Some(5));
     /// assert_eq!(err.get_collection_size(), Some(3));
     /// ```
+    #[must_use]
     pub fn from_index_and_len<U, V>(index: U, length: V) -> MguError
     where
         U: Into<usize>,
@@ -449,6 +453,7 @@ impl MguError {
     /// assert_eq!(err.get_unwanted_index(), Some(5));
     /// assert_eq!(err.get_collection_size(), Some(3));
     /// ```
+    #[must_use]
     pub fn from_type_index_and_len<T, U, V>(for_type: T, index: U, length: V) -> MguError
     where
         T: Type,
@@ -459,6 +464,7 @@ impl MguError {
     }
 
     /// Constructor.
+    #[must_use]
     pub fn from_value_out_of_range_signed<U, V, W>(
         value: U,
         dest_type: &'static str,
@@ -474,6 +480,7 @@ impl MguError {
     }
 
     /// Constructor.
+    #[must_use]
     pub fn from_value_out_of_range_unsigned<U, V, W>(
         value: U,
         dest_type: &'static str,
@@ -489,6 +496,7 @@ impl MguError {
     }
 
     /// Constructor.
+    #[must_use]
     pub fn from_unsuported_value_for_type_unsigned<U>(value: U, the_type: &'static str) -> MguError
     where
         U: Into<u128>,
@@ -497,6 +505,7 @@ impl MguError {
     }
 
     /// Constructor.
+    #[must_use]
     pub fn from_illegal_pair<'a, S, T>(element1: S, element2: T) -> MguError
     where
         S: Into<&'a str>,
@@ -506,6 +515,7 @@ impl MguError {
     }
 
     /// Constructor.
+    #[must_use]
     pub fn from_err_type_and_message<'a, S>(err_type: MguErrorType, msg: S) -> MguError
     where
         S: Into<&'a str>,
@@ -533,6 +543,7 @@ impl MguError {
     }
 
     /// Constructor.
+    #[must_use]
     pub fn from_bare_err_type_and_message(err_type: MguErrorType) -> MguError {
         match err_type {
             MguErrorType::CliqueOrderingError => MguError::CliqueOrderingError,
@@ -546,6 +557,7 @@ impl MguError {
     }
 
     /// Constructor.
+    #[must_use]
     pub fn from_error_code<U>(code: U) -> MguError
     where
         U: Into<usize>,
@@ -554,6 +566,7 @@ impl MguError {
     }
 
     /// Get the error type to provide introspection.
+    #[must_use]
     pub fn get_error_type(&self) -> MguErrorType {
         match self {
             MguError::UnknownMetavariable(_, _) => MguErrorType::UnknownMetavariable,
@@ -598,6 +611,7 @@ impl MguError {
     }
 
     /// Get the destination type string if this is a `UnknownMetavariable`, `SignedValueOutOfRange`, `UnsignedValueOutOfRange`, or `UnsignedValueUnsupported` instance.
+    #[must_use]
     pub fn get_type_name(&self) -> Option<&'static str> {
         match self {
             MguError::UnknownMetavariable(a_type, _)
@@ -609,6 +623,7 @@ impl MguError {
     }
 
     /// Get the name of the variable if this is an `UnknownMetavariable` instance.
+    #[must_use]
     pub fn get_var_info(&self) -> Option<String> {
         if let MguError::UnknownMetavariable(_, value) = self {
             Some((*value).clone())
@@ -618,6 +633,7 @@ impl MguError {
     }
 
     /// Get the unwanted found type if this is a `TypeMismatch` or `TypeUnassignable` instance.
+    #[must_use]
     pub fn get_unwanted_found_type(&self) -> Option<Rc<Box<dyn TypeCore>>> {
         match self {
             MguError::TypeMismatch(value, _) | MguError::TypeUnassignable(value, _) => {
@@ -628,6 +644,7 @@ impl MguError {
     }
 
     /// Get the type of the receiver if this is a `TypeMismatch`, `TypeUnassignable` or `IndexOutOfRange` instance.
+    #[must_use]
     pub fn get_receiver_type(&self) -> Option<Rc<Box<dyn TypeCore>>> {
         match self {
             MguError::TypeMismatch(_, value)
@@ -638,6 +655,7 @@ impl MguError {
     }
 
     /// Get the unwanted found `usize` if this is a `SlotsMismatch` instance.
+    #[must_use]
     pub fn get_unwanted_found_usize(&self) -> Option<usize> {
         match self {
             MguError::SlotsMismatch(value, _) => Some(*value),
@@ -646,6 +664,7 @@ impl MguError {
     }
 
     /// Get the type of the receiver if is this is a `SlotsMismatch` instance.
+    #[must_use]
     pub fn get_expected_usize(&self) -> Option<usize> {
         match self {
             MguError::SlotsMismatch(_, value) => Some(*value),
@@ -654,6 +673,7 @@ impl MguError {
     }
 
     /// Get the unwanted index if this is an `IndexOutOfRange` or `ChildIndexOutOfRange` instance.
+    #[must_use]
     pub fn get_unwanted_index(&self) -> Option<usize> {
         match self {
             MguError::IndexOutOfRange(_, index, _) | MguError::ChildIndexOutOfRange(index, _) => {
@@ -664,6 +684,7 @@ impl MguError {
     }
 
     /// Get the collection size if this is an `IndexOutOfRange` or `ChildIndexOutOfRange` instance.
+    #[must_use]
     pub fn get_collection_size(&self) -> Option<usize> {
         match self {
             MguError::IndexOutOfRange(_, _, size) | MguError::ChildIndexOutOfRange(_, size) => {
@@ -674,6 +695,7 @@ impl MguError {
     }
 
     /// Get the unwanted value if this is a `SignedValueOutOfRange` instance.
+    #[must_use]
     pub fn get_unwanted_value_signed(&self) -> Option<i128> {
         match self {
             MguError::SignedValueOutOfRange(value, _, _, _) => Some(*value),
@@ -682,6 +704,7 @@ impl MguError {
     }
 
     /// Get the unwanted value if this is an `UnsignedValueOutOfRange`, or `UnsignedValueUnsupported` instance.
+    #[must_use]
     pub fn get_unwanted_value_unsigned(&self) -> Option<u128> {
         match self {
             MguError::UnsignedValueOutOfRange(value, _, _, _)
@@ -691,6 +714,7 @@ impl MguError {
     }
 
     /// Get the minimum of the allowable range if this is a `SignedValueOutOfRange` or `UnsignedValueOutOfRange` instance.
+    #[must_use]
     pub fn get_minimum_allowed(&self) -> Option<u32> {
         match self {
             MguError::SignedValueOutOfRange(_, _, min, _)
@@ -700,6 +724,7 @@ impl MguError {
     }
 
     /// Get the maximum of the allowable range if this is a `SignedValueOutOfRange` or `UnsignedValueOutOfRange` instance.
+    #[must_use]
     pub fn get_maximum_allowed(&self) -> Option<u32> {
         match self {
             MguError::SignedValueOutOfRange(_, _, _, max)
@@ -709,6 +734,7 @@ impl MguError {
     }
 
     /// Get element on left of an illegal pair if this is a `PairValidationFailure` instance.
+    #[must_use]
     pub fn get_illegal_pair_left_element(&self) -> Option<String> {
         match self {
             MguError::PairValidationFailure(left, _) => Some(left.to_owned()),
@@ -717,6 +743,7 @@ impl MguError {
     }
 
     /// Get element on right of an illegal pair if this is a `PairValidationFailure` instance.
+    #[must_use]
     pub fn get_illegal_pair_right_element(&self) -> Option<String> {
         match self {
             MguError::PairValidationFailure(_, right) => Some(right.to_owned()),
@@ -725,6 +752,7 @@ impl MguError {
     }
 
     /// Get payload error type of an incorrectly constructed instance of `UnknownErrorTypeMessage` or `UnknownErrorType`.
+    #[must_use]
     pub fn get_payload_error_type(&self) -> Option<MguErrorType> {
         match self {
             MguError::UnknownErrorTypeMessage(the_type, _)
@@ -734,6 +762,7 @@ impl MguError {
     }
 
     /// Get payload error code of an `UnknownError` instance.
+    #[must_use]
     pub fn get_code(&self) -> Option<usize> {
         match self {
             MguError::UnknownError(code) => Some(*code),

@@ -734,6 +734,7 @@ impl NodeByte {
     /// Return index of this value in [`ALL_NODES`].
     ///
     /// [`ALL_NODES`]: Self::ALL_NODES
+    #[must_use]
     pub fn to_order(self) -> u8 {
         use NodeByte::*;
         match self {
@@ -963,6 +964,7 @@ impl NodeByte {
     }
 
     /// Convenience method to extract just the type from the value of [`NodeByte`].
+    #[must_use]
     pub fn to_type(self) -> SimpleType {
         use NodeByte::*;
         use SimpleType::*;
@@ -1012,6 +1014,7 @@ impl NodeByte {
     }
 
     /// Convenience method to extract an arbitrary number of slot TYPEs from the value of [`NodeByte`].
+    #[must_use]
     pub fn to_slots(self) -> &'static [SimpleType] {
         use NodeByte::*;
         use SimpleType::*;
@@ -1094,6 +1097,7 @@ impl NodeByte {
     /// The actual formatting pattern is determined by the number and types of children.
     ///
     /// For nodes that don't have a simple symbol representation, returns `None`.
+    #[must_use]
     pub const fn display_symbol(self) -> Option<&'static str> {
         use NodeByte::*;
         match self {

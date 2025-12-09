@@ -61,6 +61,7 @@ pub trait OutputFormatter: Send + Sync {
     /// [`Metavariable`]: `crate::Metavariable`
     /// [`Node`]: `crate::Node`
     /// [`Term`]: `crate::Term`
+    #[must_use]
     fn name(&self) -> &str;
 
     /// Get color code for Boolean type (if this formatter supports colors).
@@ -70,6 +71,7 @@ pub trait OutputFormatter: Send + Sync {
     /// # Returns
     ///
     /// Color for Boolean metavariables, or None if coloring not supported.
+    #[must_use]
     fn get_boolean_color(&self) -> Option<Color> {
         None
     }
@@ -81,6 +83,7 @@ pub trait OutputFormatter: Send + Sync {
     /// # Returns
     ///
     /// Color for Setvar metavariables, or None if coloring not supported.
+    #[must_use]
     fn get_setvar_color(&self) -> Option<Color> {
         None
     }
@@ -92,6 +95,7 @@ pub trait OutputFormatter: Send + Sync {
     /// # Returns
     ///
     /// Color for Class metavariables, or None if coloring not supported.
+    #[must_use]
     fn get_class_color(&self) -> Option<Color> {
         None
     }
@@ -100,6 +104,7 @@ pub trait OutputFormatter: Send + Sync {
     ///
     /// Most formatters use infix notation (e.g., "p ∧ q").
     /// Polish notation formatter would return `false`.
+    #[must_use]
     fn is_infix(&self) -> bool {
         true // Most formatters use infix
     }

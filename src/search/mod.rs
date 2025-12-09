@@ -56,6 +56,7 @@ impl DepthCombinationIterator {
     ///
     /// Returns an iterator over all valid depth assignments for `arity` slots
     /// where each depth is in `0..depth` and at least one equals `depth - 1`.
+    #[must_use]
     pub fn new(arity: usize, depth: usize) -> Self {
         if arity == 0 || depth == 0 {
             Self {
@@ -388,11 +389,13 @@ where
     }
 
     /// Get a reference to the term factory.
+    #[must_use]
     pub fn get_term_factory(&self) -> &TF {
         &self.factory
     }
 
     /// Get all types present in the variable and node lists.
+    #[must_use]
     pub fn get_types(&self) -> &[Ty] {
         &self.types
     }
@@ -401,6 +404,7 @@ where
     ///
     /// Returns types that can be used in a slot requiring `slot_type`,
     /// including `slot_type` itself if it appears in the type list.
+    #[must_use]
     pub fn get_types_by_slot_type(&self, slot_type: &Ty) -> Vec<Ty> {
         self.types
             .iter()
@@ -410,6 +414,7 @@ where
     }
 
     /// Get all variables of exactly the specified type.
+    #[must_use]
     pub fn get_vars(&self, exact_type: &Ty) -> &[V] {
         if let Some(vars) = self.vars_by_type.get(exact_type) {
             vars
@@ -419,6 +424,7 @@ where
     }
 
     /// Get all variables whose types appear in `exact_types`, deduplicated and sorted.
+    #[must_use]
     pub fn get_vars_by_types(&self, exact_types: &[Ty]) -> Vec<V> {
         let type_set = exact_types.iter().collect::<HashSet<_>>();
         let mut type_list = type_set.into_iter().collect::<Vec<_>>();
@@ -435,12 +441,14 @@ where
     /// Get all variables that can fill a slot of type `slot_type`.
     ///
     /// This includes variables of all sub-types of `slot_type`.
+    #[must_use]
     pub fn get_vars_by_slot_type(&self, slot_type: &Ty) -> Vec<V> {
         let wanted_types = self.get_types_by_slot_type(slot_type);
         self.get_vars_by_types(&wanted_types)
     }
 
     /// Get all nodes of exactly the specified type and arity.
+    #[must_use]
     pub fn get_nodes(&self, exact_type: &Ty, arity: usize) -> &[N] {
         let key = (exact_type.clone(), arity);
 
@@ -455,6 +463,7 @@ where
     ///
     /// Used internally to filter nodes by criteria like "nullary only"
     /// or "specific type only".
+    #[must_use]
     pub fn get_node_keys_by_filter<F>(&self, filter: F) -> Vec<(Ty, usize)>
     where
         F: Fn(&Ty, usize) -> bool,
@@ -467,6 +476,7 @@ where
     }
 
     /// Get all nodes matching any of the given (type, arity) pairs, deduplicated and sorted.
+    #[must_use]
     pub fn get_nodes_by_type_arity_pairs(&self, exact_keys: &[(Ty, usize)]) -> Vec<N> {
         let key_set = exact_keys.iter().collect::<HashSet<_>>();
         let mut key_list = key_set.into_iter().collect::<Vec<_>>();
@@ -481,6 +491,7 @@ where
     }
 
     /// Get all nullary nodes (arity 0) of exactly the specified type.
+    #[must_use]
     pub fn get_nullary_nodes(&self, exact_type: &Ty) -> Vec<N> {
         let wanted_keys = self.get_node_keys_by_filter(|node_type, node_arity| {
             *node_type == *exact_type && node_arity == 0
@@ -489,6 +500,7 @@ where
     }
 
     /// Get all non-nullary nodes (arity > 0) of exactly the specified type.
+    #[must_use]
     pub fn get_nonnullary_nodes(&self, exact_type: &Ty) -> Vec<N> {
         let wanted_keys = self.get_node_keys_by_filter(|node_type, node_arity| {
             *node_type == *exact_type && node_arity != 0
@@ -497,6 +509,7 @@ where
     }
 
     /// Get all nullary nodes whose types appear in `exact_types`.
+    #[must_use]
     pub fn get_nullary_nodes_by_types(&self, exact_types: &[Ty]) -> Vec<N> {
         let type_set = exact_types.iter().cloned().collect::<HashSet<_>>();
         let wanted_keys = self.get_node_keys_by_filter(|node_type, node_arity| {
@@ -506,6 +519,7 @@ where
     }
 
     /// Get all non-nullary nodes whose types appear in `exact_types`.
+    #[must_use]
     pub fn get_nonnullary_nodes_by_types(&self, exact_types: &[Ty]) -> Vec<N> {
         let type_set = exact_types.iter().cloned().collect::<HashSet<_>>();
         let wanted_keys = self.get_node_keys_by_filter(|node_type, node_arity| {
@@ -515,12 +529,14 @@ where
     }
 
     /// Get all nullary nodes that can fill a slot of type `slot_type`.
+    #[must_use]
     pub fn get_nullary_nodes_by_slot_type(&self, slot_type: &Ty) -> Vec<N> {
         let wanted_types = self.get_types_by_slot_type(slot_type);
         self.get_nullary_nodes_by_types(&wanted_types)
     }
 
     /// Get all non-nullary nodes that can fill a slot of type `slot_type`.
+    #[must_use]
     pub fn get_nonnullary_nodes_by_slot_type(&self, slot_type: &Ty) -> Vec<N> {
         let wanted_types = self.get_types_by_slot_type(slot_type);
         self.get_nonnullary_nodes_by_types(&wanted_types)

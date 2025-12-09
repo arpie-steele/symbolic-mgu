@@ -27,6 +27,7 @@ pub struct MetaByte(pub u8);
 
 impl MetaByte {
     /// From a type, return maximum valid index.
+    #[must_use]
     pub fn max_index_by_type(typ: SimpleType) -> usize {
         use SimpleType::*;
         let data = match typ {
@@ -61,11 +62,12 @@ impl MetaByte {
         }
     }
 
-    /// Return an iterator over Metavariables.
+    /// Return a display string.
     ///
     /// Every metavariable has a string display form.
     ///
     /// This methods need not check that the item is valid data for Metavariable purposes.
+    #[must_use]
     pub fn to_str(&self) -> String {
         if self.0.is_ascii() && !self.0.is_ascii_control() {
             format!("{0}", self.0 as char)
@@ -139,11 +141,13 @@ impl MetaByte {
     /// Get LaTeX representation.
     ///
     /// For `MetaByte`, this is just the ASCII character.
+    #[must_use]
     fn to_latex(self) -> String {
         self.to_str()
     }
 
     /// Get HTML representation with optional coloring.
+    #[must_use]
     fn to_html(self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
         let char_str = self.to_str();
 
@@ -164,6 +168,7 @@ impl MetaByte {
     }
 
     /// Get UTF-8 representation with ANSI color codes.
+    #[must_use]
     fn to_utf8_color(self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
         let char_str = self.to_str();
 

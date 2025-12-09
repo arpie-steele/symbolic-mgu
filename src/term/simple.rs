@@ -27,14 +27,6 @@ where
     NodeOrLeaf(N, Vec<Self>),
 }
 
-impl<T, V, N> EnumTerm<T, V, N>
-where
-    T: Type,
-    V: Metavariable<Type = T>,
-    N: Node<Type = T>,
-{
-}
-
 impl<T, V, N> Display for EnumTerm<T, V, N>
 where
     T: Type,
@@ -223,6 +215,7 @@ where
     N: Node<Type = T>,
 {
     /// Create a new `EnumTermFactory`.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             _phantom_t: std::marker::PhantomData,

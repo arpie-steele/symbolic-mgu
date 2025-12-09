@@ -309,6 +309,7 @@ where
     ///
     /// # Warning
     /// - This iterator will return unique entries, but not necessarily a number that fits in memory.
+    #[must_use]
     fn list_nodes_by_type(&self, the_type: &Self::NodeType) -> Self::NodeIterator<'_>;
 
     /// Count all nodes by their Type.
@@ -320,6 +321,7 @@ where
     /// - lower limit on the number of nodes currently returned by `list_nodes_by_type`
     /// - upper limit on the number of nodes currently returned by `list_nodes_by_type` if computable.
     #[allow(unused_variables)]
+    #[must_use]
     fn count_nodes_by_type(&self, the_type: &Self::NodeType) -> (usize, Option<usize>) {
         (0, None)
     }

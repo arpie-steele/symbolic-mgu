@@ -89,6 +89,7 @@ pub enum AsciiMetaVar {
 
 impl AsciiMetaVar {
     /// Convert a value of [`AsciiMetaVar`] to presentation order within those of the same type.
+    #[must_use]
     pub fn to_order(self) -> u8 {
         use AsciiMetaVar::*;
         match self {
@@ -108,6 +109,7 @@ impl AsciiMetaVar {
     }
 
     /// Describe [` SimpleType`] of this for this instance of [`AsciiMetaVar`].
+    #[must_use]
     pub fn to_type(self) -> SimpleType {
         use AsciiMetaVar::*;
         use SimpleType::*;

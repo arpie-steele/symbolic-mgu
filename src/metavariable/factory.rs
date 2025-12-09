@@ -273,6 +273,7 @@ where
     ///
     /// # Warning
     /// - This iterator will return unique entries, but not necessarily a number that fits in memory.
+    #[must_use]
     fn list_metavariables_by_type(
         &self,
         the_type: &Self::MetavariableType,
@@ -286,6 +287,7 @@ where
     /// # Returns
     /// - lower limit on the number of Metavariables currently returned by `list_Metavariables_by_type`
     /// - upper limit on the number of Metavariables currently returned by `list_Metavariables_by_type` if computable.
+    #[must_use]
     #[allow(unused_variables)]
     fn count_metavariables_by_type(
         &self,
