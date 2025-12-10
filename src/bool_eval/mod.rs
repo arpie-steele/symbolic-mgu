@@ -63,9 +63,7 @@ use crate::{
     TermFactory, Type,
 };
 pub use generated_enum::BooleanSimpleOp;
-pub use generated_enum::BooleanSimpleOpDiscriminants;
 use std::collections::HashSet;
-use std::convert::TryFrom;
 use std::fmt::{Debug as DebugTrait, Display};
 use std::marker::PhantomData;
 use std::ops::{BitAnd, BitOr, BitXor, Not};
@@ -76,6 +74,7 @@ pub struct BooleanSimpleNode<Ty: Type>(BooleanSimpleOp, PhantomData<Ty>);
 
 impl<Ty: Type> BooleanSimpleNode<Ty> {
     /// Create a new `BooleanSimpleNode` from a `BooleanSimpleOp`.
+    #[must_use]
     pub fn from_op(op: BooleanSimpleOp) -> Self {
         BooleanSimpleNode(op, PhantomData)
     }
@@ -112,20 +111,11 @@ impl<Ty: Type> Node for BooleanSimpleNode<Ty> {
     }
 }
 
-impl TryFrom<NodeByte> for BooleanSimpleOp {
-    type Error = MguError;
-
-    fn try_from(node: NodeByte) -> Result<Self, Self::Error> {
-        node.to_boolean_op().ok_or_else(|| {
-            MguError::ArgumentError(format!("NodeByte::{:?} is not a Boolean operation", node))
-        })
-    }
-}
-
 impl BooleanSimpleOp {
     /// Evaluate the Boolean operator on 0 inputs.
     ///
     /// This works only for `BooleanSimpleOp::True0 `and `BooleanSimpleOp::False0` and returns None for operators with higher arities.
+    #[must_use]
     pub fn eval0<B, U, const N: usize>(&self) -> Option<B>
     where
         B: UnsignedBits<U, N>,
@@ -147,6 +137,7 @@ impl BooleanSimpleOp {
     /// This works for `BooleanSimpleOp::True0` and `BooleanSimpleOp::False0`. but ignores the argument.
     /// This works similarly for `BooleanSimpleOp::True1` and `BooleanSimpleOp::False1` and as expected for `BooleanSimpleOp::NotA1` and `BooleanSimpleOp::IdA1`
     /// and returns None for operators with higher arities.
+    #[must_use]
     pub fn eval1<B, U, const N: usize>(&self, a: &B) -> Option<B>
     where
         B: UnsignedBits<U, N>,
@@ -169,6 +160,7 @@ impl BooleanSimpleOp {
     ///
     /// This silently ignores the last arguments if the operator has arity lower than 2
     /// and returns None for higher arities.
+    #[must_use]
     pub fn eval2<B, U, const N: usize>(&self, a: &B, b: &B) -> Option<B>
     where
         B: UnsignedBits<U, N>,
@@ -203,6 +195,7 @@ impl BooleanSimpleOp {
     ///
     /// This silently ignores the last arguments if the operator has arity lower than 3
     /// and returns None for higher arities, if any are ever defined.
+    #[must_use]
     pub fn eval3<B, U, const N: usize>(&self, a: &B, b: &B, c: &B) -> Option<B>
     where
         B: UnsignedBits<U, N>,
@@ -541,6 +534,7 @@ use num_bigint::BigUint;
 /// [`SumFromAdder`]: `crate::NodeByte::SumFromAdder`
 /// [`CarryFromAdder`]: `crate::NodeByte::CarryFromAdder`
 /// [`LogicalIf`]: `crate::NodeByte::LogicalIf`
+#[must_use]
 pub fn is_supported_op(node: &NodeByte) -> bool {
     use NodeByte::*;
     matches!(
@@ -1146,6 +1140,7 @@ pub struct TruthTable<V> {
 
 impl<V> TruthTable<V> {
     /// Returns the number of rows in this truth table (`2^n` where n is the number of variables).
+    #[must_use]
     pub fn num_rows(&self) -> usize {
         match &self.backing {
             TruthTableBacking::Constant(_) => 1,
@@ -1160,6 +1155,7 @@ impl<V> TruthTable<V> {
     }
 
     /// Returns the number of variables in this truth table.
+    #[must_use]
     pub fn num_vars(&self) -> usize {
         self.vars.len()
     }
@@ -1622,6 +1618,7 @@ pub struct SomeBits<const N: usize>(BigUint);
 #[cfg(feature = "bigint")]
 impl<const N: usize> SomeBits<N> {
     /// A mask with `2^(2^N)` ones.
+    #[must_use]
     pub fn all_ones_mask() -> Self {
         let one: BigUint = 1u32.into();
         Self((one.clone() << (1 << N)) - one)
@@ -1778,7 +1775,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::MetavariableFactory;
+    use crate::{MetavariableFactory, SimpleType, TypeCore};
 
     use super::*;
     use strum::VariantArray;
@@ -2140,5 +2137,237 @@ mod tests {
             test_tautology(&de_morgan).unwrap(),
             "De Morgan's law should be a tautology"
         );
+    }
+
+    #[test]
+    fn is_supported_op_boolean_nodes() {
+        // Test that standard Boolean NodeByte variants are supported
+        assert!(is_supported_op(&NodeByte::Not));
+        assert!(is_supported_op(&NodeByte::And));
+        assert!(is_supported_op(&NodeByte::Or));
+        assert!(is_supported_op(&NodeByte::Implies));
+        assert!(is_supported_op(&NodeByte::Biimp));
+
+        // Test that non-Boolean NodeByte variants are not supported
+        assert!(!is_supported_op(&NodeByte::Equals));
+        assert!(!is_supported_op(&NodeByte::PowerCls));
+
+        // Comprehensive test
+        for n in NodeByte::VARIANTS {
+            let typ2 = n.to_type(); // Special to NodeByte
+            let typ = n.get_type(); // Node API
+            assert!(typ.is_ok());
+            let typ = typ.unwrap();
+            assert_eq!(typ, typ2, "{n:?}, get_type()? = to_type()");
+
+            let count2 = n.to_slots().len(); // Special to NodeByte
+            let count = n.get_arity(); // Node API
+            assert!(count.is_ok());
+            let count = count.unwrap();
+            assert_eq!(count, count2, "{n:?}, get_arity()? = to_slots().len()");
+
+            let all_slots_are_boolean2 = n.to_slots().iter().all(|&x| x == SimpleType::Boolean);
+            let all_slots_are_boolean = (0..count).all(|s| {
+                // Node, Type API
+                let st = n.get_slot_type(s);
+                assert!(st.is_ok(), "{:?}.get_slot_type({})", n, s);
+                st.unwrap().is_boolean()
+            });
+            assert_eq!(
+                all_slots_are_boolean, all_slots_are_boolean2,
+                "{n:?} all_slots_are_boolean"
+            );
+
+            let is_boolean_op =
+                typ.is_boolean() && all_slots_are_boolean && n != &NodeByte::ChoiceAxiomHolds;
+            if is_boolean_op {
+                assert!(is_supported_op(n), "is_supported_op({:?})", n);
+            } else {
+                assert!(!is_supported_op(n), "!is_supported_op({:?})", n);
+            }
+        }
+    }
+
+    #[test]
+    #[allow(clippy::redundant_test_prefix)]
+    fn test_term_simple_variable() {
+        use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
+
+        let vars = MetaByteFactory();
+        let p_var = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
+        let p = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
+
+        // A single variable is contingent - neither tautology nor contradiction
+        let result = test_term(&p).unwrap();
+        assert!(result.is_none(), "Single variable should be contingent");
+    }
+
+    #[test]
+    #[allow(clippy::redundant_test_prefix)]
+    fn test_term_tautology() {
+        use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
+
+        let vars = MetaByteFactory();
+        let p_var = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
+        let p = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
+
+        // p → p is a tautology
+        let tautology = EnumTerm::NodeOrLeaf(NodeByte::Implies, vec![p.clone(), p]);
+
+        let result = test_term(&tautology).unwrap();
+        assert_eq!(result, Some(true), "p → p should be a tautology");
+    }
+
+    #[test]
+    #[allow(clippy::redundant_test_prefix)]
+    fn test_term_contradiction() {
+        use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
+
+        let vars = MetaByteFactory();
+        let p_var = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
+        let p = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
+
+        // p ∧ ¬p is a contradiction
+        let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
+        let contradiction = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p, not_p]);
+
+        let result = test_term(&contradiction).unwrap();
+        assert_eq!(result, Some(false), "p ∧ ¬p should be a contradiction");
+    }
+
+    #[test]
+    fn extract_truth_table_single_var() {
+        use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
+
+        let vars = MetaByteFactory();
+        let p_var = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .next()
+            .unwrap();
+        let p = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
+
+        let table = extract_truth_table(&p).unwrap();
+
+        // Single variable should have 2 rows
+        assert_eq!(table.num_rows(), 2);
+
+        // Check that we get both T and F
+        let rows: Vec<_> = table.into_iter().collect();
+        let values: Vec<_> = rows.iter().map(|row| row.result).collect();
+        assert!(values.contains(&true));
+        assert!(values.contains(&false));
+    }
+
+    #[test]
+    fn extract_truth_table_two_vars() {
+        use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
+        use itertools::Itertools;
+
+        let vars = MetaByteFactory();
+        let (p_var, q_var) = vars
+            .list_metavariables_by_type(&SimpleType::Boolean)
+            .tuples()
+            .next()
+            .unwrap();
+        let p = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
+        let q = EnumTerm::Leaf(q_var);
+
+        // Create p ∧ q
+        let p_and_q = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p, q]);
+
+        let table = extract_truth_table(&p_and_q).unwrap();
+
+        // Two variables should have 4 rows
+        assert_eq!(table.num_rows(), 4);
+
+        // AND is true only when both are true (1 out of 4 cases)
+        let rows: Vec<_> = table.into_iter().collect();
+        let true_count = rows.iter().filter(|row| row.result).count();
+        assert_eq!(true_count, 1);
+    }
+
+    #[test]
+    fn boolean_simple_node_from_op() {
+        use crate::SimpleType;
+        use strum::VariantArray;
+
+        // Test that we can create `BooleanSimpleNode` from `BooleanSimpleOp`
+        for op in BooleanSimpleOp::VARIANTS {
+            let node = BooleanSimpleNode::<SimpleType>::from_op(*op);
+            // Verify arity matches
+            let expected_arity = op.get_arity() as usize;
+            let node_arity = node.get_arity().unwrap();
+            assert_eq!(node_arity, expected_arity, "Arity mismatch for {:?}", op);
+        }
+    }
+
+    #[test]
+    fn boolean_simple_op_truth_tables_u16() {
+        // Test a sample of `BooleanSimpleOp` with `u16` (4 variables)
+        // Standard test vectors for 3 variables, extended to 4
+        let a = 0xAAAAu16; // 1010...
+        let b = 0xCCCCu16; // 1100...
+        let c = 0xF0F0u16; // 11110000...
+
+        for &op in BooleanSimpleOp::VARIANTS {
+            let arity = op.get_arity();
+            let expected_code = op.get_code3() as u16;
+            let mask = 0xFFu16;
+
+            let result = match arity {
+                0 => op.eval0::<u16, u16, 3>().unwrap(),
+                1 => op.eval1::<u16, u16, 3>(&a).unwrap(),
+                2 => op.eval2::<u16, u16, 3>(&a, &b).unwrap(),
+                3 => op.eval3::<u16, u16, 3>(&a, &b, &c).unwrap(),
+                _ => panic!("Unexpected arity {} for {:?}", arity, op),
+            } & mask;
+
+            assert_eq!(
+                result, expected_code,
+                "Truth table mismatch for {:?} (arity={}): got {:#x}, expected {:#x}",
+                op, arity, result, expected_code
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "bigint")]
+    fn boolean_simple_op_truth_tables_bigint() {
+        use num_bigint::BigUint;
+        use strum::VariantArray;
+
+        // Test with `bigint` (max 8 variables as requested, but we'll use 3)
+        let a = SomeBits::<3>(BigUint::from(0xaa_u32));
+        let b = SomeBits::<3>(BigUint::from(0xcc_u32));
+        let c = SomeBits::<3>(BigUint::from(0xf0_u32));
+
+        for &op in BooleanSimpleOp::VARIANTS {
+            let arity = op.get_arity();
+            let expected_code = op.get_code3();
+
+            let result = match arity {
+                0 => op.eval0::<SomeBits<3>, SomeBits<3>, 3>().unwrap(),
+                1 => op.eval1::<SomeBits<3>, SomeBits<3>, 3>(&a).unwrap(),
+                2 => op.eval2::<SomeBits<3>, SomeBits<3>, 3>(&a, &b).unwrap(),
+                3 => op.eval3::<SomeBits<3>, SomeBits<3>, 3>(&a, &b, &c).unwrap(),
+                _ => panic!("Unexpected arity {} for {:?}", arity, op),
+            };
+
+            let result_u8 = (result.0.to_u32_digits().first().unwrap_or(&0) & 0xff) as u8;
+            assert_eq!(
+                result_u8, expected_code,
+                "Truth table mismatch for {:?} (arity={}): got {:#x}, expected {:#x}",
+                op, arity, result_u8, expected_code
+            );
+        }
     }
 }

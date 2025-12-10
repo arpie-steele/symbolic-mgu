@@ -53,6 +53,7 @@ where
     /// Implementations may override for performance if they can check without allocation.
     ///
     /// [`Node`]: `crate::Node`
+    #[must_use]
     fn is_metavariable(&self) -> bool {
         self.get_metavariable().is_some()
     }
@@ -67,11 +68,13 @@ where
     /// This method MUST be consistent with [`Term::is_metavariable`]:
     /// - Returns `Some(_)` iff `is_metavariable()` returns `true`
     /// - Returns `None` iff `is_metavariable()` returns `false`
+    #[must_use]
     fn get_metavariable(&self) -> Option<V>;
 
     /// Return the root [`Node`] if this is a sub-tree (which might have zero children).
     ///
     /// [`Node`]: `crate::Node`
+    #[must_use]
     fn get_node(&self) -> Option<N>;
 
     /// Return the arity of the root of the tree.
@@ -79,15 +82,19 @@ where
     /// This is zero if the root is a [`Metavariable`] (or a [`Node`] with 0 slots).
     ///
     /// [`Node`]: `crate::Node`
+    #[must_use]
     fn get_n_children(&self) -> usize;
 
     /// Get the indexed sub-tree.
+    #[must_use]
     fn get_child(&self, index: usize) -> Option<&Self>;
 
     /// Get an iterator over all the sub-trees.
+    #[must_use]
     fn get_children(&self) -> impl Iterator<Item = &Self>;
 
     /// Alternate to an iterator.
+    #[must_use]
     fn get_children_as_slice(&self) -> &[Self];
 
     /// Check if this term is structurally well-formed.
@@ -114,6 +121,7 @@ where
     /// This is a convenience method that converts errors to `false`.
     /// Use [`Term::is_valid_sentence`] if you need to distinguish between
     /// validation failures and structural errors.
+    #[must_use]
     fn is_valid_sentence_unchecked(&self) -> bool {
         self.is_valid_sentence().unwrap_or(false)
     }
@@ -219,6 +227,7 @@ where
     /// let output = term.format_with(&*formatter);
     /// assert_eq!(output, "P");
     /// ```
+    #[must_use]
     fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
         let _ = formatter; // Suppress unused warning
         format!("{}", self) // Default: use Display

@@ -23,6 +23,7 @@ static GLOBAL_FORMATTER_REGISTRY: OnceLock<RwLock<HashMap<String, FormatterBox>>
 /// - `"html-color"` - HTML with inline color styles
 /// - `"latex"` - LaTeX math mode
 /// - `"display"` - Fallback using Display trait
+#[must_use]
 fn formatter_registry() -> &'static RwLock<HashMap<String, FormatterBox>> {
     GLOBAL_FORMATTER_REGISTRY.get_or_init(|| {
         use super::formatters::*;
@@ -115,6 +116,7 @@ pub fn register_formatter(name: impl Into<String>, formatter: impl OutputFormatt
 /// Can panic
 /// - if `RwLock` is poisoned because a writer panics while holding an exclusive lock, or
 /// - if the lock is already held by the current thread.
+#[must_use]
 pub fn get_formatter(name: &str) -> FormatterBox {
     formatter_registry()
         .read()

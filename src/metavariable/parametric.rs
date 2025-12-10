@@ -82,6 +82,7 @@ where
     /// let phi_1 = MyVar::try_from_type_and_index(SimpleType::Boolean, 12).unwrap();
     /// assert_eq!(phi_1.format_as_ascii(), "ph_1");
     /// ```
+    #[must_use]
     pub fn format_as_ascii(&self) -> String
     where
         Ty: Into<SimpleType>,
@@ -96,6 +97,7 @@ where
     }
 
     /// Format as UTF-8 (Unicode mathematical symbols).
+    #[must_use]
     pub fn format_as_utf8(&self) -> String
     where
         Ty: Into<SimpleType>,
@@ -105,6 +107,7 @@ where
     }
 
     /// Format as LaTeX.
+    #[must_use]
     pub fn format_as_latex(&self) -> String
     where
         Ty: Into<SimpleType>,
@@ -114,6 +117,7 @@ where
     }
 
     /// Format as HTML with optional coloring.
+    #[must_use]
     pub fn format_as_html(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String
     where
         Ty: Into<SimpleType>,
@@ -150,6 +154,7 @@ where
     }
 
     /// Format as UTF-8 with ANSI color codes.
+    #[must_use]
     pub fn format_as_utf8_color(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String
     where
         Ty: Into<SimpleType>,

@@ -22,6 +22,7 @@ impl WideCharSet {
     // ==================== BOOLEAN CHARACTERS ====================
 
     /// ASCII representations for Boolean metavariables (Metamath-compatible).
+    #[must_use]
     pub const fn ascii_boolean(index: usize) -> Option<&'static str> {
         /// See `crate::WIDE_BOOLEANS_ASCII`
         const CHARS: &[&str] = WIDE_BOOLEANS_ASCII;
@@ -33,6 +34,7 @@ impl WideCharSet {
     }
 
     /// UTF-8 representations for Boolean metavariables (Unicode mathematical symbols).
+    #[must_use]
     pub const fn utf8_boolean(index: usize) -> Option<&'static str> {
         /// See `crate::WIDE_BOOLEANS` for an equivalent string.
         const CHARS: &[&str] = &[
@@ -57,6 +59,7 @@ impl WideCharSet {
     }
 
     /// LaTeX representations for Boolean metavariables.
+    #[must_use]
     pub const fn latex_boolean(index: usize) -> Option<&'static str> {
         /// See `crate::WIDE_BOOLEANS` for a corresponding UTF-8 string.
         const CHARS: &[&str] = &[
@@ -83,6 +86,7 @@ impl WideCharSet {
     // ==================== SETVAR CHARACTERS ====================
 
     /// ASCII representations for Setvar metavariables (Metamath-compatible).
+    #[must_use]
     pub const fn ascii_setvar(index: usize) -> Option<&'static str> {
         /// See `crate::WIDE_SETVARS_ASCII`.
         const CHARS: &[&str] = WIDE_SETVARS_ASCII;
@@ -94,6 +98,7 @@ impl WideCharSet {
     }
 
     /// UTF-8 representations for Setvar metavariables (italic Latin lowercase).
+    #[must_use]
     pub const fn utf8_setvar(index: usize) -> Option<&'static str> {
         /// See `crate::WIDE_SETVARS` for an equivalent string.
         const CHARS: &[&str] = &[
@@ -134,6 +139,7 @@ impl WideCharSet {
     /// LaTeX representations for Setvar metavariables.
     ///
     /// Latin letters are used as-is in LaTeX math mode.
+    #[must_use]
     pub const fn latex_setvar(index: usize) -> Option<&'static str> {
         // Same as ASCII for Latin letters
         Self::ascii_setvar(index)
@@ -142,6 +148,7 @@ impl WideCharSet {
     // ==================== CLASS CHARACTERS ====================
 
     /// ASCII representations for Class metavariables (Metamath-compatible).
+    #[must_use]
     pub const fn ascii_class(index: usize) -> Option<&'static str> {
         /// See `crate::WIDE_CLASSES_ASCII`.
         const CHARS: &[&str] = WIDE_CLASSES_ASCII;
@@ -153,6 +160,7 @@ impl WideCharSet {
     }
 
     /// UTF-8 representations for Class metavariables (italic Latin uppercase).
+    #[must_use]
     pub const fn utf8_class(index: usize) -> Option<&'static str> {
         /// See `crate::WIDE_CLASSES` for an equivalent string.
         const CHARS: &[&str] = &[
@@ -193,6 +201,7 @@ impl WideCharSet {
     /// LaTeX representations for Class metavariables.
     ///
     /// Latin letters are used as-is in LaTeX math mode.
+    #[must_use]
     pub const fn latex_class(index: usize) -> Option<&'static str> {
         // Same as ASCII for Latin letters
         Self::ascii_class(index)
@@ -201,6 +210,7 @@ impl WideCharSet {
     // ==================== TYPE DISPATCHERS ====================
 
     /// Get ASCII representation for any type.
+    #[must_use]
     pub fn ascii_char(ty: &SimpleType, index: usize) -> Option<&'static str> {
         match ty {
             SimpleType::Boolean => Self::ascii_boolean(index),
@@ -210,6 +220,7 @@ impl WideCharSet {
     }
 
     /// Get UTF-8 representation for any type.
+    #[must_use]
     pub fn utf8_char(ty: &SimpleType, index: usize) -> Option<&'static str> {
         match ty {
             SimpleType::Boolean => Self::utf8_boolean(index),
@@ -219,6 +230,7 @@ impl WideCharSet {
     }
 
     /// Get LaTeX representation for any type.
+    #[must_use]
     pub fn latex_char(ty: &SimpleType, index: usize) -> Option<&'static str> {
         match ty {
             SimpleType::Boolean => Self::latex_boolean(index),
@@ -228,6 +240,7 @@ impl WideCharSet {
     }
 
     /// Get maximum base index for a type (before decorators).
+    #[must_use]
     pub const fn max_index(ty: &SimpleType) -> usize {
         match ty {
             SimpleType::Boolean => 11, // 12 chars (0..11)

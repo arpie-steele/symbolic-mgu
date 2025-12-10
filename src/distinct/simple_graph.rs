@@ -71,16 +71,19 @@ pub struct SimpleGraph<U: Eq + Hash>(HashSet<Pair<U>>);
 
 impl<U: Eq + Hash> SimpleGraph<U> {
     /// Creates an empty `SimpleGraph`.
+    #[must_use]
     pub fn new() -> Self {
         Self(HashSet::new())
     }
 
     /// Returns the number of edges in the graph.
+    #[must_use]
     pub fn edges_len(&self) -> usize {
         self.0.len()
     }
 
     /// Returns `true` if the graph contains no edges.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }

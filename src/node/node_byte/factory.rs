@@ -22,6 +22,7 @@ where
     Ty: Type,
 {
     /// Create a factory for stateless `NodeByte` objects.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             _not_used: PhantomData,
@@ -40,6 +41,7 @@ where
     }
 
     /// Loop over all possible `NodeByte` values.
+    #[must_use]
     pub fn all_nodes_iter(&self) -> std::vec::IntoIter<NodeByte> {
         // We use `to_vec().into_iter()` to agree with our declared `Self::NodeIterator`
         #[allow(clippy::unnecessary_to_owned)]

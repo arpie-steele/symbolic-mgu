@@ -8,7 +8,9 @@
 //! - `condensed_detach`: Meredith's condensed detachment (modus ponens application)
 
 use super::base::Statement;
-use crate::logic::{modus_ponens, MP_MAJOR_PREMISE, MP_MINOR_PREMISE};
+use crate::logic::propositional::rules::cn_basis::{
+    modus_ponens, MP_MAJOR_PREMISE, MP_MINOR_PREMISE,
+};
 use crate::{
     apply_substitution, unify, DistinctnessGraph, Metavariable, MetavariableFactory, MguError,
     Node, Substitution, Term, TermFactory, Type,

@@ -10,24 +10,41 @@ use symbolic_mgu::{
 };
 
 fn run() -> Result<(), MguError> {
+    use NodeByte::*;
     let formatter = get_formatter("utf8");
 
     // Create variables of different types
     let vf = WideMetavariableFactory();
     let vars = vf
         .list_metavariables_by_type(&SimpleType::Boolean)
-        .take(2)
-        .chain(vf.list_metavariables_by_type(&SimpleType::Setvar).take(2))
-        .chain(vf.list_metavariables_by_type(&SimpleType::Class).take(1))
+        .take(3)
+        .chain(vf.list_metavariables_by_type(&SimpleType::Setvar).take(3))
+        .chain(vf.list_metavariables_by_type(&SimpleType::Class).take(3))
         .collect::<Vec<_>>();
 
     // Nodes spanning different types and arities
     let nodes = vec![
-        NodeByte::True,         // Boolean, arity 0
-        NodeByte::Not,          // Boolean, arity 1
-        NodeByte::Implies,      // Boolean, arity 2
-        NodeByte::ForAll,       // Boolean, arity 2 (Setvar, Boolean)
-        NodeByte::UniversalCls, // Class, arity 0
+        True,                // Boolean, arity 0
+        Not,                 // Boolean, arity 1 (Boolean)
+        OrdinalPred,         // Boolean, arity 1 (Class)
+        Implies,             // Boolean, arity 2 (Boolean, Boolean)
+        ForAll,              // Boolean, arity 2 (Setvar, Boolean)
+        SetNotFreeInCls,     // Boolean, arity 2 (Setvar, Class)
+        IsElementOf,         // Boolean, arity 2 (Class, Class)
+        And3,                // Boolean, arity 3 (Boolean, Boolean, Boolean)
+        ResForAll,           // Boolean, arity 3 (Setvar, Class, Boolean)
+        SubClassInWff,       // Boolean, arity 3 (Class, Setvar, Boolean)
+        BinaryRelation,      // Boolean, arity 3 (Class, Class, Class)
+        RelationIsometry,    // Boolean, arity 5 (Class, Class, Class, Class, Class)
+        UniversalCls,        // Class, arity 0
+        PowerCls,            // Class, arity 1 (Class)
+        UnionOp,             // Class, arity 2 (Class, Class)
+        ClassIf,             // Class, arity 3 (Boolean, Class, Class)
+        OrdPairsBuilder,     // Class, arity 3 (Setvar, Setvar, Boolean)
+        IndexedIntersection, // Class, arity 3 (Setvar, Class, Class)
+        SubClassInCls,       // Class, arity 3 (Class, Setvar, Class)
+        OperatorBuilder,     // Class, arity 4 (Setvar, Setvar, Setvar, Boolean)
+        OperatorMapsTo,      // Class, arity 5 (Setvar, Class, Setvar, Class, Class)
     ];
 
     let factory = EnumTermFactory::<SimpleType, WideMetavariable, NodeByte>::new();
@@ -38,18 +55,20 @@ fn run() -> Result<(), MguError> {
         println!("=== Type: {} ===", term_type);
 
         for depth in 0..=1 {
-            let iterator = get_iterator(&search, *term_type, depth)?;
-            let terms: Vec<_> = iterator.collect();
-
-            if terms.is_empty() {
-                continue;
-            }
-
-            println!("Depth {}: {} terms", depth, terms.len());
-            for term in &terms {
+            println!();
+            println!("Depth {}:", depth);
+            let mut count = 0;
+            for term in get_iterator(&search, *term_type, depth)? {
+                count += 1;
                 let formatted = term.format_with(&*formatter);
-                println!("  {}", formatted);
+                if formatted.contains('?') {
+                    println!("  {}", term);
+                } else {
+                    println!("  {}", formatted);
+                }
             }
+            println!();
+            println!("Depth {}: {} terms", depth, count);
         }
         println!();
     }

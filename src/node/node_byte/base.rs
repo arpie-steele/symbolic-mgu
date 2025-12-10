@@ -734,6 +734,7 @@ impl NodeByte {
     /// Return index of this value in [`ALL_NODES`].
     ///
     /// [`ALL_NODES`]: Self::ALL_NODES
+    #[must_use]
     pub fn to_order(self) -> u8 {
         use NodeByte::*;
         match self {
@@ -963,6 +964,7 @@ impl NodeByte {
     }
 
     /// Convenience method to extract just the type from the value of [`NodeByte`].
+    #[must_use]
     pub fn to_type(self) -> SimpleType {
         use NodeByte::*;
         use SimpleType::*;
@@ -1012,6 +1014,7 @@ impl NodeByte {
     }
 
     /// Convenience method to extract an arbitrary number of slot TYPEs from the value of [`NodeByte`].
+    #[must_use]
     pub fn to_slots(self) -> &'static [SimpleType] {
         use NodeByte::*;
         use SimpleType::*;
@@ -1094,6 +1097,7 @@ impl NodeByte {
     /// The actual formatting pattern is determined by the number and types of children.
     ///
     /// For nodes that don't have a simple symbol representation, returns `None`.
+    #[must_use]
     pub const fn display_symbol(self) -> Option<&'static str> {
         use NodeByte::*;
         match self {
@@ -1578,6 +1582,30 @@ mod tests {
                 max_len
             );
             max_len = n_slots;
+        }
+    }
+
+    #[test]
+    fn factory_rejects_metabyte_discriminant() {
+        let factory: NodeByteFactory<SimpleType> = NodeByteFactory::default();
+
+        // MetaByte uses ASCII letters. Test with 'A' (65) which is a valid MetaByte
+        // but should NOT be a valid NodeByte discriminant.
+        let result = factory.lookup_by_discriminant(65);
+        assert!(
+            result.is_err(),
+            "lookup_by_discriminant should reject MetaByte discriminant 65 ('A')"
+        );
+
+        // Also test a few other ASCII letters to verify the contract
+        for discriminant in [b'A', b'Z', b'a', b'z', b'x', b'P'] {
+            let result = factory.lookup_by_discriminant(discriminant);
+            assert!(
+                result.is_err(),
+                "lookup_by_discriminant should reject MetaByte discriminant {} ('{}')",
+                discriminant,
+                discriminant as char
+            );
         }
     }
 }

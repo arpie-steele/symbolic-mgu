@@ -63,7 +63,7 @@ Add to `.git/hooks/pre-commit`:
 if command -v cargo-semver-checks &> /dev/null; then
     echo "Checking for semver violations..."
     cargo semver-checks check-release || {
-        echo "⚠️  Semver violation detected!"
+        echo "WARNING: Semver violation detected!"
         echo "Breaking changes require version bump (0.x.y → 0.(x+1).0)"
         exit 1
     }
@@ -123,15 +123,15 @@ rustdoc-args = ["--cfg", "doc"]
 
 For each release after v0.1.0:
 
-1. ✅ Run `cargo semver-checks check-release`
-2. ✅ Update CHANGELOG.md
-3. ✅ Bump version in Cargo.toml
-4. ✅ Run all quality gates (clippy, doc, test)
-5. ✅ Tag release: `git tag v0.x.y`
-6. ✅ Push tags: `git push --tags`
-7. ✅ Publish: `cargo publish`
-8. ✅ Create GitHub release with notes
-9. ✅ Update API baseline if needed
+1. Run `cargo semver-checks check-release`
+2. Update CHANGELOG.md
+3. Bump version in Cargo.toml
+4. Run all quality gates (clippy, doc, test)
+5. Tag release: `git tag v0.x.y`
+6. Push tags: `git push --tags`
+7. Publish: `cargo publish`
+8. Create GitHub release with notes
+9. Update API baseline if needed
 
 ## Timeline
 

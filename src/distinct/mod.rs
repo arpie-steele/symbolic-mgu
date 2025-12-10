@@ -44,6 +44,7 @@ impl<V: Metavariable> Default for DistinctnessGraph<V> {
 
 impl<V: Metavariable> DistinctnessGraph<V> {
     /// Create a new empty distinctness graph.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             vertices: HashMap::new(),
@@ -85,6 +86,7 @@ impl<V: Metavariable> DistinctnessGraph<V> {
     }
 
     /// Decode a vertex index back to a Metavariable.
+    #[must_use]
     fn decode_vertex(&self, index: &usize) -> Option<V> {
         self.vars.get(*index).cloned()
     }
