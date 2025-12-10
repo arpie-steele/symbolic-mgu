@@ -20,6 +20,7 @@ static TYPE_COLOR_REGISTRY: OnceLock<RwLock<HashMap<String, Color>>> = OnceLock:
 /// - Boolean → Blue (#0088ff / xterm256:33)
 /// - Setvar → Green (#00aa00 / xterm256:34)
 /// - Class → Red (#cc0000 / xterm256:160)
+#[must_use]
 fn type_color_registry() -> &'static RwLock<HashMap<String, Color>> {
     TYPE_COLOR_REGISTRY.get_or_init(|| {
         let mut map = HashMap::new();
@@ -88,6 +89,7 @@ pub fn register_type_color(type_name: impl Into<String>, color: Color) {
 /// Can panic
 /// - if `RwLock` is poisoned because a writer panics while holding an exclusive lock, or
 /// - if the lock is already held by the current thread.
+#[must_use]
 pub fn get_type_color(type_name: &str) -> Option<Color> {
     type_color_registry()
         .read()
@@ -112,6 +114,7 @@ pub fn get_type_color(type_name: &str) -> Option<Color> {
 /// let bool_color = get_type_color_from_trait(&SimpleType::Boolean);
 /// assert_eq!(bool_color, Some(Color::BLUE));
 /// ```
+#[must_use]
 pub fn get_type_color_from_trait(ty: &impl crate::Type) -> Option<Color> {
     let type_name = if ty.is_boolean() {
         "Boolean"

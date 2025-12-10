@@ -57,6 +57,7 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + Partia
     ///
     /// [`MetaByte`]: `crate::MetaByte`
     /// [`WideMetavariable`]: `crate::WideMetavariable`
+    #[must_use]
     fn max_index_by_type(typ: Self::Type) -> usize;
 
     /// Try to create a metavariable from a type and index.
@@ -92,6 +93,7 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + Partia
     /// let output = var.format_with(&*formatter);
     /// assert_eq!(output, "P");
     /// ```
+    #[must_use]
     fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
         let _ = formatter; // Suppress unused warning
         format!("{}", self) // Default: use Display
@@ -121,6 +123,7 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + Partia
     /// let ascii = var.to_ascii();
     /// assert_eq!(ascii, "P"); // MetaByte returns literal character
     /// ```
+    #[must_use]
     fn to_ascii(&self) -> String {
         format!("{}", self) // Default: use Display
     }
@@ -149,6 +152,7 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + Partia
     /// let utf8 = var.to_utf8();
     /// assert_eq!(utf8, "P"); // MetaByte uses ASCII only
     /// ```
+    #[must_use]
     fn to_utf8(&self) -> String {
         format!("{}", self) // Default: use Display
     }

@@ -43,6 +43,7 @@ impl WideMetavariableFactory {
     ///
     /// let factory = WideMetavariableFactory::new();
     /// ```
+    #[must_use]
     pub fn new() -> Self {
         WideMetavariableFactory()
     }

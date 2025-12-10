@@ -30,6 +30,7 @@ impl Color {
     /// assert_eq!(blue.to_xterm256(), 33);
     /// assert_eq!(blue.to_html(), "#0088ff");
     /// ```
+    #[must_use]
     pub const fn new(xterm256: u8, html_hex: &'static str) -> Self {
         Self { xterm256, html_hex }
     }
@@ -44,6 +45,7 @@ impl Color {
     /// let blue = Color::new(33, "#0088ff");
     /// assert_eq!(blue.to_xterm256(), 33);
     /// ```
+    #[must_use]
     pub const fn to_xterm256(self) -> u8 {
         self.xterm256
     }
@@ -58,6 +60,7 @@ impl Color {
     /// let blue = Color::new(33, "#0088ff");
     /// assert_eq!(blue.to_html(), "#0088ff");
     /// ```
+    #[must_use]
     pub const fn to_html(self) -> &'static str {
         self.html_hex
     }
@@ -78,6 +81,7 @@ impl Color {
     /// let gray = Color::GRAY;
     /// assert_eq!(gray.to_rgb(), (128, 128, 128)); // #808080
     /// ```
+    #[must_use]
     pub const fn to_rgb(self) -> (u8, u8, u8) {
         // Parse "#rrggbb" at compile time
         let bytes = self.html_hex.as_bytes();

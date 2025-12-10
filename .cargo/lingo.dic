@@ -216,8 +216,10 @@ A2
 A3
 a900ff
 a9ff00
+absurdum
 accessor
 accessors
+Ackermann
 ACM
 acyclic
 AddPosFracs
@@ -265,6 +267,7 @@ Bitflag
 Bitflags
 BlueGreen
 BlueViolet
+Bochenski
 bool
 BOOLEANs
 Booleans
@@ -311,6 +314,7 @@ ClassIf
 ClassIntersection
 ClassUnion
 claude
+Clavius
 cli
 clippy
 CliqueMinimumSizeError
@@ -381,6 +385,7 @@ De
 deallocated
 DecimalConstructor
 DecompositionValidationError
+deducibility
 deduplicate
 deduplicated
 deduplicates
@@ -397,6 +402,8 @@ discriminants
 DisjointFamily
 disjointness
 DisjointUnion
+disjunct
+disjunction
 DistinctnessGraph
 DistinctnessViolation
 distributivity
@@ -804,6 +811,7 @@ recurses
 RecursiveGenerator
 RedOrange
 ReducePosRats
+reductio
 RedViolet
 reflow
 reflown
@@ -1016,9 +1024,6 @@ v0
 v1
 v2
 validator
-var0
-var1
-var2
 variadic
 varphi
 VarType
@@ -1317,6 +1322,7 @@ whitespace/MS
 workspace's
 workspace/MS
 xᵗ
+Łukasiewicz
 α
 αὐτὰ
 β
@@ -1461,6 +1467,7 @@ xᵗ
 10×
 36×r
 6×g
+A–N
 Bézier's
 Bézier/MS
 h·σ
@@ -1475,6 +1482,7 @@ Schütte/M
 S₁'s
 S₂'s
 Sₙ₋₁
+Łukasiewicz's
 α}
 φ′
 φ″
@@ -1490,6 +1498,8 @@ Sₙ₋₁
 =
 >
 \
+^
+{
 {0
 {0x00
 {0}
@@ -1509,8 +1519,11 @@ Sₙ₋₁
 ¬
 ¬p
 ¬q
+¬¬φ
 ¬φ
 ¬ψ
+¬𝜑
+¬𝜓
 –
 —
 “

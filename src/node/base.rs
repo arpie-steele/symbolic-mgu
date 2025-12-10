@@ -83,6 +83,7 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone + PartialOrd + O
     /// let element_of = NodeByte::IsElementOf;
     /// assert_eq!(element_of.to_boolean_op(), None);
     /// ```
+    #[must_use]
     fn to_boolean_op(&self) -> Option<BooleanSimpleOp>;
 
     /// Format this node with the given formatter.
@@ -111,6 +112,7 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone + PartialOrd + O
     /// let output = node.format_with(&*formatter);
     /// assert_eq!(output, "→");
     /// ```
+    #[must_use]
     fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
         let _ = formatter; // Suppress unused warning
         format!("{}", self) // Default: use Display
@@ -136,6 +138,7 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone + PartialOrd + O
     /// let ascii = node.to_ascii_symbol();
     /// assert_eq!(ascii, "->");
     /// ```
+    #[must_use]
     fn to_ascii_symbol(&self) -> &str {
         "?" // Default: unknown operator
     }
@@ -160,6 +163,7 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone + PartialOrd + O
     /// let utf8 = node.to_utf8_symbol();
     /// assert_eq!(utf8, "→");
     /// ```
+    #[must_use]
     fn to_utf8_symbol(&self) -> &str {
         "?" // Default: unknown operator
     }
@@ -183,6 +187,7 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone + PartialOrd + O
     /// let latex = node.to_latex_symbol();
     /// assert_eq!(latex, r"\to ");
     /// ```
+    #[must_use]
     fn to_latex_symbol(&self) -> &str {
         "?" // Default: unknown operator
     }

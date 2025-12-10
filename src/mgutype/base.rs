@@ -170,6 +170,7 @@ impl SimpleType {
     ];
 
     /// Convert `SimpleType` to presentation.
+    #[must_use]
     pub fn to_order(self) -> u8 {
         match self {
             SimpleType::Boolean => 0,
@@ -187,6 +188,7 @@ impl SimpleType {
     /// If a name in [`UC_NAMES`] cannot be converted by `name_to_value()`.
     ///
     /// [`UC_NAMES`]: `Self::UC_NAMES`
+    #[must_use]
     pub fn uc_name_to_value_map() -> HashMap<String, SimpleType> {
         Self::UC_NAMES
             .to_vec()
@@ -207,6 +209,7 @@ impl SimpleType {
     /// assert_eq!(SimpleType::uc_name_to_value("CLASS"), Some(SimpleType::Class));
     /// assert_eq!(SimpleType::uc_name_to_value("class"), None);
     /// ```
+    #[must_use]
     pub fn uc_name_to_value(value: &str) -> Option<SimpleType> {
         match value {
             BLACKBOARD_B | BLACKBOARD_W | UC_BOOLEAN1 | UC_BOOLEAN2 | UC_BOOLEAN3 | UC_BOOLEAN4 => {
@@ -231,6 +234,7 @@ impl SimpleType {
     /// assert_eq!(SimpleType::name_to_value("Set"), SimpleType::name_to_value("s"));
     /// assert_eq!(SimpleType::name_to_value("class"), SimpleType::name_to_value("c"));
     /// ```
+    #[must_use]
     pub fn name_to_value(value: &str) -> Option<SimpleType> {
         Self::uc_name_to_value(value.to_uppercase().as_str())
     }
@@ -243,6 +247,7 @@ impl SimpleType {
     /// assert_eq!(SimpleType::as_short_str(&SimpleType::Setvar), "𝕊");
     /// assert_eq!(SimpleType::as_short_str(&SimpleType::Class), "ℂ");
     /// ```
+    #[must_use]
     pub fn as_short_str(&self) -> &'static str {
         match self {
             SimpleType::Boolean => BLACKBOARD_B,
@@ -259,6 +264,7 @@ impl SimpleType {
     /// assert_eq!(SimpleType::as_long_str(&SimpleType::Setvar), "Setvar");
     /// assert_eq!(SimpleType::as_long_str(&SimpleType::Class), "Class");
     /// ```
+    #[must_use]
     pub fn as_long_str(&self) -> &'static str {
         match self {
             SimpleType::Boolean => stringify!(Boolean),
@@ -303,6 +309,7 @@ impl SimpleType {
     /// [`Boolean`]: `SimpleType::Boolean`
     /// [`Setvar`]: `SimpleType::Setvar`
     /// [`Class`]: `SimpleType::Class`
+    #[must_use]
     pub fn may_assign_tree_to_this_var(&self, tree_type: &Self) -> bool {
         *self == *tree_type || (self.is_class() && tree_type.is_setvar())
     }
@@ -310,6 +317,7 @@ impl SimpleType {
     /// Return associated HTML color, based on [Metamath] conventions.
     ///
     /// [MetaMath]: https://us.metamath.org/
+    #[must_use]
     pub const fn to_html_color(&self) -> &'static str {
         match *self {
             // CMYK (100): 88.07, 67.70, 0, 0

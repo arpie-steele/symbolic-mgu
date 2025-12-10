@@ -19,6 +19,7 @@ HANDOFF_*.md
 output.*
 **/data
 *_chart.svg
+coverage_summary.txt
 
 # Video files
 *.mov
