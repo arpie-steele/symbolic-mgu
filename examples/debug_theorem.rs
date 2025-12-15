@@ -19,14 +19,14 @@ fn main() {
     let theorem = theorems.get(&label).expect("Theorem not found");
 
     println!("\nTheorem: {}", label);
-    println!("Statement: {:?}", theorem.statement);
+    println!("Statement: {:?}", theorem.core.statement);
     println!("\nHypotheses:");
-    println!("  Floating ({}):", theorem.hypotheses.0.len());
-    for hyp in &theorem.hypotheses.0 {
+    println!("  Floating ({}):", theorem.core.hypotheses.0.len());
+    for hyp in &theorem.core.hypotheses.0 {
         println!("    {} $f {} {}", hyp.label, hyp.type_code, hyp.variable);
     }
-    println!("  Essential ({}):", theorem.hypotheses.1.len());
-    for hyp in &theorem.hypotheses.1 {
+    println!("  Essential ({}):", theorem.core.hypotheses.1.len());
+    for hyp in &theorem.core.hypotheses.1 {
         println!("    {} $e {:?}", hyp.label, hyp.statement);
     }
 
@@ -40,10 +40,10 @@ fn main() {
     for ax_name in &["wbr", "c2"] {
         let ax_label = Label::new(ax_name).expect("Failed to create label");
         if let Some(axiom) = db.axioms().get(&ax_label) {
-            println!("  {} $a {:?}", ax_name, axiom.statement);
-            println!("    Floating hyps: {}", axiom.hypotheses.0.len());
-            println!("    Essential hyps: {}", axiom.hypotheses.1.len());
-            for hyp in &axiom.hypotheses.0 {
+            println!("  {} $a {:?}", ax_name, axiom.core.statement);
+            println!("    Floating hyps: {}", axiom.core.hypotheses.0.len());
+            println!("    Essential hyps: {}", axiom.core.hypotheses.1.len());
+            for hyp in &axiom.core.hypotheses.0 {
                 println!("      {} $f {} {}", hyp.label, hyp.type_code, hyp.variable);
             }
         }

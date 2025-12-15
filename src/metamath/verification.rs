@@ -250,7 +250,7 @@ pub fn verify_theorem(
         .proof
         .as_ref()
         .ok_or_else(|| VerificationError::MissingProof {
-            label: theorem.label.to_string(),
+            label: theorem.core.label.to_string(),
         })?;
 
     // Handle expanded vs compressed proofs differently
@@ -281,7 +281,7 @@ fn verify_with_steps(
             })?;
 
         // Check if it's a hypothesis (from theorem's mandatory hypotheses)
-        if let Some(statement) = find_hypothesis(&theorem.hypotheses, &label) {
+        if let Some(statement) = find_hypothesis(&theorem.core.hypotheses, &label) {
             stack.push(statement);
             continue;
         }
@@ -296,10 +296,10 @@ fn verify_with_steps(
         if let Some(axiom) = database.get_axiom(&label) {
             apply_axiom_or_theorem(
                 &mut stack,
-                &axiom.hypotheses,
-                &axiom.statement,
-                &axiom.distinctness,
-                &theorem.distinctness,
+                &axiom.core.hypotheses,
+                &axiom.core.statement,
+                &axiom.core.distinctness,
+                &theorem.core.distinctness,
                 database,
                 step_num,
                 label.as_str(),
@@ -311,10 +311,10 @@ fn verify_with_steps(
         if let Some(other_theorem) = database.get_theorem(&label) {
             apply_axiom_or_theorem(
                 &mut stack,
-                &other_theorem.hypotheses,
-                &other_theorem.statement,
-                &other_theorem.distinctness,
-                &theorem.distinctness,
+                &other_theorem.core.hypotheses,
+                &other_theorem.core.statement,
+                &other_theorem.core.distinctness,
+                &theorem.core.distinctness,
                 database,
                 step_num,
                 label.as_str(),
@@ -334,10 +334,10 @@ fn verify_with_steps(
     }
 
     let final_statement = &stack[0];
-    if final_statement != &theorem.statement {
+    if final_statement != &theorem.core.statement {
         return Err(VerificationError::FinalStatementMismatch(Box::new(
             FinalStatementMismatchDetails {
-                expected: format_statement(&theorem.statement, 200),
+                expected: format_statement(&theorem.core.statement, 200),
                 got: format_statement(final_statement, 200),
             },
         )));
@@ -355,10 +355,10 @@ fn verify_compressed(
 ) -> Result<(), VerificationError> {
     // Build mandatory hypothesis label list
     let mut mandatory_hyps = Vec::new();
-    for hyp in &theorem.hypotheses.0 {
+    for hyp in &theorem.core.hypotheses.0 {
         mandatory_hyps.push(Arc::from(hyp.label.encoded()));
     }
-    for hyp in &theorem.hypotheses.1 {
+    for hyp in &theorem.core.hypotheses.1 {
         mandatory_hyps.push(Arc::from(hyp.label.encoded()));
     }
 
@@ -444,7 +444,7 @@ fn verify_compressed(
             })?;
 
             // Check if it's a hypothesis (first check mandatory, then all)
-            if let Some(statement) = find_hypothesis(&theorem.hypotheses, &label) {
+            if let Some(statement) = find_hypothesis(&theorem.core.hypotheses, &label) {
                 stack.push(statement);
                 step_num += 1;
                 continue;
@@ -468,10 +468,10 @@ fn verify_compressed(
             if let Some(axiom) = database.get_axiom(&label) {
                 apply_axiom_or_theorem(
                     &mut stack,
-                    &axiom.hypotheses,
-                    &axiom.statement,
-                    &axiom.distinctness,
-                    &theorem.distinctness,
+                    &axiom.core.hypotheses,
+                    &axiom.core.statement,
+                    &axiom.core.distinctness,
+                    &theorem.core.distinctness,
                     database,
                     step_num,
                     label.as_str(),
@@ -484,10 +484,10 @@ fn verify_compressed(
             if let Some(other_theorem) = database.get_theorem(&label) {
                 apply_axiom_or_theorem(
                     &mut stack,
-                    &other_theorem.hypotheses,
-                    &other_theorem.statement,
-                    &other_theorem.distinctness,
-                    &theorem.distinctness,
+                    &other_theorem.core.hypotheses,
+                    &other_theorem.core.statement,
+                    &other_theorem.core.distinctness,
+                    &theorem.core.distinctness,
                     database,
                     step_num,
                     label.as_str(),
@@ -525,10 +525,10 @@ fn verify_compressed(
     }
 
     let final_statement = &stack[0];
-    if final_statement != &theorem.statement {
+    if final_statement != &theorem.core.statement {
         return Err(VerificationError::FinalStatementMismatch(Box::new(
             FinalStatementMismatchDetails {
-                expected: format_statement(&theorem.statement, 200),
+                expected: format_statement(&theorem.core.statement, 200),
                 got: format_statement(final_statement, 200),
             },
         )));
@@ -925,19 +925,21 @@ mod tests {
     #[test]
     fn missing_proof() {
         // Create a theorem without a proof
-        use crate::metamath::database::Theorem;
+        use crate::metamath::database::{AssertionCore, Theorem};
         use crate::DistinctnessGraph;
 
         let db = Arc::new(MetamathDatabase::new(TypeMapping::set_mm()));
         let theorem = Theorem {
-            label: Label::new("test").unwrap(),
-            statement: vec![Arc::from("|-"), Arc::from("P")],
-            line: 1,
-            hypotheses: (Vec::new(), Vec::new()),
+            core: AssertionCore {
+                label: Label::new("test").unwrap(),
+                statement: vec![Arc::from("|-"), Arc::from("P")],
+                line: 1,
+                hypotheses: (Vec::new(), Vec::new()),
+                comment: None,
+                distinctness: DistinctnessGraph::new(),
+            },
             all_hypotheses: (Vec::new(), Vec::new()),
             proof: None,
-            comment: None,
-            distinctness: DistinctnessGraph::new(),
         };
 
         let result = verify_theorem(&theorem, &db);

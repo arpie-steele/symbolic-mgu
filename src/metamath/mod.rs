@@ -40,6 +40,7 @@ pub use comment::Contribution;
 pub use comment::ContributionDate;
 pub use comment::ContributionKind;
 pub use comment::Month;
+pub use database::AssertionCore;
 pub use database::Axiom;
 pub use database::ConstantInfo;
 pub use database::DatabaseError;

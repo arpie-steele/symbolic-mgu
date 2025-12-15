@@ -380,52 +380,50 @@ impl SyntaxInfo {
     }
 }
 
+/// Core data shared by axioms and theorems.
+///
+/// In Metamath, both axioms (`$a`) and theorems (`$p`) are assertions that
+/// can be used in proofs. This struct contains the fields common to both.
+#[derive(Debug, Clone)]
+pub struct AssertionCore {
+    /// The label for this assertion.
+    pub label: Label,
+    /// The statement (sequence of symbols).
+    pub statement: Vec<Arc<str>>,
+    /// Line number where declared.
+    pub line: usize,
+    /// Mandatory hypotheses (used for proof verification and compressed proof indexing).
+    pub hypotheses: (Vec<FloatingHyp>, Vec<EssentialHyp>),
+    /// Comment metadata with contributor attributions.
+    pub comment: Option<CommentMetadata>,
+    /// Distinctness constraints active when this assertion was declared.
+    pub distinctness: DistinctnessGraph<DbMetavariable>,
+}
+
 /// An axiom (`$a` statement).
 ///
 /// All axioms have the format: `LABEL $a TYPE (CONSTANT|VARIABLE)* $.`
 /// where TYPE is a constant symbol (e.g., "wff", "class", "|-").
 #[derive(Debug, Clone)]
 pub struct Axiom {
-    /// The label for this axiom.
-    pub label: Label,
+    /// Core assertion data.
+    pub core: AssertionCore,
     /// The type code (first symbol of statement).
     pub type_code: Arc<str>,
-    /// The statement (sequence of symbols).
-    pub statement: Vec<Arc<str>>,
-    /// Line number where declared.
-    pub line: usize,
-    /// Hypotheses active at declaration (for proof verification).
-    pub hypotheses: (Vec<FloatingHyp>, Vec<EssentialHyp>),
-    /// Comment metadata with contributor attributions.
-    pub comment: Option<CommentMetadata>,
     /// Syntax analysis (present for non-"|-" axioms defining term construction).
     pub syntax_info: Option<SyntaxInfo>,
-    /// Distinctness constraints active when this axiom was declared.
-    /// Contains all variables mentioned in the statement.
-    pub distinctness: DistinctnessGraph<DbMetavariable>,
 }
 
 /// A theorem (`$p` statement).
 #[derive(Debug, Clone)]
 pub struct Theorem {
-    /// The label for this theorem.
-    pub label: Label,
-    /// The statement (sequence of symbols).
-    pub statement: Vec<Arc<str>>,
-    /// Line number where declared.
-    pub line: usize,
-    /// Mandatory hypotheses (used for compressed proof indexing).
-    pub hypotheses: (Vec<FloatingHyp>, Vec<EssentialHyp>),
+    /// Core assertion data.
+    pub core: AssertionCore,
     /// ALL hypotheses that were in scope (for label lookup in compressed proofs).
     /// This includes both mandatory and non-mandatory hypotheses.
     pub all_hypotheses: (Vec<FloatingHyp>, Vec<EssentialHyp>),
     /// Proof in either expanded or compressed format.
     pub proof: Option<Proof>,
-    /// Comment metadata with contributor attributions.
-    pub comment: Option<CommentMetadata>,
-    /// Distinctness constraints active when this theorem was declared.
-    /// Contains all variables mentioned in the statement and proof.
-    pub distinctness: DistinctnessGraph<DbMetavariable>,
 }
 
 /// A scope for managing variables, hypotheses, and distinctness constraints.
@@ -948,7 +946,7 @@ impl MetamathDatabase {
     ///
     /// Panics if the `RwLock` was poisoned.
     pub fn add_axiom(&self, axiom: Axiom) -> Result<(), DatabaseError> {
-        let label = axiom.label.clone();
+        let label = axiom.core.label.clone();
         self.register_label(label.clone())?;
 
         {
@@ -956,7 +954,7 @@ impl MetamathDatabase {
             if let Some(existing) = axioms.get(&label) {
                 return Err(DatabaseError::LabelInUse {
                     label: label.as_str().to_string(),
-                    previous_line: existing.line,
+                    previous_line: existing.core.line,
                 });
             }
         }
@@ -978,7 +976,7 @@ impl MetamathDatabase {
     ///
     /// Panics if the `RwLock` was poisoned.
     pub fn add_theorem(&self, theorem: Theorem) -> Result<(), DatabaseError> {
-        let label = theorem.label.clone();
+        let label = theorem.core.label.clone();
         self.register_label(label.clone())?;
 
         {
@@ -986,7 +984,7 @@ impl MetamathDatabase {
             if let Some(existing) = theorems.get(&label) {
                 return Err(DatabaseError::LabelInUse {
                     label: label.as_str().to_string(),
-                    previous_line: existing.line,
+                    previous_line: existing.core.line,
                 });
             }
         }

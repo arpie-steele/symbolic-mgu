@@ -618,14 +618,16 @@ impl<F: FilesystemProvider> Parser<F> {
             .build_distinctness_graph(&active_vars, &self.database);
 
         let axiom = Axiom {
-            label,
+            core: crate::metamath::database::AssertionCore {
+                label,
+                statement,
+                line,
+                hypotheses,
+                comment,
+                distinctness,
+            },
             type_code,
-            statement,
-            line,
-            hypotheses,
-            comment,
             syntax_info,
-            distinctness,
         };
 
         self.database.add_axiom(axiom)?;
@@ -770,14 +772,16 @@ impl<F: FilesystemProvider> Parser<F> {
             .build_distinctness_graph(&active_vars, &self.database);
 
         let theorem = Theorem {
-            label,
-            statement,
-            line,
-            hypotheses,
+            core: crate::metamath::database::AssertionCore {
+                label,
+                statement,
+                line,
+                hypotheses,
+                comment,
+                distinctness,
+            },
             all_hypotheses,
             proof,
-            comment,
-            distinctness,
         };
 
         self.database.add_theorem(theorem)?;
@@ -904,7 +908,10 @@ mod tests {
         assert!(th1.proof.is_some(), "Theorem th1 should have proof");
 
         // Verify theorem statement
-        assert!(!th1.statement.is_empty(), "Theorem should have a statement");
+        assert!(
+            !th1.core.statement.is_empty(),
+            "Theorem should have a statement"
+        );
 
         println!("Parsed {} axioms", db.axioms().len());
         println!("Parsed {} theorems", db.theorems().len());
@@ -1053,8 +1060,8 @@ mod tests {
         let ax1_label = Label::new("ax-1")?;
         let ax1 = db.get_axiom(&ax1_label).expect("ax-1 should exist");
 
-        assert!(ax1.comment.is_some());
-        let metadata = ax1.comment.as_ref().unwrap();
+        assert!(ax1.core.comment.is_some());
+        let metadata = ax1.core.comment.as_ref().unwrap();
         assert_eq!(metadata.contributions.len(), 1);
         assert_eq!(metadata.contributions[0].contributor, "NM");
         assert_eq!(metadata.contributions[0].date.year, 1993);
@@ -1067,8 +1074,8 @@ mod tests {
         let mp2_label = Label::new("mp2")?;
         let mp2 = db.get_axiom(&mp2_label).expect("mp2 should exist");
 
-        assert!(mp2.comment.is_some());
-        let metadata = mp2.comment.as_ref().unwrap();
+        assert!(mp2.core.comment.is_some());
+        let metadata = mp2.core.comment.as_ref().unwrap();
         assert_eq!(metadata.contributions.len(), 2);
 
         // First contribution
