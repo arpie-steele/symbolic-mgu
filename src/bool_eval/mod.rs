@@ -2189,8 +2189,7 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::redundant_test_prefix)]
-    fn test_term_simple_variable() {
+    fn t_term_simple_variable() {
         use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
 
         let vars = MetaByteFactory();
@@ -2206,8 +2205,7 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::redundant_test_prefix)]
-    fn test_term_tautology() {
+    fn t_term_tautology() {
         use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
 
         let vars = MetaByteFactory();
@@ -2225,8 +2223,7 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::redundant_test_prefix)]
-    fn test_term_contradiction() {
+    fn t_term_contradiction() {
         use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
 
         let vars = MetaByteFactory();

@@ -58,6 +58,7 @@ pub(crate) mod error;
 pub(crate) mod formatter;
 pub mod logic;
 pub(crate) mod macros;
+pub mod metamath;
 pub(crate) mod metavariable;
 pub(crate) mod mgutype;
 pub(crate) mod node;
