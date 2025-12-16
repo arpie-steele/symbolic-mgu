@@ -41,6 +41,18 @@ use thiserror::Error;
 /// Map variable to type code and index.
 type VarMap = RwLock<HashMap<Arc<str>, (Arc<str>, usize)>>;
 
+/// Classification of symbols (constant vs variable).
+///
+/// In Metamath, symbols are declared as either constants (`$c`) or variables (`$v`)
+/// before they are used in statements. A symbol cannot be both.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SymbolKind {
+    /// Constant symbol (declared with `$c`)
+    Constant,
+    /// Variable symbol (declared with `$v`)
+    Variable,
+}
+
 /// Errors that can occur during database operations.
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum DatabaseError {
@@ -444,6 +456,9 @@ pub struct Scope {
     /// Distinctness constraints in this scope.
     /// Each tuple represents a pair of variables that must be distinct.
     distinctness: Vec<(Arc<str>, Arc<str>)>,
+    /// Fast lookup index for floating hypotheses: (`type_code`, `variable_name`) → `FloatingHyp`
+    /// Includes all hypotheses from this scope and parent scopes.
+    floating_hyp_index: HashMap<(Arc<str>, Arc<str>), FloatingHyp>,
 }
 
 impl Scope {
@@ -455,17 +470,25 @@ impl Scope {
             floating_hyps: IndexMap::new(),
             essential_hyps: Vec::new(),
             distinctness: Vec::new(),
+            floating_hyp_index: HashMap::new(),
         }
     }
 
     /// Create a child scope with this scope as parent.
+    ///
+    /// The child scope inherits the parent's floating hypothesis index,
+    /// which will be updated as new hypotheses are added to the child scope.
     pub fn new_child(self: &Arc<Self>) -> Self {
+        // Start with parent's floating hypothesis index
+        let floating_hyp_index = self.floating_hyp_index.clone();
+
         Self {
             parent: Some(Arc::clone(self)),
             local_variables: HashMap::new(),
             floating_hyps: IndexMap::new(),
             essential_hyps: Vec::new(),
             distinctness: Vec::new(),
+            floating_hyp_index,
         }
     }
 
@@ -517,8 +540,31 @@ impl Scope {
             });
         }
 
-        self.floating_hyps.insert(label, hyp);
+        // Add to map
+        self.floating_hyps.insert(label, hyp.clone());
+
+        // Update index
+        let key = (hyp.type_code.clone(), hyp.variable.clone());
+        self.floating_hyp_index.insert(key, hyp);
+
         Ok(())
+    }
+
+    /// Look up floating hypothesis by type code and variable name.
+    ///
+    /// This uses the pre-built index for O(1) lookup, which already includes
+    /// hypotheses from parent scopes.
+    ///
+    /// # Returns
+    ///
+    /// The floating hypothesis if found, `None` otherwise.
+    pub fn lookup_floating_hyp(
+        &self,
+        type_code: &str,
+        variable_name: &str,
+    ) -> Option<&FloatingHyp> {
+        let key = (Arc::from(type_code), Arc::from(variable_name));
+        self.floating_hyp_index.get(&key)
     }
 
     /// Add an essential hypothesis to this scope.
@@ -679,6 +725,13 @@ pub struct MetamathDatabase {
     /// Bidirectional mapping: variable → (`type_code`, index).
     /// Allows lookup of variable type and index for `DbMetavariable` creation.
     variable_to_type_index: VarMap,
+    /// Symbol classification registry: maps symbols to their kind (constant or variable).
+    /// Built during parsing of `$c` and `$v` statements.
+    symbol_kinds: RwLock<HashMap<Arc<str>, SymbolKind>>,
+    /// Syntax axioms indexed by result type for efficient pattern matching.
+    /// Built during parsing when syntax axioms are added to the database.
+    syntax_axioms_by_type:
+        RwLock<HashMap<Arc<str>, Vec<crate::metamath::pattern::SyntaxAxiomPattern>>>,
 }
 
 impl MetamathDatabase {
@@ -696,6 +749,8 @@ impl MetamathDatabase {
             theorems: RwLock::new(HashMap::new()),
             variables_by_type: RwLock::new(HashMap::new()),
             variable_to_type_index: RwLock::new(HashMap::new()),
+            symbol_kinds: RwLock::new(HashMap::new()),
+            syntax_axioms_by_type: RwLock::new(HashMap::new()),
         }
     }
 
@@ -1211,6 +1266,19 @@ impl MetamathDatabase {
         self.current_scope().get_floating_hyp(label)
     }
 
+    /// Look up a floating hypothesis by type code and variable name.
+    ///
+    /// Uses the current scope's pre-built index for O(1) lookup.
+    ///
+    /// # Returns
+    ///
+    /// A clone of the floating hypothesis if found, `None` otherwise.
+    pub fn lookup_floating_hyp(&self, type_code: &str, variable_name: &str) -> Option<FloatingHyp> {
+        self.current_scope()
+            .lookup_floating_hyp(type_code, variable_name)
+            .cloned()
+    }
+
     /// Build a `DistinctnessGraph` for variables mentioned in a statement.
     ///
     /// This collects all distinctness constraints from the current scope and filters
@@ -1249,6 +1317,138 @@ impl MetamathDatabase {
         }
 
         graph
+    }
+
+    /// Register a symbol as a constant (from `$c` statement).
+    ///
+    /// # Errors
+    ///
+    /// Returns `IllegalSymbol` if the symbol is already registered as a variable.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `RwLock` was poisoned.
+    pub fn register_constant_symbol(&self, symbol: Arc<str>) -> Result<(), DatabaseError> {
+        let mut kinds = self.symbol_kinds.write().expect("RwLock poisoned");
+
+        // Check if already declared as variable
+        if let Some(SymbolKind::Variable) = kinds.get(&symbol) {
+            return Err(DatabaseError::IllegalSymbol {
+                symbol: symbol.to_string(),
+                reason: "Already declared as variable".to_string(),
+            });
+        }
+
+        kinds.insert(symbol, SymbolKind::Constant);
+        Ok(())
+    }
+
+    /// Register a symbol as a variable (from `$v` statement).
+    ///
+    /// # Errors
+    ///
+    /// Returns `IllegalSymbol` if the symbol is already registered as a constant.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `RwLock` was poisoned.
+    pub fn register_variable_symbol(&self, symbol: Arc<str>) -> Result<(), DatabaseError> {
+        let mut kinds = self.symbol_kinds.write().expect("RwLock poisoned");
+
+        // Check if already declared as constant
+        if let Some(SymbolKind::Constant) = kinds.get(&symbol) {
+            return Err(DatabaseError::IllegalSymbol {
+                symbol: symbol.to_string(),
+                reason: "Already declared as constant".to_string(),
+            });
+        }
+
+        kinds.insert(symbol, SymbolKind::Variable);
+        Ok(())
+    }
+
+    /// Get the kind of a symbol (constant or variable).
+    ///
+    /// Returns `None` if the symbol has not been declared.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `RwLock` was poisoned.
+    pub fn symbol_kind(&self, symbol: &str) -> Option<SymbolKind> {
+        self.symbol_kinds
+            .read()
+            .expect("RwLock poisoned")
+            .get(symbol)
+            .copied()
+    }
+
+    /// Check if a symbol is a constant.
+    ///
+    /// Returns `false` if the symbol has not been declared.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `RwLock` was poisoned.
+    pub fn is_constant(&self, symbol: &str) -> bool {
+        matches!(self.symbol_kind(symbol), Some(SymbolKind::Constant))
+    }
+
+    /// Check if a symbol is a variable (declared with `$v`).
+    ///
+    /// Note: This checks if the symbol was declared as a variable with `$v`,
+    /// not whether it has been bound to a type via `$f`. Use `variable_type()`
+    /// to check if a variable has a type binding.
+    ///
+    /// Returns `false` if the symbol has not been declared.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `RwLock` was poisoned.
+    pub fn is_variable_symbol(&self, symbol: &str) -> bool {
+        matches!(self.symbol_kind(symbol), Some(SymbolKind::Variable))
+    }
+
+    /// Index a syntax axiom for pattern matching.
+    ///
+    /// This should be called when adding a syntax axiom to the database.
+    /// It pre-processes the axiom into a pattern with matching hints and stores it
+    /// indexed by result type.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `RwLock` was poisoned.
+    pub fn index_syntax_axiom(&self, axiom: &Axiom) {
+        use crate::metamath::pattern::SyntaxAxiomPattern;
+
+        // Only index syntax axioms
+        if let Some(pattern) = SyntaxAxiomPattern::from_axiom(axiom, self) {
+            self.syntax_axioms_by_type
+                .write()
+                .expect("RwLock poisoned")
+                .entry(pattern.type_code.clone())
+                .or_default()
+                .push(pattern);
+        }
+    }
+
+    /// Get syntax axioms for a given result type.
+    ///
+    /// Returns a cloned vector of all syntax axiom patterns that produce
+    /// the given type.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `RwLock` was poisoned.
+    pub fn get_syntax_axioms_for_type(
+        &self,
+        type_code: &str,
+    ) -> Vec<crate::metamath::pattern::SyntaxAxiomPattern> {
+        self.syntax_axioms_by_type
+            .read()
+            .expect("RwLock poisoned")
+            .get(type_code)
+            .cloned()
+            .unwrap_or_default()
     }
 }
 
@@ -1334,6 +1534,77 @@ mod tests {
 
         // Cannot find undeclared variable
         assert!(child.lookup_variable("z").is_none());
+    }
+
+    #[test]
+    fn floating_hyp_index_lookup() {
+        let db = Arc::new(MetamathDatabase::new(TypeMapping::set_mm()));
+
+        // Add a floating hypothesis
+        let hyp = FloatingHyp {
+            label: Label::new("fph").unwrap(),
+            variable: Arc::from("ph"),
+            type_code: Arc::from("wff"),
+            line: 1,
+        };
+        db.add_floating_hyp(hyp.clone()).unwrap();
+
+        // Look up by type and variable name
+        let found = db.lookup_floating_hyp("wff", "ph");
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().label, hyp.label);
+
+        // Look up with wrong type
+        let not_found = db.lookup_floating_hyp("setvar", "ph");
+        assert!(not_found.is_none());
+
+        // Look up unknown variable
+        let not_found = db.lookup_floating_hyp("wff", "ps");
+        assert!(not_found.is_none());
+    }
+
+    #[test]
+    fn floating_hyp_index_inheritance() {
+        let db = Arc::new(MetamathDatabase::new(TypeMapping::set_mm()));
+
+        // Add hypothesis in outer scope
+        let hyp1 = FloatingHyp {
+            label: Label::new("fph").unwrap(),
+            variable: Arc::from("ph"),
+            type_code: Arc::from("wff"),
+            line: 1,
+        };
+        db.add_floating_hyp(hyp1.clone()).unwrap();
+
+        // Push new scope
+        db.push_scope();
+
+        // Should still find parent scope's hypothesis
+        let found = db.lookup_floating_hyp("wff", "ph");
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().label, hyp1.label);
+
+        // Add hypothesis in inner scope
+        let hyp2 = FloatingHyp {
+            label: Label::new("fps").unwrap(),
+            variable: Arc::from("ps"),
+            type_code: Arc::from("wff"),
+            line: 2,
+        };
+        db.add_floating_hyp(hyp2.clone()).unwrap();
+
+        // Should find both hypotheses
+        assert!(db.lookup_floating_hyp("wff", "ph").is_some());
+        assert!(db.lookup_floating_hyp("wff", "ps").is_some());
+
+        // Pop scope
+        db.pop_scope(3).unwrap();
+
+        // Should still find outer hypothesis
+        assert!(db.lookup_floating_hyp("wff", "ph").is_some());
+
+        // Should NOT find inner hypothesis
+        assert!(db.lookup_floating_hyp("wff", "ps").is_none());
     }
 
     #[test]
@@ -1535,6 +1806,65 @@ mod tests {
         // Type conflict: cannot change type
         let result = db.register_variable_type(Arc::from("setvar"), Arc::from("x"), 2);
         assert!(matches!(result, Err(DatabaseError::TypeConflict { .. })));
+    }
+
+    #[test]
+    fn symbol_registry_constant() {
+        let db = MetamathDatabase::new(TypeMapping::set_mm());
+
+        // Register a constant
+        db.register_constant_symbol(Arc::from("wff")).unwrap();
+
+        // Check it's recognized as constant
+        assert!(db.is_constant("wff"));
+        assert!(!db.is_variable_symbol("wff"));
+        assert_eq!(db.symbol_kind("wff"), Some(SymbolKind::Constant));
+
+        // Trying to register as variable should fail
+        let result = db.register_variable_symbol(Arc::from("wff"));
+        assert!(matches!(result, Err(DatabaseError::IllegalSymbol { .. })));
+    }
+
+    #[test]
+    fn symbol_registry_variable() {
+        let db = MetamathDatabase::new(TypeMapping::set_mm());
+
+        // Register a variable
+        db.register_variable_symbol(Arc::from("ph")).unwrap();
+
+        // Check it's recognized as variable
+        assert!(db.is_variable_symbol("ph"));
+        assert!(!db.is_constant("ph"));
+        assert_eq!(db.symbol_kind("ph"), Some(SymbolKind::Variable));
+
+        // Trying to register as constant should fail
+        let result = db.register_constant_symbol(Arc::from("ph"));
+        assert!(matches!(result, Err(DatabaseError::IllegalSymbol { .. })));
+    }
+
+    #[test]
+    fn symbol_registry_idempotent() {
+        let db = MetamathDatabase::new(TypeMapping::set_mm());
+
+        // Registering the same symbol twice as constant should be idempotent
+        db.register_constant_symbol(Arc::from("->")).unwrap();
+        db.register_constant_symbol(Arc::from("->")).unwrap();
+        assert!(db.is_constant("->"));
+
+        // Same for variables
+        db.register_variable_symbol(Arc::from("x")).unwrap();
+        db.register_variable_symbol(Arc::from("x")).unwrap();
+        assert!(db.is_variable_symbol("x"));
+    }
+
+    #[test]
+    fn symbol_registry_unknown() {
+        let db = MetamathDatabase::new(TypeMapping::set_mm());
+
+        // Unknown symbol should return None/false
+        assert_eq!(db.symbol_kind("unknown"), None);
+        assert!(!db.is_constant("unknown"));
+        assert!(!db.is_variable_symbol("unknown"));
     }
 
     #[test]
