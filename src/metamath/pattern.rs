@@ -138,6 +138,8 @@ impl SyntaxAxiomPattern {
                         type_code: var_type,
                     });
 
+                    // Pattern doesn't end with a constant if we see a variable
+                    last_constant = None;
                     prev_was_constant = None;
                 }
                 None => {

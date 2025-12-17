@@ -26,6 +26,7 @@
 
 pub(crate) mod comment;
 pub(crate) mod database;
+pub(crate) mod expr_parser;
 pub(crate) mod filesystem;
 pub(crate) mod label;
 pub(crate) mod parser;
@@ -54,6 +55,7 @@ pub use database::SyntaxInfo;
 pub use database::Theorem;
 pub use database::TypeMapping;
 pub use database::VariableInfo;
+pub use expr_parser::parse_expression;
 pub use filesystem::FilesystemProvider;
 pub use filesystem::MemoryFilesystem;
 pub use filesystem::StdFilesystem;
@@ -72,6 +74,7 @@ pub use symbolic::DbMetavariable;
 pub use symbolic::DbMetavariableFactory;
 pub use symbolic::DbMetavariableIterator;
 pub use symbolic::DbNode;
+pub use symbolic::DbTerm;
 pub use symbolic::DbType;
 pub use tokenizer::Token;
 pub use tokenizer::TokenKind;

@@ -731,6 +731,7 @@ P6
 PairValidationFailure
 Pantone
 parameterization
+parameterized
 PartialEq
 PartialMappingOp
 PartialOrd
@@ -929,6 +930,8 @@ struct
 structs
 SubClassInCls
 SubClassInWff
+subsequence
+subsequences
 SubSetInWff
 subst
 SumFromAdder

@@ -16,11 +16,19 @@
 use crate::bool_eval::BooleanSimpleOp;
 use crate::metamath::database::{MetamathDatabase, TypeMapping};
 use crate::metamath::label::Label;
+use crate::term::simple::EnumTerm;
 use crate::{Metavariable, MetavariableFactory, MguError, Node, Type, TypeCore};
 use std::cmp::Ordering;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
+
+/// Term type backed by Metamath database.
+///
+/// Uses `EnumTerm` parameterized with database-backed types.
+/// The `Arc<MetamathDatabase>` references are held within `DbType`,
+/// `DbMetavariable`, and `DbNode`, avoiding the need for a wrapper type.
+pub type DbTerm = EnumTerm<DbType, DbMetavariable, DbNode>;
 
 /// A Type implementation backed by a Metamath database.
 ///

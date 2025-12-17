@@ -842,6 +842,9 @@ impl MetamathDatabase {
             });
         }
 
+        // Register symbol as constant for pattern matching
+        self.register_constant_symbol(symbol.clone())?;
+
         self.constants
             .write()
             .expect("RwLock poisoned")
@@ -873,6 +876,9 @@ impl MetamathDatabase {
                 });
             }
         }
+
+        // Register symbol as variable for pattern matching
+        self.register_variable_symbol(symbol.clone())?;
 
         // Declare in current scope - need to mutate the Arc<Scope>
         let mut scope_stack = self.scope_stack.write().expect("RwLock poisoned");
@@ -1013,6 +1019,9 @@ impl MetamathDatabase {
                 });
             }
         }
+
+        // Index syntax axiom for pattern matching (before inserting, so we can borrow)
+        self.index_syntax_axiom(&axiom);
 
         self.axioms
             .write()
