@@ -56,7 +56,18 @@ pub fn parse_expression(
 }
 
 /// Recursively parse a symbol sequence with a given expected type.
-fn parse_sequence(
+///
+/// This function is public to allow `AssertionCore::to_statement()` to parse
+/// assertion statements by skipping the "|-" prefix and parsing the rest as Boolean.
+///
+/// # Errors
+///
+/// Returns `MguError` if:
+/// - No syntax axioms are defined for the given type code
+/// - The sequence doesn't match any syntax axiom pattern
+/// - Variable subsequences cannot be parsed recursively
+/// - The pattern matching fails (constants don't match, etc.)
+pub fn parse_sequence(
     sequence: &[Arc<str>],
     type_code: &Arc<str>,
     db_arc: &Arc<MetamathDatabase>,

@@ -269,6 +269,19 @@ impl TypeMapping {
     pub fn is_assertion_type(&self, type_code: &str) -> bool {
         self.assertion_type.as_ref() == type_code
     }
+
+    /// Get a Boolean type code for this database.
+    ///
+    /// Returns the first Boolean type code configured for this database.
+    /// For `set.mm`, this is "wff". For `hol.mm`, this is "bool".
+    ///
+    /// # Returns
+    ///
+    /// A Boolean type code, or `None` if no Boolean types are configured.
+    #[must_use]
+    pub fn get_boolean_type(&self) -> Option<Arc<str>> {
+        self.boolean_types.iter().next().cloned()
+    }
 }
 
 /// Information about a constant symbol.
@@ -410,6 +423,131 @@ pub struct AssertionCore {
     pub comment: Option<CommentMetadata>,
     /// Distinctness constraints active when this assertion was declared.
     pub distinctness: DistinctnessGraph<DbMetavariable>,
+}
+
+impl AssertionCore {
+    /// Convert this assertion to a `Statement` for use with symbolic-mgu operations.
+    ///
+    /// This parses the assertion's statement and hypotheses into `DbTerm` instances
+    /// and creates a `Statement` object representing the inference rule.
+    ///
+    /// # Metamath → symbolic-mgu Mapping
+    ///
+    /// - **`AssertionCore.statement`** → `Statement.assertion` (conclusion)
+    /// - **`EssentialHyp.statement`** → `Statement.hypotheses` (antecedents)
+    /// - **`FloatingHyp`** → Used implicitly during parsing for variable typing
+    /// - **`AssertionCore.distinctness`** → `Statement.distinctness_graph`
+    ///
+    /// # Assertion Type Handling
+    ///
+    /// In Metamath, logical assertions start with "|-" (the provability operator):
+    /// - Statement: `["|-", "(", "ph", "->", "ph", ")"]`
+    /// - The "|-" is skipped, and the rest is parsed as a Boolean expression
+    /// - Result: `DbTerm` representing the wff `(ph -> ph)`
+    ///
+    /// # Arguments
+    ///
+    /// * `db` - The Metamath database for symbol lookup and parsing
+    ///
+    /// # Returns
+    ///
+    /// A `Statement` representing this assertion as an inference rule.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The statement or hypotheses cannot be parsed
+    /// - The resulting terms are not Boolean type
+    /// - The Statement validation fails
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use std::sync::Arc;
+    /// use symbolic_mgu::metamath::{Label, MetamathDatabase, Parser, TypeMapping, MemoryFilesystem};
+    ///
+    /// # fn example() -> Result<(), symbolic_mgu::MguError> {
+    /// // Create and parse a database
+    /// let mut fs = MemoryFilesystem::new();
+    /// fs.add_file("test.mm", "$c wff $. $v ph $. wph $f wff ph $. ax-1 $a wff ph $.".to_string());
+    /// let db_init = MetamathDatabase::new(TypeMapping::set_mm());
+    /// let parser = Parser::new(fs, "test.mm", db_init).map_err(|_| symbolic_mgu::MguError::UnificationFailure("parse error".to_string()))?;
+    /// let db = parser.parse().map_err(|_| symbolic_mgu::MguError::UnificationFailure("parse error".to_string()))?;
+    ///
+    /// // Get an axiom and convert to Statement
+    /// let label = Label::new("ax-1").map_err(|_| symbolic_mgu::MguError::UnificationFailure("label error".to_string()))?;
+    /// let axiom = db.get_axiom(&label).ok_or_else(|| symbolic_mgu::MguError::UnificationFailure("axiom not found".to_string()))?;
+    /// let statement = axiom.core.to_statement(&db)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn to_statement(
+        &self,
+        db: &Arc<MetamathDatabase>,
+    ) -> Result<
+        crate::Statement<
+            crate::metamath::DbType,
+            crate::metamath::DbMetavariable,
+            crate::metamath::DbNode,
+            crate::metamath::DbTerm,
+        >,
+        crate::MguError,
+    > {
+        use crate::metamath::expr_parser::parse_expression;
+        use crate::Statement;
+
+        // Parse the conclusion (assertion statement)
+        let conclusion = if db.type_mapping().is_assertion_type(&self.statement[0]) {
+            // Statement starts with "|-" - skip it and parse rest as Boolean
+            let boolean_type = db.type_mapping().get_boolean_type().ok_or_else(|| {
+                crate::MguError::ParseError {
+                    location: "assertion".to_string(),
+                    message: "No Boolean type configured in database".to_string(),
+                }
+            })?;
+
+            // Parse the sequence after "|-" as a Boolean expression
+            crate::metamath::expr_parser::parse_sequence(&self.statement[1..], &boolean_type, db)?
+        } else {
+            // Regular statement - parse as-is
+            parse_expression(&self.statement, db)?
+        };
+
+        // Parse essential hypotheses
+        let mut hypothesis_terms = Vec::new();
+        for essential_hyp in &self.hypotheses.1 {
+            // Essential hypothesis statements also typically start with "|-"
+            let hyp_term = if !essential_hyp.statement.is_empty()
+                && db
+                    .type_mapping()
+                    .is_assertion_type(&essential_hyp.statement[0])
+            {
+                // Skip "|-" and parse rest as Boolean
+                let boolean_type = db.type_mapping().get_boolean_type().ok_or_else(|| {
+                    crate::MguError::ParseError {
+                        location: "hypothesis".to_string(),
+                        message: "No Boolean type configured in database".to_string(),
+                    }
+                })?;
+
+                crate::metamath::expr_parser::parse_sequence(
+                    &essential_hyp.statement[1..],
+                    &boolean_type,
+                    db,
+                )?
+            } else {
+                // Regular hypothesis - parse as-is
+                parse_expression(&essential_hyp.statement, db)?
+            };
+
+            hypothesis_terms.push(hyp_term);
+        }
+
+        // Create the Statement using `new_db_backed()` to avoid calling `Type::try_boolean()`
+        // which is unimplemented for `DbType` (requires database context)
+        // Note: `FloatingHyp` are used implicitly during parsing for variable type lookup
+        Statement::new_db_backed(conclusion, hypothesis_terms, self.distinctness.clone())
+    }
 }
 
 /// An axiom (`$a` statement).

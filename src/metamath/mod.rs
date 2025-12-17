@@ -55,7 +55,7 @@ pub use database::SyntaxInfo;
 pub use database::Theorem;
 pub use database::TypeMapping;
 pub use database::VariableInfo;
-pub use expr_parser::parse_expression;
+pub use expr_parser::{parse_expression, parse_sequence};
 pub use filesystem::FilesystemProvider;
 pub use filesystem::MemoryFilesystem;
 pub use filesystem::StdFilesystem;
