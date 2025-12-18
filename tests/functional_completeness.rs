@@ -35,6 +35,7 @@ use symbolic_mgu::{
     EnumTerm, EnumTermFactory, MetavariableFactory, MguError, Node, SimpleType, Term,
     WideMetavariable, WideMetavariableFactory,
 };
+use SimpleType::*;
 
 type TestVar = WideMetavariable;
 type TestNode = BooleanSimpleNode<SimpleType>;
@@ -171,14 +172,8 @@ fn evaluate_2var_truth_table(
 /// Panics if not all 16 functions are found by max_depth.
 fn test_functional_completeness(ops: &[BooleanSimpleOp], max_depth: usize) -> usize {
     let vf = WideMetavariableFactory();
-    let var_a = vf
-        .list_metavariables_by_type(&SimpleType::Boolean)
-        .next()
-        .unwrap();
-    let var_b = vf
-        .list_metavariables_by_type(&SimpleType::Boolean)
-        .nth(1)
-        .unwrap();
+    let var_a = vf.list_metavariables_by_type(&Boolean).next().unwrap();
+    let var_b = vf.list_metavariables_by_type(&Boolean).nth(1).unwrap();
     let vars = vec![var_a, var_b];
 
     // Convert operators to nodes
@@ -196,8 +191,7 @@ fn test_functional_completeness(ops: &[BooleanSimpleOp], max_depth: usize) -> us
 
     // Search incrementally by depth
     for depth in 0..=max_depth {
-        let iter =
-            get_iterator(&state, SimpleType::Boolean, depth).expect("Failed to create iterator");
+        let iter = get_iterator(&state, Boolean, depth).expect("Failed to create iterator");
 
         let mut term_count = 0;
         for term in iter {

@@ -102,11 +102,11 @@ pub fn register_formatter(name: impl Into<String>, formatter: impl OutputFormatt
 /// # Examples
 ///
 /// ```rust
-/// use symbolic_mgu::{get_formatter, Metavariable, MetavariableFactory, MetaByte, MetaByteFactory, SimpleType};
+/// use symbolic_mgu::{get_formatter, Metavariable, MetavariableFactory, MetaByte, MetaByteFactory, SimpleType::*};
 ///
 /// let formatter = get_formatter("utf8");
 /// let vars = MetaByteFactory();
-/// let var = vars.list_metavariables_by_type(&SimpleType::Boolean).next().unwrap();
+/// let var = vars.list_metavariables_by_type(&Boolean).next().unwrap();
 /// let output = var.format_with(&*formatter);
 /// assert_eq!(output, "P");
 /// ```

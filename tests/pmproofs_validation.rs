@@ -11,8 +11,8 @@
 //!
 //! Note: This test is marked #[ignore] because it takes several seconds
 //! to validate all proofs. Use `--ignored` flag to run it explicitly.
-#![cfg(feature = "serde")]
 
+#![cfg(feature = "serde")]
 use serde_json::Value;
 use symbolic_mgu::bool_eval::test_validity;
 use symbolic_mgu::logic::create_dict;
@@ -20,6 +20,7 @@ use symbolic_mgu::{
     EnumTerm, EnumTermFactory, Metavariable, NodeByte, SimpleType, Statement, WideMetavariable,
     WideMetavariableFactory,
 };
+use SimpleType::*;
 
 // Type alias for readability
 type WideStatement = Statement<
@@ -46,11 +47,7 @@ fn count_boolean_variables(stmt: &WideStatement) -> usize {
 
     // Count only Boolean variables
     vars.iter()
-        .filter(|v| {
-            v.get_type()
-                .map(|t| t == SimpleType::Boolean)
-                .unwrap_or(false)
-        })
+        .filter(|v| v.get_type().map(|t| t == Boolean).unwrap_or(false))
         .count()
 }
 

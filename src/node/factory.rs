@@ -11,7 +11,7 @@
 //! The factory pattern enables:
 //!
 //! 1. **Multiple construction strategies** - Same trait interface, different implementations
-//!    - Stateless: Direct construction (e.g., [`NodeByteFactory`](crate::node::node_byte::factory::NodeByteFactory))
+//!    - Stateless: Direct construction (e.g., [`NodeByteFactory`])
 //!    - Stateful: Caching, interning, or deduplication
 //!    - Database-backed: Load nodes from persistent storage
 //!
@@ -174,12 +174,15 @@
 //!
 //! 1. **Factories define HOW** - Construction strategy (caching, database, etc.)
 //! 2. **Traits define WHAT** - Behavior interface ([`Node::get_arity()`], etc.)
-//! 3. **Independence** - [`NodeFactory`], [`MetavariableFactory`](crate::MetavariableFactory),
-//!    and [`TermFactory`](crate::TermFactory) are separate for cleaner design
+//! 3. **Independence** - [`NodeFactory`], [`MetavariableFactory`],
+//!    and [`TermFactory`] are separate for cleaner design
 //! 4. **Flexibility** - Applications can provide single object implementing all three
 //!
-//! [`Node`]: crate::Node
-//! [`Node::get_arity()`]: crate::Node::get_arity
+//! [`MetavariableFactory`]: `crate::MetavariableFactory`
+//! [`Node`]: `crate::Node`
+//! [`Node::get_arity()`]: `crate::Node::get_arity`
+//! [`NodeByteFactory`]: `crate::NodeByteFactory`
+//! [`TermFactory`]: `crate::TermFactory`
 
 use crate::{MguError, Node, Type};
 #[cfg(feature = "bigint")]
@@ -196,7 +199,7 @@ where
 {
     /// Concrete instance of the [`Type`] trait which this factory produces.
     ///
-    /// [`Node`]: `crate::Node`
+    /// [`Type`]: `crate::Type`
     type NodeType: Type;
 
     /// Concrete instance of the [`Node`] trait which this factory produces.

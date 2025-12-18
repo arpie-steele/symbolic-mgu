@@ -13,7 +13,7 @@ use crate::logic::propositional::rules::cn_basis::{
 };
 use crate::{
     apply_substitution, unify, DistinctnessGraph, Metavariable, MetavariableFactory, MguError,
-    Node, Substitution, Term, TermFactory, Type,
+    Node, NodeFactory, Substitution, Term, TermFactory, Type,
 };
 use std::collections::HashSet;
 use std::marker::PhantomData;
@@ -432,14 +432,15 @@ where
     ///
     /// ```
     /// use symbolic_mgu::*;
+    /// use SimpleType::*;
     ///
     /// # fn example() -> Result<(), MguError> {
     /// let var_factory = MetaByteFactory();
     /// let term_factory = EnumTermFactory::new();
     ///
     /// // Create P and (P → Q)
-    /// let p = var_factory.create("P", &SimpleType::Boolean)?;
-    /// let q = var_factory.create("Q", &SimpleType::Boolean)?;
+    /// let p = var_factory.create("P", &Boolean)?;
+    /// let q = var_factory.create("Q", &Boolean)?;
     /// let p_term = term_factory.create_leaf(p)?;
     /// let q_term = term_factory.create_leaf(q)?;
     ///
@@ -530,6 +531,7 @@ where
     /// use symbolic_mgu::{Statement, MetaByte, Metavariable, SimpleType, NodeByte, Node};
     /// use symbolic_mgu::{EnumTerm, EnumTermFactory, MetaByteFactory, MetavariableFactory};
     /// use itertools::Itertools;
+    /// use SimpleType::*;
     ///
     /// let var_factory = MetaByteFactory();
     /// let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
@@ -537,7 +539,7 @@ where
     /// // Create φ₂ → φ₅ (non-canonical variables)
     /// let vars = MetaByteFactory();
     /// let (_, _, phi2, _, _, phi5) = vars
-    ///         .list_metavariables_by_type(&SimpleType::Boolean)
+    ///         .list_metavariables_by_type(&Boolean)
     ///         .tuples()
     ///         .next()
     ///         .unwrap();
@@ -738,11 +740,12 @@ where
     /// # use symbolic_mgu::{Statement, SimpleType, MetaByte, MetaByteFactory, MetavariableFactory};
     /// # use symbolic_mgu::{WideMetavariable, WideMetavariableFactory};
     /// # use symbolic_mgu::{NodeByte, NodeByteFactory, EnumTerm, EnumTermFactory, TermFactory, MguError};
+    /// # use SimpleType::*;
     /// # fn example() -> Result<(), MguError> {
     /// // Original statement using MetaByte
     /// let meta_var_factory = MetaByteFactory();
     /// let term_factory: EnumTermFactory<SimpleType, _, NodeByte> = EnumTermFactory::new();
-    /// let p = meta_var_factory.create("P", &SimpleType::Boolean)?;
+    /// let p = meta_var_factory.create("P", &Boolean)?;
     /// let p_term = term_factory.create_leaf(p)?;
     /// let stmt = Statement::new(p_term, vec![], Default::default())?;
     ///
@@ -768,7 +771,7 @@ where
         N2: Node<Type = Ty2>,
         T2: Term<Ty2, V2, N2>,
         VF: MetavariableFactory<Metavariable = V2, MetavariableType = Ty2>,
-        NF: crate::NodeFactory<Node = N2, NodeType = Ty2>,
+        NF: NodeFactory<Node = N2, NodeType = Ty2>,
         TF: TermFactory<T2, Ty2, V2, N2, Term = T2, TermNode = N2, TermMetavariable = V2>,
     {
         use std::collections::HashMap;
@@ -841,7 +844,7 @@ where
             V2: Metavariable<Type = Ty2>,
             N2: Node<Type = Ty2>,
             T2: Term<Ty2, V2, N2>,
-            NF: crate::NodeFactory<Node = N2, NodeType = Ty2>,
+            NF: NodeFactory<Node = N2, NodeType = Ty2>,
             TF: TermFactory<T2, Ty2, V2, N2, Term = T2, TermNode = N2, TermMetavariable = V2>,
         {
             if let Some(src_var) = term.get_metavariable() {
@@ -930,6 +933,7 @@ mod tests {
     };
     use itertools::Itertools;
     use std::collections::HashSet;
+    use SimpleType::*;
 
     type TestStatement =
         Statement<SimpleType, MetaByte, NodeByte, EnumTerm<SimpleType, MetaByte, NodeByte>>;
@@ -946,7 +950,7 @@ mod tests {
 
         // Create simple statement: (φ; [P, Q]; {})
         let (phi, p, q) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -979,11 +983,11 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let phi = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .next()
             .unwrap();
         let p = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .nth(1)
             .unwrap();
 
@@ -1014,11 +1018,11 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let phi = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .next()
             .unwrap();
         let p = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .nth(1)
             .unwrap();
 
@@ -1055,7 +1059,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (phi, p, q) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1113,7 +1117,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (p, phi) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1167,7 +1171,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (phi, psi) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1248,7 +1252,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (phi, psi) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1289,7 +1293,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (phi, p, q) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1344,7 +1348,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (phi, p, q) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1383,7 +1387,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (phi, p, q, r) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .take(4)
             .collect_tuple()
             .unwrap();
@@ -1430,7 +1434,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (phi, p, q, r) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .take(4)
             .collect_tuple()
             .unwrap();
@@ -1482,7 +1486,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (p, q) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1527,7 +1531,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (p, q, r) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1582,7 +1586,7 @@ mod tests {
 
         // Create a statement with non-canonical variables: φ₂ → φ₅
         let (_, _, phi2, _, _, phi5) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1622,7 +1626,7 @@ mod tests {
 
         // Create first statement: φ₂ → φ₅
         let (_, _, phi2, _, _, phi5) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1638,7 +1642,7 @@ mod tests {
 
         // Create second statement: φ₃ → φ₇ (α-equivalent to first)
         let (_, _, _, phi3, _, _, _, phi7) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1675,7 +1679,7 @@ mod tests {
 
         // Create a statement with non-canonical variables
         let (_, _, phi2, _, _, phi5, _, phi7) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1724,7 +1728,7 @@ mod tests {
 
         // Create φ₅ → φ₂ (non-canonical order)
         let (_, _, phi2, _, _, phi5) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1746,7 +1750,7 @@ mod tests {
         assert_eq!(vars.len(), 2, "Should have 2 variables");
 
         let (phi0, phi1) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1766,7 +1770,7 @@ mod tests {
 
         // Create (φ₃ → φ₇; [φ₅]; {})
         let (_, _, _, phi3, _, phi5, _, phi7) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1791,7 +1795,7 @@ mod tests {
 
         // Verify all variables are from the beginning of the sequence
         let (phi0, phi1, phi2) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1812,7 +1816,7 @@ mod tests {
         // Create 6 distinct Boolean variables (1 for assertion + 5 for hypotheses)
         // Use variables from middle of alphabet to ensure renumbering happens
         let vars: Vec<_> = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .skip(5) // Skip P,Q,R,S,T; start with U,V,W,X,Y,Z
             .take(6)
             .collect();
@@ -1855,7 +1859,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (_, _, phi2, phi3, _, phi5) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1905,7 +1909,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (phi, psi) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1961,7 +1965,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (phi, psi) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -2016,7 +2020,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (phi, psi) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -2078,7 +2082,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (phi, psi) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -2135,7 +2139,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (phi, psi) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -2206,7 +2210,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (p, q) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -2272,7 +2276,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (phi, psi, chi) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -2347,11 +2351,11 @@ mod tests {
 
         // Create φ₂ and φ₅ (using specific indices)
         let phi2 = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .nth(2)
             .unwrap();
         let phi5 = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .nth(5)
             .unwrap();
 
@@ -2373,11 +2377,11 @@ mod tests {
         assert_eq!(vars.len(), 2, "Should have exactly 2 variables");
 
         let phi0 = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .next()
             .unwrap();
         let phi1 = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .nth(1)
             .unwrap();
 
@@ -2410,7 +2414,7 @@ mod tests {
         let term_factory = EnumTermFactory::new();
 
         let (phi, psi, chi) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();

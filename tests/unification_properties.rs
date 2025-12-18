@@ -9,6 +9,7 @@ use symbolic_mgu::{
     apply_substitution, unify, EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory,
     MetavariableFactory, NodeByte, SimpleType, TermFactory,
 };
+use SimpleType::*;
 
 // Type aliases for test clarity
 type TestTerm = EnumTerm<SimpleType, MetaByte, NodeByte>;
@@ -27,17 +28,17 @@ fn arbitrary_metavar(typ: SimpleType) -> impl Strategy<Value = MetaByte> {
 
 /// Generate a random Boolean metavariable.
 fn arbitrary_boolean_var() -> impl Strategy<Value = MetaByte> {
-    arbitrary_metavar(SimpleType::Boolean)
+    arbitrary_metavar(Boolean)
 }
 
 /// Generate a random Setvar metavariable.
 fn arbitrary_setvar() -> impl Strategy<Value = MetaByte> {
-    arbitrary_metavar(SimpleType::Setvar)
+    arbitrary_metavar(Setvar)
 }
 
 /// Generate a random Class metavariable.
 fn arbitrary_class_var() -> impl Strategy<Value = MetaByte> {
-    arbitrary_metavar(SimpleType::Class)
+    arbitrary_metavar(Class)
 }
 
 /// Generate a simple Boolean term (variable, or binary operation on variables).
@@ -106,7 +107,7 @@ fn arbitrary_disjoint_boolean_terms() -> impl Strategy<Value = (TestTerm, TestTe
         let var_factory = MetaByteFactory();
 
         let (v1, v2, v3, v4) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .expect("at least 4 Boolean vars");

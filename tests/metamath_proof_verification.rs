@@ -7,7 +7,9 @@
 //! - Both expanded and compressed proof formats work
 
 use std::sync::Arc;
-use symbolic_mgu::metamath::{verify_theorem, Label, MetamathDatabase, Parser, TypeMapping};
+use symbolic_mgu::metamath::{
+    verify_theorem, Label, MemoryFilesystem, MetamathDatabase, Parser, Proof, TypeMapping,
+};
 
 /// Create a Metamath database with axioms, inference rules, and simple theorems.
 ///
@@ -81,7 +83,7 @@ $( End of database $)
 
 /// Helper function to setup a parsed test database.
 fn setup_test_db() -> Arc<MetamathDatabase> {
-    let mut fs = symbolic_mgu::metamath::MemoryFilesystem::new();
+    let mut fs = MemoryFilesystem::new();
     fs.add_file("test.mm", test_database().to_string());
     let db = MetamathDatabase::new(TypeMapping::set_mm());
     let parser = Parser::new(fs, "test.mm", db).expect("Failed to create parser");
@@ -139,7 +141,6 @@ fn verify_compressed_proof() {
         .expect("id_compressed theorem not found");
 
     // Verify that it has a compressed proof
-    use symbolic_mgu::metamath::Proof;
     match &theorem.proof {
         Some(Proof::Compressed {
             labels,

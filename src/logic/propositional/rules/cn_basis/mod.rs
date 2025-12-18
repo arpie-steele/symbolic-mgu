@@ -31,13 +31,14 @@ pub const MP_MAJOR_PREMISE: usize = 1;
 /// use symbolic_mgu::logic::propositional::rules::cn_basis::modus_ponens;
 /// use symbolic_mgu::{EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, Metavariable, NodeByte, SimpleType};
 /// use itertools::Itertools;
+/// use SimpleType::*;
 ///
 /// // Create factory for building terms
 /// let factory = EnumTermFactory::new();
 ///
 /// // Get two boolean metavariables
 /// let vars = MetaByteFactory();
-/// let (phi, psi) = vars.list_metavariables_by_type(&SimpleType::Boolean).tuples().next().unwrap();
+/// let (phi, psi) = vars.list_metavariables_by_type(&Boolean).tuples().next().unwrap();
 ///
 /// // Create Modus Ponens: (ψ; φ, (φ → ψ); ∅)
 /// let mp = modus_ponens(&factory, phi, psi, NodeByte::Implies).unwrap();

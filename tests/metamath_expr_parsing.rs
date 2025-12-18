@@ -7,7 +7,9 @@
 //! 4. Test parse_expression() on real Metamath expressions
 
 use std::sync::Arc;
-use symbolic_mgu::metamath::{parse_expression, MetamathDatabase, Parser, TypeMapping};
+use symbolic_mgu::metamath::{
+    parse_expression, MemoryFilesystem, MetamathDatabase, Parser, TypeMapping,
+};
 use symbolic_mgu::Term;
 
 /// Create a minimal Metamath database string with propositional logic basics.
@@ -50,7 +52,7 @@ $( End of database $)
 
 /// Helper function to setup a parsed minimal database for tests.
 fn setup_minimal_db() -> Arc<MetamathDatabase> {
-    let mut fs = symbolic_mgu::metamath::MemoryFilesystem::new();
+    let mut fs = MemoryFilesystem::new();
     fs.add_file("test.mm", minimal_database().to_string());
     let db = MetamathDatabase::new(TypeMapping::set_mm());
     let parser = Parser::new(fs, "test.mm", db).expect("Failed to create parser");

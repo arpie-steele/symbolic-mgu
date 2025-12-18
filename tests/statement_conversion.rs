@@ -6,6 +6,7 @@ use symbolic_mgu::{
     NodeByteFactory, SimpleType, Statement, Term, TermFactory, WideMetavariable,
     WideMetavariableFactory,
 };
+use SimpleType::*;
 
 type MetaByteStatement =
     Statement<SimpleType, MetaByte, NodeByte, EnumTerm<SimpleType, MetaByte, NodeByte>>;
@@ -24,7 +25,7 @@ fn convert_simple_axiom_metabyte_to_wide() -> Result<(), MguError> {
 
     // Get first Boolean variable from factory iterator
     let p = var_factory
-        .list_metavariables_by_type(&SimpleType::Boolean)
+        .list_metavariables_by_type(&Boolean)
         .next()
         .unwrap();
     let p_term = term_factory.create_leaf(p)?;
@@ -53,7 +54,7 @@ fn convert_simple_axiom_wide_to_metabyte() -> Result<(), MguError> {
 
     // Get first Boolean variable from factory iterator
     let phi = wide_var_factory
-        .list_metavariables_by_type(&SimpleType::Boolean)
+        .list_metavariables_by_type(&Boolean)
         .next()
         .unwrap();
     let phi_term = term_factory.create_leaf(phi)?;
@@ -82,7 +83,7 @@ fn convert_implication_with_hypotheses() -> Result<(), MguError> {
 
     // Get first two Boolean variables using tuples()
     let (p_var, q_var) = var_factory
-        .list_metavariables_by_type(&SimpleType::Boolean)
+        .list_metavariables_by_type(&Boolean)
         .tuples()
         .next()
         .unwrap();
@@ -117,7 +118,7 @@ fn convert_exhaustion_error() -> Result<(), MguError> {
 
     // Get 12 Boolean variables from WideMetavariable
     let vars: Vec<_> = wide_var_factory
-        .list_metavariables_by_type(&SimpleType::Boolean)
+        .list_metavariables_by_type(&Boolean)
         .take(12)
         .collect();
 
@@ -162,7 +163,7 @@ fn convert_preserves_distinctness_graph() -> Result<(), MguError> {
 
     // Get two Setvar variables (x and y)
     let (x, y) = var_factory
-        .list_metavariables_by_type(&SimpleType::Setvar)
+        .list_metavariables_by_type(&Setvar)
         .tuples()
         .next()
         .unwrap();
@@ -212,7 +213,7 @@ fn convert_round_trip() -> Result<(), MguError> {
 
     // Get first two Boolean variables using tuples()
     let (p_var, q_var) = var_factory
-        .list_metavariables_by_type(&SimpleType::Boolean)
+        .list_metavariables_by_type(&Boolean)
         .tuples()
         .next()
         .unwrap();

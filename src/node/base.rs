@@ -5,6 +5,7 @@
 //! [`Term`]: `crate::Term`
 
 use crate::bool_eval::BooleanSimpleOp;
+use crate::formatter::OutputFormatter;
 use crate::{MguError, Type};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
@@ -113,7 +114,7 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone + PartialOrd + O
     /// assert_eq!(output, "→");
     /// ```
     #[must_use]
-    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn format_with(&self, formatter: &dyn OutputFormatter) -> String {
         let _ = formatter; // Suppress unused warning
         format!("{}", self) // Default: use Display
     }

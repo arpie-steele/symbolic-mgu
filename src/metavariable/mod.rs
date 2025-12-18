@@ -10,6 +10,7 @@ pub(crate) mod parametric;
 pub(crate) mod wide;
 pub(crate) mod wide_factory;
 
+use crate::formatter::OutputFormatter;
 use crate::{MguError, Type};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
@@ -86,15 +87,15 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + Partia
     /// # Examples
     ///
     /// ```rust
-    /// use symbolic_mgu::{Metavariable, MetaByte, MetaByteFactory, MetavariableFactory, SimpleType, get_formatter};
+    /// use symbolic_mgu::{Metavariable, MetaByte, MetaByteFactory, MetavariableFactory, SimpleType::*, get_formatter};
     ///
-    /// let var = MetaByteFactory().list_metavariables_by_type(&SimpleType::Boolean).next().unwrap();
+    /// let var = MetaByteFactory().list_metavariables_by_type(&Boolean).next().unwrap();
     /// let formatter = get_formatter("utf8");
     /// let output = var.format_with(&*formatter);
     /// assert_eq!(output, "P");
     /// ```
     #[must_use]
-    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn format_with(&self, formatter: &dyn OutputFormatter) -> String {
         let _ = formatter; // Suppress unused warning
         format!("{}", self) // Default: use Display
     }
@@ -117,9 +118,9 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + Partia
     /// # Examples
     ///
     /// ```rust
-    /// use symbolic_mgu::{Metavariable, MetaByte, MetaByteFactory, MetavariableFactory, SimpleType};
+    /// use symbolic_mgu::{Metavariable, MetaByte, MetaByteFactory, MetavariableFactory, SimpleType::*};
     ///
-    /// let var = MetaByteFactory().list_metavariables_by_type(&SimpleType::Boolean).next().unwrap();
+    /// let var = MetaByteFactory().list_metavariables_by_type(&Boolean).next().unwrap();
     /// let ascii = var.to_ascii();
     /// assert_eq!(ascii, "P"); // MetaByte returns literal character
     /// ```
@@ -146,9 +147,9 @@ pub trait Metavariable: Display + Debug + Clone + Hash + PartialEq + Eq + Partia
     /// # Examples
     ///
     /// ```rust
-    /// use symbolic_mgu::{Metavariable, MetaByte, MetaByteFactory, MetavariableFactory, SimpleType};
+    /// use symbolic_mgu::{Metavariable, MetaByte, MetaByteFactory, MetavariableFactory, SimpleType::*};
     ///
-    /// let var = MetaByteFactory().list_metavariables_by_type(&SimpleType::Boolean).next().unwrap();
+    /// let var = MetaByteFactory().list_metavariables_by_type(&Boolean).next().unwrap();
     /// let utf8 = var.to_utf8();
     /// assert_eq!(utf8, "P"); // MetaByte uses ASCII only
     /// ```

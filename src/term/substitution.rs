@@ -650,12 +650,14 @@ where
 
 #[cfg(test)]
 mod tests {
-    use itertools::Itertools;
 
     use super::*;
     use crate::{
-        EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, NodeFactory, SimpleType,
+        EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, NodeFactory,
+        OutputFormatter, SimpleType,
     };
+    use itertools::Itertools;
+    use SimpleType::*;
 
     type TestTerm = EnumTerm<SimpleType, MetaByte, NodeByte>;
 
@@ -709,7 +711,7 @@ mod tests {
     fn single_binding() {
         let vars = MetaByteFactory();
         let (var, other_var) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -737,10 +739,7 @@ mod tests {
     fn identical_terms_unify() {
         let factory = TestTermFactory;
         let vars = MetaByteFactory();
-        let var1 = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
-            .next()
-            .unwrap();
+        let var1 = vars.list_metavariables_by_type(&Boolean).next().unwrap();
         let term1 = TestTerm::Leaf(var1);
         let term2 = TestTerm::Leaf(var1);
 
@@ -755,7 +754,7 @@ mod tests {
         let factory = TestTermFactory;
         let vars = MetaByteFactory();
         let (var1, var2) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -772,14 +771,8 @@ mod tests {
     fn type_mismatch_fails() {
         let factory = TestTermFactory;
         let vars = MetaByteFactory();
-        let var_bool = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
-            .next()
-            .unwrap();
-        let var_class = vars
-            .list_metavariables_by_type(&SimpleType::Class)
-            .next()
-            .unwrap();
+        let var_bool = vars.list_metavariables_by_type(&Boolean).next().unwrap();
+        let var_class = vars.list_metavariables_by_type(&Class).next().unwrap();
         let term_bool = TestTerm::Leaf(var_bool);
         let term_class = TestTerm::Leaf(var_class);
 
@@ -790,7 +783,7 @@ mod tests {
     #[test]
     fn occurs_check_detects_cycle() {
         let var = MetaByteFactory()
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .next()
             .unwrap();
         let term_var = TestTerm::Leaf(var);
@@ -809,10 +802,7 @@ mod tests {
     fn occurs_check_prevents_unification() {
         let factory = TestTermFactory;
         let vars = MetaByteFactory();
-        let var = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
-            .next()
-            .unwrap();
+        let var = vars.list_metavariables_by_type(&Boolean).next().unwrap();
         let term_var = TestTerm::Leaf(var);
 
         // Create term: Not(var)
@@ -829,7 +819,7 @@ mod tests {
         let factory = TestTermFactory;
         let vars = MetaByteFactory();
         let (var1, var2) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -849,7 +839,7 @@ mod tests {
         let factory = TestTermFactory;
         let vars = MetaByteFactory();
         let (var1, var2) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -876,7 +866,7 @@ mod tests {
     #[test]
     fn substitution_iter() {
         let vars = MetaByteFactory();
-        let mut var_iter = vars.list_metavariables_by_type(&SimpleType::Boolean);
+        let mut var_iter = vars.list_metavariables_by_type(&Boolean);
         let var1 = var_iter.next().unwrap();
         let var2 = var_iter.next().unwrap();
         let var3 = var_iter.next().unwrap();
@@ -905,7 +895,7 @@ mod tests {
     fn substitution_iter_mut() {
         let vars = MetaByteFactory();
         let (var1, var2) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -927,10 +917,7 @@ mod tests {
     #[test]
     fn ensure_acyclic_direct_cycle() {
         let vars = MetaByteFactory();
-        let var1 = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
-            .next()
-            .unwrap();
+        let var1 = vars.list_metavariables_by_type(&Boolean).next().unwrap();
 
         // Create term: Not(`var1`), forming cycle `{var1 ↦ Not(var1)}`
         let not_node = NodeByte::Not;
@@ -952,7 +939,7 @@ mod tests {
     fn ensure_acyclic_two_element_cycle() {
         let vars = MetaByteFactory();
         let (var1, var2) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -978,7 +965,7 @@ mod tests {
     fn ensure_acyclic_longer_chain_cycle() {
         let vars = MetaByteFactory();
         let (var1, var2, var3) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1005,7 +992,7 @@ mod tests {
     fn ensure_acyclic_accepts_acyclic() {
         let vars = MetaByteFactory();
         let (var1, var2, var3) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1028,7 +1015,7 @@ mod tests {
         let factory = TestTermFactory;
         let vars = MetaByteFactory();
         let (var1, var2, var3) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1054,7 +1041,7 @@ mod tests {
         let factory = TestTermFactory;
         let vars = MetaByteFactory();
         let (var_p, var_t, var_s, var_q) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1088,7 +1075,7 @@ mod tests {
         let factory = TestTermFactory;
         let vars = MetaByteFactory();
         let (var1, var2, var3, var4) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1143,7 +1130,7 @@ mod tests {
         let factory = TestTermFactory;
         let vars = MetaByteFactory();
         let (var1, var2, var3) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1173,7 +1160,7 @@ mod tests {
         let factory = TestTermFactory;
         let vars = MetaByteFactory();
         let (var1, var2, var3) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1203,7 +1190,7 @@ mod tests {
         let factory = TestTermFactory;
         let vars = MetaByteFactory();
         let (var1, var2) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1235,7 +1222,7 @@ mod tests {
         let factory = TestTermFactory;
         let vars = MetaByteFactory();
         let (var1, var2, var3) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -1269,10 +1256,7 @@ mod tests {
         // (unifying f(x) with x, not just x with f(x))
         let factory = TestTermFactory;
         let vars = MetaByteFactory();
-        let var = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
-            .next()
-            .unwrap();
+        let var = vars.list_metavariables_by_type(&Boolean).next().unwrap();
 
         let var_term = TestTerm::Leaf(var);
         let not_node = NodeByte::Not;
@@ -1300,14 +1284,8 @@ mod tests {
         let factory = TestTermFactory;
         let vars = MetaByteFactory();
 
-        let var_bool = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
-            .next()
-            .unwrap();
-        let var_class = vars
-            .list_metavariables_by_type(&SimpleType::Class)
-            .next()
-            .unwrap();
+        let var_bool = vars.list_metavariables_by_type(&Boolean).next().unwrap();
+        let var_class = vars.list_metavariables_by_type(&Class).next().unwrap();
 
         let term_bool = TestTerm::Leaf(var_bool);
         let term_class = TestTerm::Leaf(var_class);
@@ -1333,14 +1311,8 @@ mod tests {
         let factory = TestTermFactory;
         let vars = MetaByteFactory();
 
-        let var_setvar = vars
-            .list_metavariables_by_type(&SimpleType::Setvar)
-            .next()
-            .unwrap();
-        let var_class = vars
-            .list_metavariables_by_type(&SimpleType::Class)
-            .next()
-            .unwrap();
+        let var_setvar = vars.list_metavariables_by_type(&Setvar).next().unwrap();
+        let var_class = vars.list_metavariables_by_type(&Class).next().unwrap();
 
         let term_setvar = TestTerm::Leaf(var_setvar);
         let term_class = TestTerm::Leaf(var_class);
@@ -1389,7 +1361,7 @@ mod tests {
         }
 
         fn get_type(&self) -> Result<SimpleType, MguError> {
-            Ok(SimpleType::Boolean)
+            Ok(Boolean)
         }
 
         fn is_metavariable(&self) -> bool {
@@ -1427,7 +1399,7 @@ mod tests {
             &[]
         }
 
-        fn format_with(&self, _formatter: &dyn crate::formatter::OutputFormatter) -> String {
+        fn format_with(&self, _formatter: &dyn OutputFormatter) -> String {
             "PathologicalTerm".to_string()
         }
     }

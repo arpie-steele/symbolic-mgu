@@ -3,9 +3,9 @@
 //! This module provides functions to parse Metamath expressions (symbol sequences)
 //! into `DbTerm` instances for use with symbolic-mgu's unification operations.
 
-use crate::metamath::database::MetamathDatabase;
-use crate::metamath::pattern::{PatternElement, SyntaxAxiomPattern};
-use crate::metamath::symbolic::{DbMetavariableFactory, DbNode, DbTerm};
+use crate::metamath::{
+    DbMetavariableFactory, DbNode, DbTerm, MetamathDatabase, PatternElement, SyntaxAxiomPattern,
+};
 use crate::{EnumTermFactory, MetavariableFactory, MguError, TermFactory};
 use std::sync::Arc;
 
@@ -386,9 +386,8 @@ fn try_extract(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metamath::database::{AssertionCore, TypeMapping};
-    use crate::metamath::label::Label;
-    use crate::DistinctnessGraph;
+    use crate::metamath::{AssertionCore, Axiom, FloatingHyp, Label, SyntaxInfo, TypeMapping};
+    use crate::{DistinctnessGraph, Term};
     use std::collections::HashSet;
 
     fn setup_test_db() -> Arc<MetamathDatabase> {
@@ -411,7 +410,7 @@ mod tests {
             .unwrap();
 
         // Add floating hypotheses
-        db.add_floating_hyp(crate::metamath::database::FloatingHyp {
+        db.add_floating_hyp(FloatingHyp {
             label: Label::new("wph").unwrap(),
             variable: Arc::from("ph"),
             type_code: Arc::from("wff"),
@@ -419,7 +418,7 @@ mod tests {
         })
         .unwrap();
 
-        db.add_floating_hyp(crate::metamath::database::FloatingHyp {
+        db.add_floating_hyp(FloatingHyp {
             label: Label::new("wps").unwrap(),
             variable: Arc::from("ps"),
             type_code: Arc::from("wff"),
@@ -431,8 +430,6 @@ mod tests {
     }
 
     fn create_implication_axiom(db: &Arc<MetamathDatabase>) {
-        use crate::metamath::database::Axiom;
-
         // Create implication syntax axiom: `wi $a wff ( ph -> ps ) $.`
         let statement = vec![
             Arc::from("wff"),
@@ -446,12 +443,8 @@ mod tests {
         let active_vars: HashSet<Arc<str>> =
             vec![Arc::from("ph"), Arc::from("ps")].into_iter().collect();
 
-        let syntax_info = crate::metamath::database::SyntaxInfo::from_statement(
-            &statement,
-            &active_vars,
-            db.type_mapping(),
-        )
-        .expect("Should be a syntax axiom");
+        let syntax_info = SyntaxInfo::from_statement(&statement, &active_vars, db.type_mapping())
+            .expect("Should be a syntax axiom");
 
         let axiom = Axiom {
             core: AssertionCore {
@@ -482,7 +475,6 @@ mod tests {
         let term = parse_expression(&symbols, &db).unwrap();
 
         // Should be a metavariable
-        use crate::Term;
         assert!(term.is_metavariable());
     }
 
@@ -503,7 +495,6 @@ mod tests {
         let term = parse_expression(&symbols, &db).unwrap();
 
         // Should be a node (not a metavariable)
-        use crate::Term;
         assert!(!term.is_metavariable());
 
         // Should have 2 children

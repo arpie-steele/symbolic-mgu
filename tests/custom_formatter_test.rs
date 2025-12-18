@@ -7,8 +7,8 @@
 
 use symbolic_mgu::logic::create_dict;
 use symbolic_mgu::{
-    register_formatter, Color, EnumTermFactory, MguError, NodeByte, OutputFormatter, Statement,
-    Term, WideMetavariable, WideMetavariableFactory,
+    get_formatter, register_formatter, Color, EnumTerm, EnumTermFactory, MguError, NodeByte,
+    OutputFormatter, SimpleType, Statement, Term, WideMetavariable, WideMetavariableFactory,
 };
 
 /// A simple JSON formatter for testing the extension API.
@@ -37,10 +37,10 @@ impl OutputFormatter for JsonFormatter {
 }
 
 type WideStatement = Statement<
-    symbolic_mgu::SimpleType,
+    SimpleType,
     WideMetavariable,
     NodeByte,
-    symbolic_mgu::EnumTerm<symbolic_mgu::SimpleType, WideMetavariable, NodeByte>,
+    EnumTerm<SimpleType, WideMetavariable, NodeByte>,
 >;
 
 #[test]
@@ -62,7 +62,7 @@ fn test_custom_formatter_implementation() -> Result<(), MguError> {
         Statement::from_compact_proof("DD211", &metavar_factory, &term_factory, &dict)?;
 
     // Get the custom formatter
-    let formatter = symbolic_mgu::get_formatter("json-test");
+    let formatter = get_formatter("json-test");
 
     // Format the assertion
     let output = result.get_assertion().format_with(&*formatter);
@@ -128,12 +128,12 @@ fn test_formatter_registration_and_retrieval() {
     // Test that formatters can be registered and retrieved
     register_formatter("json-test-2", JsonFormatter);
 
-    let retrieved = symbolic_mgu::get_formatter("json-test-2");
+    let retrieved = get_formatter("json-test-2");
 
     // Should get our formatter back
     assert_eq!(retrieved.name(), "json");
 
     // Unknown formatter should fall back to display formatter
-    let fallback = symbolic_mgu::get_formatter("nonexistent-formatter-xyz");
+    let fallback = get_formatter("nonexistent-formatter-xyz");
     assert_eq!(fallback.name(), "display");
 }

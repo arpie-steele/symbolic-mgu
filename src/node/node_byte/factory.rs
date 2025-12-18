@@ -71,7 +71,7 @@ where
     where
         Self: 'a;
 
-    fn create_by_name(&self, name: &str, arity: usize) -> Result<Self::Node, crate::MguError> {
+    fn create_by_name(&self, name: &str, arity: usize) -> Result<Self::Node, MguError> {
         let node = NodeByte::from_str(name).map_err(|_| MguError::UnknownNodeName {
             name: name.to_string(),
         })?;
@@ -90,7 +90,7 @@ where
         &self,
         code: u128,
         arity: usize,
-    ) -> Result<Self::Node, crate::MguError> {
+    ) -> Result<Self::Node, MguError> {
         match arity {
             0 => match (code & 1) as u8 {
                 0 => Ok(NodeByte::False),
@@ -155,7 +155,7 @@ where
         &self,
         the_type: Self::NodeType,
         index: usize,
-    ) -> Result<Self::Node, crate::MguError> {
+    ) -> Result<Self::Node, MguError> {
         let node = NodeByte::ALL_NODES
             .get(index)
             .ok_or_else(|| MguError::ChildIndexOutOfRange(index, NodeByte::ALL_NODES.len()))?;

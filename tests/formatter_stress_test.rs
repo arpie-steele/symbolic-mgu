@@ -7,15 +7,15 @@
 
 use symbolic_mgu::logic::create_dict;
 use symbolic_mgu::{
-    get_formatter, EnumTermFactory, MguError, NodeByte, Statement, Term, WideMetavariable,
-    WideMetavariableFactory,
+    get_formatter, EnumTerm, EnumTermFactory, MguError, NodeByte, SimpleType, Statement, Term,
+    WideMetavariable, WideMetavariableFactory,
 };
 
 type WideStatement = Statement<
-    symbolic_mgu::SimpleType,
+    SimpleType,
     WideMetavariable,
     NodeByte,
-    symbolic_mgu::EnumTerm<symbolic_mgu::SimpleType, WideMetavariable, NodeByte>,
+    EnumTerm<SimpleType, WideMetavariable, NodeByte>,
 >;
 
 #[test]

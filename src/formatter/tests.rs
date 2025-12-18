@@ -5,6 +5,7 @@ use crate::{
     EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, Metavariable, MetavariableFactory, Node,
     NodeByte, NodeByteFactory, NodeFactory, SimpleType, Term, TermFactory,
 };
+use SimpleType::*;
 
 /// Helper to create a simple term: P → Q
 #[must_use]
@@ -13,8 +14,8 @@ fn create_simple_term() -> EnumTerm<SimpleType, MetaByte, NodeByte> {
     let metavar_factory = MetaByteFactory();
     let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
 
-    let p = metavar_factory.create("P", &SimpleType::Boolean).unwrap();
-    let q = metavar_factory.create("Q", &SimpleType::Boolean).unwrap();
+    let p = metavar_factory.create("P", &Boolean).unwrap();
+    let q = metavar_factory.create("Q", &Boolean).unwrap();
     let p_term = term_factory.create_leaf(p).unwrap();
     let q_term = term_factory.create_leaf(q).unwrap();
 
@@ -68,7 +69,7 @@ fn color_formatters_provide_colors() {
 #[test]
 fn metabyte_ascii_formatting() {
     let metavar_factory = MetaByteFactory();
-    let p = metavar_factory.create("P", &SimpleType::Boolean).unwrap();
+    let p = metavar_factory.create("P", &Boolean).unwrap();
 
     let formatter = get_formatter("ascii");
     let formatted = p.format_with(&*formatter);
@@ -78,7 +79,7 @@ fn metabyte_ascii_formatting() {
 #[test]
 fn metabyte_utf8_formatting() {
     let metavar_factory = MetaByteFactory();
-    let p = metavar_factory.create("P", &SimpleType::Boolean).unwrap();
+    let p = metavar_factory.create("P", &Boolean).unwrap();
 
     let formatter = get_formatter("utf8");
     let formatted = p.format_with(&*formatter);
@@ -150,13 +151,13 @@ fn complex_term_formatting() {
     let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
 
     let p = term_factory
-        .create_leaf(metavar_factory.create("P", &SimpleType::Boolean).unwrap())
+        .create_leaf(metavar_factory.create("P", &Boolean).unwrap())
         .unwrap();
     let q = term_factory
-        .create_leaf(metavar_factory.create("Q", &SimpleType::Boolean).unwrap())
+        .create_leaf(metavar_factory.create("Q", &Boolean).unwrap())
         .unwrap();
     let r = term_factory
-        .create_leaf(metavar_factory.create("R", &SimpleType::Boolean).unwrap())
+        .create_leaf(metavar_factory.create("R", &Boolean).unwrap())
         .unwrap();
 
     let and_node = node_factory.create_by_name("And", 2).unwrap();
@@ -186,7 +187,7 @@ fn unary_operator_formatting() {
     let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
 
     let p = term_factory
-        .create_leaf(metavar_factory.create("P", &SimpleType::Boolean).unwrap())
+        .create_leaf(metavar_factory.create("P", &Boolean).unwrap())
         .unwrap();
 
     let not_node = node_factory.create_by_name("Not", 1).unwrap();

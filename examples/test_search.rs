@@ -11,15 +11,16 @@ use symbolic_mgu::{
 
 fn run() -> Result<(), MguError> {
     use NodeByte::*;
+    use SimpleType::*;
     let formatter = get_formatter("utf8");
 
     // Create variables of different types
     let vf = WideMetavariableFactory();
     let vars = vf
-        .list_metavariables_by_type(&SimpleType::Boolean)
+        .list_metavariables_by_type(&Boolean)
         .take(3)
-        .chain(vf.list_metavariables_by_type(&SimpleType::Setvar).take(3))
-        .chain(vf.list_metavariables_by_type(&SimpleType::Class).take(3))
+        .chain(vf.list_metavariables_by_type(&Setvar).take(3))
+        .chain(vf.list_metavariables_by_type(&Class).take(3))
         .collect::<Vec<_>>();
 
     // Nodes spanning different types and arities
@@ -51,7 +52,7 @@ fn run() -> Result<(), MguError> {
     let search = TermSearchStaticState::new(factory, &nodes, &vars)?;
 
     // Demonstrate term generation for different types
-    for term_type in &[SimpleType::Boolean, SimpleType::Setvar, SimpleType::Class] {
+    for term_type in &[Boolean, Setvar, Class] {
         println!("=== Type: {} ===", term_type);
 
         for depth in 0..=1 {

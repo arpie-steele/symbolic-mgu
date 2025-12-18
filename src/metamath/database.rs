@@ -28,11 +28,11 @@
 //! // db.parse_file("set.mm")?;
 //! ```
 
-use crate::metamath::comment::CommentMetadata;
-use crate::metamath::label::Label;
-use crate::metamath::proof::Proof;
-use crate::metamath::symbolic::{DbMetavariable, DbMetavariableFactory};
-use crate::{DistinctnessGraph, MetavariableFactory};
+use crate::metamath::{
+    parse_expression, parse_sequence, CommentMetadata, DbMetavariable, DbMetavariableFactory,
+    DbNode, DbTerm, DbType, Label, Proof, SyntaxAxiomPattern,
+};
+use crate::{DistinctnessGraph, MetavariableFactory, MguError, Statement};
 use indexmap::IndexMap;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
@@ -484,30 +484,20 @@ impl AssertionCore {
     pub fn to_statement(
         &self,
         db: &Arc<MetamathDatabase>,
-    ) -> Result<
-        crate::Statement<
-            crate::metamath::DbType,
-            crate::metamath::DbMetavariable,
-            crate::metamath::DbNode,
-            crate::metamath::DbTerm,
-        >,
-        crate::MguError,
-    > {
-        use crate::metamath::expr_parser::parse_expression;
-        use crate::Statement;
-
+    ) -> Result<Statement<DbType, DbMetavariable, DbNode, DbTerm>, MguError> {
         // Parse the conclusion (assertion statement)
         let conclusion = if db.type_mapping().is_assertion_type(&self.statement[0]) {
             // Statement starts with "|-" - skip it and parse rest as Boolean
-            let boolean_type = db.type_mapping().get_boolean_type().ok_or_else(|| {
-                crate::MguError::ParseError {
-                    location: "assertion".to_string(),
-                    message: "No Boolean type configured in database".to_string(),
-                }
-            })?;
+            let boolean_type =
+                db.type_mapping()
+                    .get_boolean_type()
+                    .ok_or_else(|| MguError::ParseError {
+                        location: "assertion".to_string(),
+                        message: "No Boolean type configured in database".to_string(),
+                    })?;
 
             // Parse the sequence after "|-" as a Boolean expression
-            crate::metamath::expr_parser::parse_sequence(&self.statement[1..], &boolean_type, db)?
+            parse_sequence(&self.statement[1..], &boolean_type, db)?
         } else {
             // Regular statement - parse as-is
             parse_expression(&self.statement, db)?
@@ -523,18 +513,15 @@ impl AssertionCore {
                     .is_assertion_type(&essential_hyp.statement[0])
             {
                 // Skip "|-" and parse rest as Boolean
-                let boolean_type = db.type_mapping().get_boolean_type().ok_or_else(|| {
-                    crate::MguError::ParseError {
-                        location: "hypothesis".to_string(),
-                        message: "No Boolean type configured in database".to_string(),
-                    }
-                })?;
+                let boolean_type =
+                    db.type_mapping()
+                        .get_boolean_type()
+                        .ok_or_else(|| MguError::ParseError {
+                            location: "hypothesis".to_string(),
+                            message: "No Boolean type configured in database".to_string(),
+                        })?;
 
-                crate::metamath::expr_parser::parse_sequence(
-                    &essential_hyp.statement[1..],
-                    &boolean_type,
-                    db,
-                )?
+                parse_sequence(&essential_hyp.statement[1..], &boolean_type, db)?
             } else {
                 // Regular hypothesis - parse as-is
                 parse_expression(&essential_hyp.statement, db)?
@@ -868,8 +855,7 @@ pub struct MetamathDatabase {
     symbol_kinds: RwLock<HashMap<Arc<str>, SymbolKind>>,
     /// Syntax axioms indexed by result type for efficient pattern matching.
     /// Built during parsing when syntax axioms are added to the database.
-    syntax_axioms_by_type:
-        RwLock<HashMap<Arc<str>, Vec<crate::metamath::pattern::SyntaxAxiomPattern>>>,
+    syntax_axioms_by_type: RwLock<HashMap<Arc<str>, Vec<SyntaxAxiomPattern>>>,
 }
 
 impl MetamathDatabase {
@@ -1565,8 +1551,6 @@ impl MetamathDatabase {
     ///
     /// Panics if the `RwLock` was poisoned.
     pub fn index_syntax_axiom(&self, axiom: &Axiom) {
-        use crate::metamath::pattern::SyntaxAxiomPattern;
-
         // Only index syntax axioms
         if let Some(pattern) = SyntaxAxiomPattern::from_axiom(axiom, self) {
             self.syntax_axioms_by_type
@@ -1586,10 +1570,7 @@ impl MetamathDatabase {
     /// # Panics
     ///
     /// Panics if the `RwLock` was poisoned.
-    pub fn get_syntax_axioms_for_type(
-        &self,
-        type_code: &str,
-    ) -> Vec<crate::metamath::pattern::SyntaxAxiomPattern> {
+    pub fn get_syntax_axioms_for_type(&self, type_code: &str) -> Vec<SyntaxAxiomPattern> {
         self.syntax_axioms_by_type
             .read()
             .expect("RwLock poisoned")

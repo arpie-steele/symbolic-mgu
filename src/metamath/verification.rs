@@ -16,10 +16,10 @@
 //!      - Push the substituted conclusion onto stack
 //! 3. Final stack should contain exactly one statement matching the theorem being proved
 
-use crate::metamath::database::{EssentialHyp, FloatingHyp, MetamathDatabase, Theorem};
-use crate::metamath::label::Label;
-use crate::metamath::proof::Proof;
-use crate::metamath::symbolic::DbMetavariable;
+use crate::metamath::{
+    DbMetavariable, EssentialHyp, FloatingHyp, Label, MetamathDatabase, Proof, Theorem,
+};
+use crate::DistinctnessGraph;
 use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
@@ -565,8 +565,8 @@ fn apply_axiom_or_theorem(
     stack: &mut Vec<Vec<Arc<str>>>,
     hypotheses: &(Vec<FloatingHyp>, Vec<EssentialHyp>),
     conclusion: &[Arc<str>],
-    distinctness: &crate::DistinctnessGraph<DbMetavariable>,
-    calling_distinctness: &crate::DistinctnessGraph<DbMetavariable>,
+    distinctness: &DistinctnessGraph<DbMetavariable>,
+    calling_distinctness: &DistinctnessGraph<DbMetavariable>,
     database: &Arc<MetamathDatabase>,
     step_num: usize,
     assertion_label: &str,
@@ -800,7 +800,7 @@ fn collect_variables(
 fn variables_are_distinct(
     var1: &Arc<str>,
     var2: &Arc<str>,
-    distinctness: &crate::DistinctnessGraph<DbMetavariable>,
+    distinctness: &DistinctnessGraph<DbMetavariable>,
     database: &Arc<MetamathDatabase>,
 ) -> bool {
     // Get type and index for each variable
@@ -832,9 +832,10 @@ fn variables_are_distinct(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metamath::database::{MetamathDatabase, TypeMapping};
-    use crate::metamath::filesystem::StdFilesystem;
-    use crate::metamath::parser::Parser;
+    use crate::metamath::{
+        AssertionCore, MetamathDatabase, Parser, StdFilesystem, Theorem, TypeMapping,
+    };
+    use crate::DistinctnessGraph;
 
     #[test]
     fn verify_demo0_th1() {
@@ -925,8 +926,6 @@ mod tests {
     #[test]
     fn missing_proof() {
         // Create a theorem without a proof
-        use crate::metamath::database::{AssertionCore, Theorem};
-        use crate::DistinctnessGraph;
 
         let db = Arc::new(MetamathDatabase::new(TypeMapping::set_mm()));
         let theorem = Theorem {

@@ -6,7 +6,7 @@
 //! - FloatingHyp → implicit variable typing
 
 use std::sync::Arc;
-use symbolic_mgu::metamath::{MetamathDatabase, Parser, TypeMapping};
+use symbolic_mgu::metamath::{Label, MemoryFilesystem, MetamathDatabase, Parser, TypeMapping};
 use symbolic_mgu::{Term, TypeCore};
 
 /// Create a minimal Metamath database with logical axioms and inference rules.
@@ -54,7 +54,7 @@ $( End of database $)
 
 /// Helper function to setup a parsed minimal database for tests.
 fn setup_minimal_db() -> Arc<MetamathDatabase> {
-    let mut fs = symbolic_mgu::metamath::MemoryFilesystem::new();
+    let mut fs = MemoryFilesystem::new();
     fs.add_file("test.mm", minimal_database().to_string());
     let db = MetamathDatabase::new(TypeMapping::set_mm());
     let parser = Parser::new(fs, "test.mm", db).expect("Failed to create parser");
@@ -63,8 +63,6 @@ fn setup_minimal_db() -> Arc<MetamathDatabase> {
 
 #[test]
 fn convert_simple_axiom_no_hypotheses() {
-    use symbolic_mgu::metamath::Label;
-
     // Setup database
     let db = setup_minimal_db();
 
@@ -103,8 +101,6 @@ fn convert_simple_axiom_no_hypotheses() {
 
 #[test]
 fn convert_axiom_with_nested_structure() {
-    use symbolic_mgu::metamath::Label;
-
     // Setup database
     let db = setup_minimal_db();
 
@@ -143,8 +139,6 @@ fn convert_axiom_with_nested_structure() {
 
 #[test]
 fn convert_inference_rule_with_hypotheses() {
-    use symbolic_mgu::metamath::Label;
-
     // Setup database
     let db = setup_minimal_db();
 
@@ -193,8 +187,6 @@ fn convert_inference_rule_with_hypotheses() {
 
 #[test]
 fn verify_hypothesis_structure() {
-    use symbolic_mgu::metamath::Label;
-
     // Setup database
     let db = setup_minimal_db();
 
@@ -226,8 +218,6 @@ fn verify_hypothesis_structure() {
 
 #[test]
 fn all_axioms_convert_successfully() {
-    use symbolic_mgu::metamath::Label;
-
     // Setup database
     let db = setup_minimal_db();
 
@@ -253,8 +243,6 @@ fn all_axioms_convert_successfully() {
 
 #[test]
 fn syntax_axiom_conversion() {
-    use symbolic_mgu::metamath::Label;
-
     // Setup database
     let db = setup_minimal_db();
 

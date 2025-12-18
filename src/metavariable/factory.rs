@@ -41,17 +41,17 @@
 //! Suitable for simple variable schemes and testing.
 //!
 //! ```rust
-//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType};
+//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType::*};
 //!
 //! let factory = MetaByteFactory();
 //!
 //! // Create Boolean variables by name (uppercase P-Z)
-//! let p = factory.create("P", &SimpleType::Boolean).unwrap();
-//! let q = factory.create("Q", &SimpleType::Boolean).unwrap();
+//! let p = factory.create("P", &Boolean).unwrap();
+//! let q = factory.create("Q", &Boolean).unwrap();
 //!
 //! // Create Setvar/Class by type and index (create_by_name has a bug for these)
-//! let x = factory.create_by_type_and_index(&SimpleType::Setvar, 0).unwrap();  // 'x'
-//! let y = factory.create_by_type_and_index(&SimpleType::Setvar, 1).unwrap();  // 'y'
+//! let x = factory.create_by_type_and_index(&Setvar, 0).unwrap();  // 'x'
+//! let y = factory.create_by_type_and_index(&Setvar, 1).unwrap();  // 'y'
 //! ```
 //!
 //! ### Stateful Factories (Conceptual)
@@ -87,13 +87,13 @@
 //! Simple factory for unit tests using ASCII variable names:
 //!
 //! ```rust
-//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType};
+//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType::*};
 //!
 //! let factory = MetaByteFactory();
 //!
 //! // Create variables with ASCII names (Boolean uses uppercase P-Z)
-//! let phi = factory.create("P", &SimpleType::Boolean).unwrap();
-//! let psi = factory.create("Q", &SimpleType::Boolean).unwrap();
+//! let phi = factory.create("P", &Boolean).unwrap();
+//! let psi = factory.create("Q", &Boolean).unwrap();
 //! ```
 //!
 //! ### Production Backend: Unicode Variables (Conceptual)
@@ -103,12 +103,12 @@
 //! let factory = UnicodeMetavariableFactory::new();
 //!
 //! // Greek letters for Boolean variables
-//! let phi = factory.create("φ", &SimpleType::Boolean)?;
-//! let psi = factory.create("ψ", &SimpleType::Boolean)?;
+//! let phi = factory.create("φ", &Boolean)?;
+//! let psi = factory.create("ψ", &Boolean)?;
 //!
 //! // Latin letters for set variables
-//! let x = factory.create("x", &SimpleType::Setvar)?;
-//! let y = factory.create("y", &SimpleType::Setvar)?;
+//! let x = factory.create("x", &Setvar)?;
+//! let y = factory.create("y", &Setvar)?;
 //! ```
 //!
 //! ### Database Backend: Metamath Integration (Conceptual)
@@ -118,9 +118,9 @@
 //! let factory = MetamathVariableFactory::load("set.mm")?;
 //!
 //! // Variables follow Metamath naming conventions
-//! let wph = factory.create("ph", &SimpleType::Boolean)?;  // wff variable
-//! let vx = factory.create("x", &SimpleType::Setvar)?;     // setvar variable
-//! let cA = factory.create("A", &SimpleType::Class)?;      // class variable
+//! let wph = factory.create("ph", &Boolean)?;  // wff variable
+//! let vx = factory.create("x", &Setvar)?;     // setvar variable
+//! let cA = factory.create("A", &Class)?;      // class variable
 //! ```
 //!
 //! ## Usage Patterns
@@ -128,31 +128,31 @@
 //! ### Pattern 1: Creating Variables with Type Constraints
 //!
 //! ```rust
-//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType};
+//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType::*};
 //!
 //! let factory = MetaByteFactory();
 //!
 //! // Type-safe variable creation
-//! let phi = factory.create("P", &SimpleType::Boolean).unwrap();
-//! let x = factory.create_by_type_and_index(&SimpleType::Setvar, 0).unwrap();  // 'x'
-//! let A = factory.create_by_type_and_index(&SimpleType::Class, 0).unwrap();  // 'A'
+//! let phi = factory.create("P", &Boolean).unwrap();
+//! let x = factory.create_by_type_and_index(&Setvar, 0).unwrap();  // 'x'
+//! let A = factory.create_by_type_and_index(&Class, 0).unwrap();  // 'A'
 //! ```
 //!
 //! ### Pattern 2: Enumerating Variables by Type
 //!
 //! ```rust
-//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType};
+//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType::*};
 //!
 //! let factory = MetaByteFactory();
 //!
 //! // List all Boolean variables
 //! let boolean_vars: Vec<_> = factory
-//!     .list_metavariables_by_type(&SimpleType::Boolean)
+//!     .list_metavariables_by_type(&Boolean)
 //!     .collect();
 //!
 //! // List all set variables
 //! let setvar_vars: Vec<_> = factory
-//!     .list_metavariables_by_type(&SimpleType::Setvar)
+//!     .list_metavariables_by_type(&Setvar)
 //!     .collect();
 //! ```
 //!
@@ -162,18 +162,18 @@
 //! that don't conflict with existing ones:
 //!
 //! ```rust
-//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, Metavariable, SimpleType};
+//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, Metavariable, SimpleType::*};
 //! use std::collections::HashSet;
 //!
 //! let factory = MetaByteFactory();
 //!
 //! // Collect used variables (Boolean uses uppercase P-Z)
 //! let mut used_vars = HashSet::new();
-//! used_vars.insert(factory.create("P", &SimpleType::Boolean).unwrap());
-//! used_vars.insert(factory.create("Q", &SimpleType::Boolean).unwrap());
+//! used_vars.insert(factory.create("P", &Boolean).unwrap());
+//! used_vars.insert(factory.create("Q", &Boolean).unwrap());
 //!
 //! // Find a fresh variable (simplified example)
-//! let fresh = factory.create("R", &SimpleType::Boolean).unwrap();
+//! let fresh = factory.create("R", &Boolean).unwrap();
 //! assert!(!used_vars.contains(&fresh));
 //! ```
 //!
@@ -185,10 +185,10 @@
 //! 4. **Independence** - Separate from [`NodeFactory`] and [`TermFactory`] for clean design
 //! 5. **Flexibility** - Support different naming conventions and backends transparently
 //!
-//! [`Metavariable`]: crate::Metavariable
-//! [`Metavariable::get_type()`]: crate::Metavariable::get_type
-//! [`NodeFactory`]: crate::NodeFactory
-//! [`TermFactory`]: crate::TermFactory
+//! [`Metavariable`]: `crate::Metavariable`
+//! [`Metavariable::get_type()`]: `crate::Metavariable::get_type`
+//! [`NodeFactory`]: `crate::NodeFactory`
+//! [`TermFactory`]: `crate::TermFactory`
 
 use crate::{Metavariable, MguError, Type};
 use std::fmt::Debug;
@@ -203,7 +203,7 @@ where
 {
     /// Concrete instance of the [`Type`] trait which this factory produces.
     ///
-    /// [`Metavariable`]: `crate::Metavariable`
+    /// [`Type`]: `crate::Type`
     type MetavariableType: Type;
 
     /// Concrete instance of the [`Metavariable`] trait which this factory produces.

@@ -12,7 +12,7 @@
 //! automatic conversions. Always prefer constructors over direct instantiation:
 //!
 //! ```rust
-//! use symbolic_mgu::{MguError, SimpleType};
+//! use symbolic_mgu::{MguError, SimpleType::*};
 //!
 //! // GOOD: Use constructor for SlotsMismatch
 //! let err = MguError::from_found_and_expected_unsigned(3usize, 2usize);
@@ -21,7 +21,7 @@
 //! // let err = MguError::SlotsMismatch(3, 2);
 //!
 //! // GOOD: Use constructor for IndexOutOfRange
-//! let err = MguError::from_type_index_and_len(SimpleType::Boolean, 5usize, 3usize);
+//! let err = MguError::from_type_index_and_len(Boolean, 5usize, 3usize);
 //!
 //! // GOOD: Use constructor for ChildIndexOutOfRange (no type info)
 //! let err = MguError::from_index_and_len(5usize, 3usize);
@@ -447,9 +447,9 @@ impl MguError {
     /// # Examples
     ///
     /// ```
-    /// use symbolic_mgu::{MguError, SimpleType};
+    /// use symbolic_mgu::{MguError, SimpleType::*};
     ///
-    /// let err = MguError::from_type_index_and_len(SimpleType::Boolean, 5usize, 3usize);
+    /// let err = MguError::from_type_index_and_len(Boolean, 5usize, 3usize);
     /// assert_eq!(err.get_unwanted_index(), Some(5));
     /// assert_eq!(err.get_collection_size(), Some(3));
     /// ```

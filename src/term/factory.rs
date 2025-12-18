@@ -43,13 +43,14 @@
 //! ```rust
 //! use symbolic_mgu::{EnumTermFactory, TermFactory, MetaByteFactory, NodeByteFactory};
 //! use symbolic_mgu::{MetavariableFactory, NodeFactory, SimpleType, MetaByte, NodeByte, EnumTerm};
+//! use SimpleType::*;
 //!
 //! let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> = EnumTermFactory::new();
 //! let metavar_factory = MetaByteFactory();
 //! let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
 //!
 //! // Create variable leaf (Boolean uses uppercase P-Z)
-//! let p_var = metavar_factory.create("P", &SimpleType::Boolean).unwrap();
+//! let p_var = metavar_factory.create("P", &Boolean).unwrap();
 //! let p_term = term_factory.create_leaf(p_var).unwrap();
 //!
 //! // Create compound term: Not(P)
@@ -111,14 +112,15 @@
 //! ```rust
 //! use symbolic_mgu::{EnumTermFactory, TermFactory, MetaByteFactory, NodeByteFactory};
 //! use symbolic_mgu::{MetavariableFactory, NodeFactory, SimpleType, MetaByte, NodeByte, EnumTerm};
+//! use SimpleType::*;
 //!
 //! let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> = EnumTermFactory::new();
 //! let metavar_factory = MetaByteFactory();
 //! let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
 //!
 //! // Build: P → Q (Boolean uses uppercase P-Z)
-//! let p = metavar_factory.create("P", &SimpleType::Boolean).unwrap();
-//! let q = metavar_factory.create("Q", &SimpleType::Boolean).unwrap();
+//! let p = metavar_factory.create("P", &Boolean).unwrap();
+//! let q = metavar_factory.create("Q", &Boolean).unwrap();
 //! let p_term = term_factory.create_leaf(p).unwrap();
 //! let q_term = term_factory.create_leaf(q).unwrap();
 //!
@@ -178,6 +180,7 @@
 //! ```rust
 //! use symbolic_mgu::{EnumTermFactory, TermFactory, MetaByteFactory, NodeByteFactory};
 //! use symbolic_mgu::{MetavariableFactory, NodeFactory, SimpleType, MetaByte, NodeByte, EnumTerm};
+//! use SimpleType::*;
 //!
 //! let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> = EnumTermFactory::new();
 //! let metavar_factory = MetaByteFactory();
@@ -185,13 +188,13 @@
 //!
 //! // Build: (P ∧ Q) → R (Boolean uses uppercase P-Z)
 //! let p = term_factory.create_leaf(
-//!     metavar_factory.create("P", &SimpleType::Boolean).unwrap()
+//!     metavar_factory.create("P", &Boolean).unwrap()
 //! ).unwrap();
 //! let q = term_factory.create_leaf(
-//!     metavar_factory.create("Q", &SimpleType::Boolean).unwrap()
+//!     metavar_factory.create("Q", &Boolean).unwrap()
 //! ).unwrap();
 //! let r = term_factory.create_leaf(
-//!     metavar_factory.create("R", &SimpleType::Boolean).unwrap()
+//!     metavar_factory.create("R", &Boolean).unwrap()
 //! ).unwrap();
 //!
 //! let and_node = node_factory.create_by_name("And", 2).unwrap();
@@ -232,13 +235,14 @@
 //! ```rust
 //! use symbolic_mgu::{EnumTermFactory, TermFactory, MetaByteFactory, NodeByteFactory};
 //! use symbolic_mgu::{MetavariableFactory, NodeFactory, SimpleType, MetaByte, NodeByte, EnumTerm};
+//! use SimpleType::*;
 //!
 //! let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> = EnumTermFactory::new();
 //! let metavar_factory = MetaByteFactory();
 //! let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
 //!
 //! let p = term_factory.create_leaf(
-//!     metavar_factory.create("P", &SimpleType::Boolean).unwrap()
+//!     metavar_factory.create("P", &Boolean).unwrap()
 //! ).unwrap();
 //!
 //! // Arity mismatch: Not expects 1 child, but we provide 2
@@ -282,13 +286,13 @@
 //! 5. **Performance** - Enable caching, deduplication, structural sharing
 //! 6. **Flexibility** - Support different backends (testing, production, database)
 //!
-//! [`Term`]: crate::Term
-//! [`Term::get_type()`]: crate::Term::get_type
-//! [`Term::get_children()`]: crate::Term::get_children
-//! [`Metavariable`]: crate::Metavariable
-//! [`Node`]: crate::Node
-//! [`NodeFactory`]: crate::NodeFactory
-//! [`MetavariableFactory`]: crate::MetavariableFactory
+//! [`Term`]: `crate::Term`
+//! [`Term::get_type()`]: `crate::Term::get_type`
+//! [`Term::get_children()`]: `crate::Term::get_children`
+//! [`Metavariable`]: `crate::Metavariable`
+//! [`Node`]: `crate::Node`
+//! [`NodeFactory`]: `crate::NodeFactory`
+//! [`MetavariableFactory`]: `crate::MetavariableFactory`
 
 use crate::{Metavariable, MetavariableFactory, MguError, Node, NodeFactory, Term, Type};
 use std::fmt::Debug;

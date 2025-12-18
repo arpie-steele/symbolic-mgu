@@ -1,5 +1,6 @@
 //! Very Generic Simple Term implementation.
 
+use crate::formatter::OutputFormatter;
 use crate::{
     Metavariable, MetavariableFactory, MguError, Node, NodeFactory, Term, TermFactory, Type,
 };
@@ -62,7 +63,7 @@ where
 
     type Node = N;
 
-    fn is_valid_sentence(&self) -> Result<bool, crate::MguError> {
+    fn is_valid_sentence(&self) -> Result<bool, MguError> {
         match self {
             Self::Leaf(v) => {
                 _ = v.get_type_and_index()?; // Just make sure it is "alive"
@@ -80,7 +81,7 @@ where
         }
     }
 
-    fn get_type(&self) -> Result<Ty, crate::MguError> {
+    fn get_type(&self) -> Result<Ty, MguError> {
         match self {
             Self::Leaf(v) => v.get_type(),
             Self::NodeOrLeaf(n, _) => n.get_type(),
@@ -158,7 +159,7 @@ where
         }
     }
 
-    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn format_with(&self, formatter: &dyn OutputFormatter) -> String {
         match self {
             Self::Leaf(v) => v.format_with(formatter),
             Self::NodeOrLeaf(n, children) => {

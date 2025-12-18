@@ -66,6 +66,7 @@ where
     ///
     /// ```
     /// use symbolic_mgu::{Statement, EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, TermFactory};
+    /// use SimpleType::*;
     /// use itertools::Itertools;
     ///
     /// let term_factory = EnumTermFactory::new();
@@ -73,7 +74,7 @@ where
     ///
     /// // Create two simple axioms
     /// let (p, q) = var_factory
-    ///         .list_metavariables_by_type(&SimpleType::Boolean)
+    ///         .list_metavariables_by_type(&Boolean)
     ///         .tuples()
     ///         .next()
     ///         .unwrap();
@@ -248,13 +249,14 @@ where
     ///
     /// ```
     /// use symbolic_mgu::{Statement, EnumTermFactory, MetaByteFactory, MetavariableFactory, MetaByte, NodeByte, SimpleType, DistinctnessGraph, TermFactory};
+    /// use SimpleType::*;
     /// use itertools::Itertools;
     ///
     /// let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> = EnumTermFactory::new();
     /// let var_factory = MetaByteFactory();
     ///
     /// let (p, q, r, s) = var_factory
-    ///         .list_metavariables_by_type(&SimpleType::Boolean)
+    ///         .list_metavariables_by_type(&Boolean)
     ///         .tuples()
     ///         .next()
     ///         .unwrap();
@@ -350,6 +352,7 @@ mod tests {
     use super::*;
     use crate::{EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, NodeByte, SimpleType};
     use itertools::Itertools;
+    use SimpleType::*;
 
     /// Type aliases for tests
     type TestStatement =
@@ -369,7 +372,7 @@ mod tests {
         let (term_factory, var_factory) = setup();
 
         let p = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .next()
             .unwrap();
 
@@ -387,7 +390,7 @@ mod tests {
         let (term_factory, var_factory) = setup();
 
         let p = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .next()
             .unwrap();
 
@@ -408,7 +411,7 @@ mod tests {
 
         let vars = MetaByteFactory();
         let (p, q) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -438,7 +441,7 @@ mod tests {
 
         let vars = MetaByteFactory();
         let (p, q, r, s) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -465,7 +468,7 @@ mod tests {
 
         let vars = MetaByteFactory();
         let (p, q, r) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -501,7 +504,7 @@ mod tests {
 
         let vars = MetaByteFactory();
         let (p, q, r) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -539,7 +542,7 @@ mod tests {
 
         let vars = MetaByteFactory();
         let (p, q) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
@@ -572,7 +575,7 @@ mod tests {
 
         let vars = MetaByteFactory();
         let (p, q) = vars
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();

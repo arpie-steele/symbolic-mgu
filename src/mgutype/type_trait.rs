@@ -67,7 +67,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::SimpleType;
+    use crate::SimpleType::*;
 
     /// Verify that `TypeCore` IS dyn-safe (can be used as a trait object).
     ///
@@ -76,12 +76,12 @@ mod tests {
     /// It omits `Clone`, `Eq`, `Hash`, and `Ord` to maintain dyn-safety.
     #[test]
     fn typecore_is_dyn_safe() {
-        let simple_type = SimpleType::Boolean;
+        let simple_type = Boolean;
         let type_core_ref: &dyn TypeCore = &simple_type;
         assert!(type_core_ref.is_boolean());
 
         // Can also box it
-        let boxed: Box<dyn TypeCore> = Box::new(SimpleType::Setvar);
+        let boxed: Box<dyn TypeCore> = Box::new(Setvar);
         assert!(boxed.is_setvar());
     }
 
@@ -107,7 +107,7 @@ mod tests {
     /// Verify that `to_boxed()` correctly bridges from `Type` to `Box<dyn TypeCore>`.
     #[test]
     fn to_boxed_works() {
-        let simple_type = SimpleType::Class;
+        let simple_type = Class;
         let boxed = simple_type.to_boxed();
         assert!(boxed.is_class());
     }

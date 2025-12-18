@@ -33,12 +33,13 @@ use crate::{Metavariable, MguError, Node, Statement, Term, TermFactory, Type};
 /// use symbolic_mgu::logic::propositional::axioms::cn_basis::simp;
 /// use symbolic_mgu::{EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, Metavariable, NodeByte, SimpleType};
 /// use itertools::Itertools;
+/// use SimpleType::*;
 ///
 /// // Create factory for building terms
 /// let factory = EnumTermFactory::new();
 ///
 /// let vars = MetaByteFactory();
-/// let (phi, psi) = vars.list_metavariables_by_type(&SimpleType::Boolean).tuples().next().unwrap();
+/// let (phi, psi) = vars.list_metavariables_by_type(&Boolean).tuples().next().unwrap();
 ///
 /// // Create Simp axiom: ((φ → (ψ → φ)); ∅; ∅)
 /// let axiom = simp(&factory, phi, psi, NodeByte::Implies).unwrap();
@@ -96,12 +97,13 @@ where
 /// use symbolic_mgu::logic::propositional::axioms::cn_basis::frege;
 /// use symbolic_mgu::{EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, Metavariable, NodeByte, SimpleType};
 /// use itertools::Itertools;
+/// use SimpleType::*;
 ///
 /// // Create factory for building terms
 /// let factory = EnumTermFactory::new();
 ///
 /// let vars = MetaByteFactory();
-/// let (phi, psi, chi) = vars.list_metavariables_by_type(&SimpleType::Boolean).tuples().next().unwrap();
+/// let (phi, psi, chi) = vars.list_metavariables_by_type(&Boolean).tuples().next().unwrap();
 ///
 /// // Create Frege axiom (distributivity)
 /// let axiom = frege(&factory, phi, psi, chi, NodeByte::Implies).unwrap();
@@ -179,12 +181,13 @@ where
 /// use symbolic_mgu::logic::propositional::axioms::cn_basis::transp;
 /// use symbolic_mgu::{EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, Metavariable, NodeByte, SimpleType};
 /// use itertools::Itertools;
+/// use SimpleType::*;
 ///
 /// // Create factory for building terms
 /// let factory = EnumTermFactory::new();
 ///
 /// let vars = MetaByteFactory();
-/// let (phi, psi) = vars.list_metavariables_by_type(&SimpleType::Boolean).tuples().next().unwrap();
+/// let (phi, psi) = vars.list_metavariables_by_type(&Boolean).tuples().next().unwrap();
 ///
 /// // Create Transp axiom (contrapositive)
 /// let axiom = transp(&factory, phi, psi, NodeByte::Not, NodeByte::Implies).unwrap();

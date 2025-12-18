@@ -8,10 +8,10 @@ use crate::metamath::database::{
     Axiom, ConstantInfo, DatabaseError, EssentialHyp, FloatingHyp, MetamathDatabase, Theorem,
     VariableInfo,
 };
-use crate::metamath::filesystem::FilesystemProvider;
-use crate::metamath::label::Label;
-use crate::metamath::proof::{Proof, ProofError};
-use crate::metamath::tokenizer::{Token, TokenKind, Tokenizer};
+use crate::metamath::{
+    AssertionCore, CommentMetadata, FilesystemProvider, Label, Proof, ProofError, SyntaxInfo,
+    Token, TokenKind, Tokenizer,
+};
 use std::collections::HashSet;
 use std::io;
 use std::sync::Arc;
@@ -572,20 +572,14 @@ impl<F: FilesystemProvider> Parser<F> {
         }
 
         // Get associated comment from tokenizer and parse metadata
-        let comment = self
-            .tokenizer
-            .last_comment()
-            .map(crate::metamath::comment::CommentMetadata::parse);
+        let comment = self.tokenizer.last_comment().map(CommentMetadata::parse);
 
         // Extract type code (first symbol) and compute syntax info
         let type_code = statement.first().cloned().unwrap_or_else(|| Arc::from(""));
 
         let active_vars = self.database.active_variables();
-        let syntax_info = crate::metamath::database::SyntaxInfo::from_statement(
-            &statement,
-            &active_vars,
-            self.database.type_mapping(),
-        );
+        let syntax_info =
+            SyntaxInfo::from_statement(&statement, &active_vars, self.database.type_mapping());
 
         // Collect mandatory hypotheses (only those for variables in the statement)
         let hypotheses = self
@@ -618,7 +612,7 @@ impl<F: FilesystemProvider> Parser<F> {
             .build_distinctness_graph(&active_vars, &self.database);
 
         let axiom = Axiom {
-            core: crate::metamath::database::AssertionCore {
+            core: AssertionCore {
                 label,
                 statement,
                 line,
@@ -758,10 +752,7 @@ impl<F: FilesystemProvider> Parser<F> {
         };
 
         // Get associated comment from tokenizer and parse metadata
-        let comment = self
-            .tokenizer
-            .last_comment()
-            .map(crate::metamath::comment::CommentMetadata::parse);
+        let comment = self.tokenizer.last_comment().map(CommentMetadata::parse);
 
         // Build distinctness graph from ALL active variables in scope
         // This includes variables that appear only in the proof (not in statement/hypotheses)
@@ -772,7 +763,7 @@ impl<F: FilesystemProvider> Parser<F> {
             .build_distinctness_graph(&active_vars, &self.database);
 
         let theorem = Theorem {
-            core: crate::metamath::database::AssertionCore {
+            core: AssertionCore {
                 label,
                 statement,
                 line,
@@ -792,8 +783,7 @@ impl<F: FilesystemProvider> Parser<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metamath::database::TypeMapping;
-    use crate::metamath::filesystem::StdFilesystem;
+    use crate::metamath::{ContributionKind, Proof, StdFilesystem, TypeMapping};
     use std::io::Write;
     use std::sync::Arc;
 
@@ -922,7 +912,6 @@ mod tests {
     #[test]
     fn proof_parsing_integration() -> Result<(), Box<dyn std::error::Error>> {
         // Integration test for Phase 5: parse both expanded and compressed proofs
-        use crate::metamath::proof::Proof;
 
         let temp_dir = std::env::temp_dir();
         let test_file = temp_dir.join("test_proof_parsing.mm");
@@ -1024,7 +1013,6 @@ mod tests {
     #[test]
     fn comment_metadata_extraction() -> Result<(), Box<dyn std::error::Error>> {
         // Integration test: parse a file with contributor comments
-        use crate::metamath::comment::ContributionKind;
 
         let temp_dir = std::env::temp_dir();
         let test_file = temp_dir.join("test_parse_comments.mm");

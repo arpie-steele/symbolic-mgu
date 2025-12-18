@@ -13,20 +13,20 @@ use crate::{Metavariable, MetavariableFactory, MguError, SimpleType as Type, Wid
 /// # Examples
 ///
 /// ```
-/// use symbolic_mgu::{WideMetavariableFactory, MetavariableFactory, SimpleType, Metavariable};
+/// use symbolic_mgu::{WideMetavariableFactory, MetavariableFactory, SimpleType::*, Metavariable};
 ///
 /// let factory = WideMetavariableFactory();
 ///
 /// // Create first Boolean variable
-/// let phi = factory.create_by_type_and_index(&SimpleType::Boolean, 0).unwrap();
+/// let phi = factory.create_by_type_and_index(&Boolean, 0).unwrap();
 /// assert_eq!(phi.to_string(), "𝜑");
 ///
 /// // Create with subscript
-/// let phi_1 = factory.create_by_type_and_index(&SimpleType::Boolean, 12).unwrap();
+/// let phi_1 = factory.create_by_type_and_index(&Boolean, 12).unwrap();
 /// assert_eq!(phi_1.to_string(), "𝜑₁");
 ///
 /// // Enumerate variables
-/// let mut vars = factory.list_metavariables_by_type(&SimpleType::Boolean);
+/// let mut vars = factory.list_metavariables_by_type(&Boolean);
 /// assert_eq!(vars.next().unwrap().to_string(), "𝜑");
 /// assert_eq!(vars.next().unwrap().to_string(), "𝜓");
 /// ```

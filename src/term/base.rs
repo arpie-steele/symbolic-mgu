@@ -1,6 +1,7 @@
 //! Introduce the [`Term`] trait which describes the tree used to
 //! form Sentences.
 
+use crate::formatter::OutputFormatter;
 use crate::{Metavariable, MguError, Node, Type};
 use std::collections::HashSet;
 use std::fmt::{Debug, Display};
@@ -216,10 +217,11 @@ where
     ///
     /// ```rust
     /// use symbolic_mgu::{Term, EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, get_formatter};
+    /// use SimpleType::*;
     ///
     /// let vars = MetaByteFactory();
     /// let var = vars
-    ///     .list_metavariables_by_type(&SimpleType::Boolean)
+    ///     .list_metavariables_by_type(&Boolean)
     ///     .next()
     ///     .unwrap();
     /// let term: EnumTerm<SimpleType, MetaByte, NodeByte> = EnumTerm::Leaf(var);
@@ -228,7 +230,7 @@ where
     /// assert_eq!(output, "P");
     /// ```
     #[must_use]
-    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn format_with(&self, formatter: &dyn OutputFormatter) -> String {
         let _ = formatter; // Suppress unused warning
         format!("{}", self) // Default: use Display
     }

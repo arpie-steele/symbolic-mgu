@@ -1,5 +1,6 @@
 //! Introduce an implementation of the [`Metavariable`] trait for [`MetaByte`].
 
+use crate::formatter::OutputFormatter;
 use crate::Metavariable;
 use crate::MetavariableFactory;
 use crate::MguError;
@@ -116,7 +117,7 @@ impl Metavariable for MetaByte {
         Self::try_from_type_and_index(my_type, my_index)
     }
 
-    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn format_with(&self, formatter: &dyn OutputFormatter) -> String {
         match formatter.name() {
             "ascii" => self.to_ascii(),
             "latex" => self.to_latex(),
@@ -148,7 +149,7 @@ impl MetaByte {
 
     /// Get HTML representation with optional coloring.
     #[must_use]
-    fn to_html(self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn to_html(self, formatter: &dyn OutputFormatter) -> String {
         let char_str = self.to_str();
 
         if let Ok((typ, _)) = self.get_type_and_index() {
@@ -169,7 +170,7 @@ impl MetaByte {
 
     /// Get UTF-8 representation with ANSI color codes.
     #[must_use]
-    fn to_utf8_color(self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn to_utf8_color(self, formatter: &dyn OutputFormatter) -> String {
         let char_str = self.to_str();
 
         if let Ok((typ, _)) = self.get_type_and_index() {

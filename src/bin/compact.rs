@@ -20,8 +20,8 @@ use symbolic_mgu::bool_eval::{test_tautology, test_validity};
 use symbolic_mgu::logic::create_dict;
 use symbolic_mgu::{
     get_formatter, EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, Metavariable,
-    MetavariableFactory, MguError, MguErrorType, NodeByte, NodeByteFactory, SimpleType, Statement,
-    Term, TermFactory, WideMetavariable, WideMetavariableFactory,
+    MetavariableFactory, MguError, MguErrorType, NodeByte, NodeByteFactory, OutputFormatter,
+    SimpleType, Statement, Term, TermFactory, WideMetavariable, WideMetavariableFactory,
 };
 
 /// Metavariable implementation mode
@@ -237,7 +237,7 @@ fn run_both_mode(proofs: &[&str], verify: bool, format: &str) -> Result<(), MguE
 /// Display a statement with verification
 fn display_statement<V, T, TF>(
     result: &Statement<SimpleType, V, NodeByte, T>,
-    formatter: &dyn symbolic_mgu::OutputFormatter,
+    formatter: &dyn OutputFormatter,
     verify: bool,
     term_factory: &TF,
 ) -> Result<(), MguError>

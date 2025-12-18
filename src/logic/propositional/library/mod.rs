@@ -22,6 +22,8 @@
 //! - Definitions: [`DEF_C_AN`], [`DEF_K_AN`], [`DEF_E_CK`]
 //! - Rules: Substitution, Detachment
 
+use crate::logic::build_boolean_statement_from_polish;
+use crate::{Metavariable, MguError, Node, Statement, Term, TermFactory, Type};
 use strum::{Display, EnumCount, EnumString, FromRepr, VariantArray, VariantNames};
 
 /// Historical formula of propositional calculus.
@@ -270,12 +272,13 @@ impl<S: AsRef<str>> LibraryFormula<S> {
     /// use symbolic_mgu::logic::propositional::library::PM_1_2_AC;
     /// use symbolic_mgu::{EnumTermFactory, WideMetavariableFactory, MetavariableFactory, SimpleType};
     /// use symbolic_mgu::bool_eval::{BooleanSimpleNode, BooleanSimpleOp};
+    /// use SimpleType::*;
     /// use strum::VariantArray;
     ///
     /// let factory = EnumTermFactory::new();
     /// let var_factory = WideMetavariableFactory::new();
     /// let vars = var_factory
-    ///     .list_metavariables_by_type(&SimpleType::Boolean)
+    ///     .list_metavariables_by_type(&Boolean)
     ///     .take(26)
     ///     .collect::<Vec<_>>();
     /// let nodes = <BooleanSimpleOp as VariantArray>::VARIANTS
@@ -296,29 +299,15 @@ impl<S: AsRef<str>> LibraryFormula<S> {
         factory: &TF,
         vars: &[V],
         nodes: &[N],
-    ) -> Result<crate::Statement<Ty, V, N, T>, crate::MguError>
+    ) -> Result<Statement<Ty, V, N, T>, MguError>
     where
-        Ty: crate::Type,
-        V: crate::Metavariable<Type = Ty>,
-        N: crate::Node<Type = Ty>,
-        T: crate::Term<Ty, V, N>,
-        TF: crate::TermFactory<
-            T,
-            Ty,
-            V,
-            N,
-            TermType = Ty,
-            Term = T,
-            TermMetavariable = V,
-            TermNode = N,
-        >,
+        Ty: Type,
+        V: Metavariable<Type = Ty>,
+        N: Node<Type = Ty>,
+        T: Term<Ty, V, N>,
+        TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
     {
-        crate::logic::build_boolean_statement_from_polish(
-            self.polish.as_ref(),
-            factory,
-            vars,
-            nodes,
-        )
+        build_boolean_statement_from_polish(self.polish.as_ref(), factory, vars, nodes)
     }
 }
 
@@ -423,10 +412,10 @@ impl LibraryFormulaBuilder {
     /// # Errors
     ///
     /// Returns an error if the Polish notation was not set.
-    pub fn build(self) -> Result<LibraryFormula<String>, crate::MguError> {
+    pub fn build(self) -> Result<LibraryFormula<String>, MguError> {
         Ok(LibraryFormula {
             polish: self.polish.ok_or_else(|| {
-                crate::MguError::UnificationFailure("Polish notation is required".to_string())
+                MguError::UnificationFailure("Polish notation is required".to_string())
             })?,
             pm_name: self.pm_name,
             set_mm_name: self.set_mm_name,
