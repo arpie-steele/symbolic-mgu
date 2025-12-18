@@ -32,7 +32,6 @@ use crate::metamath::label::Label;
 use crate::metamath::proof::Proof;
 use crate::metamath::symbolic::{DbMetavariable, DbTerm};
 use crate::{Metavariable, Substitution, Term};
-use std::collections::HashSet;
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -165,7 +164,7 @@ impl ProofBuilder {
     pub fn build_proof(
         &self,
         assertion_label: &Label,
-        _substitution: &Substitution<DbMetavariable, DbTerm>,
+        substitution: &Substitution<DbMetavariable, DbTerm>,
     ) -> Result<Proof, ProofBuildError> {
         // Verify assertion exists (either axiom or theorem)
         let _exists = self.database.get_axiom(assertion_label).is_some()
@@ -180,8 +179,22 @@ impl ProofBuilder {
         // Build proof steps
         let mut proof_steps: Vec<Arc<str>> = Vec::new();
 
-        // Phase 3.1: Check if assertion has essential hypotheses
-        // Get essential hypothesis count to document in comments
+        // Phase 3: Build proof steps for substituted terms
+        // For each variable in the substitution, we need to build the term
+        // The order doesn't matter for Metamath's RPN stack model - we just need
+        // all the pieces before we apply the assertion
+
+        // Collect all terms from the substitution values
+        let substituted_terms: Vec<&DbTerm> =
+            substitution.iter().map(|(_var, term)| term).collect();
+
+        // Build proof steps for each substituted term
+        for term in substituted_terms {
+            self.build_term_steps(term, &mut proof_steps)?;
+        }
+
+        // Phase 4: Handle essential hypotheses
+        // Get essential hypothesis count
         let n_essential_hyps = if let Some(axiom) = self.database.get_axiom(assertion_label) {
             axiom.core.hypotheses.1.len()
         } else if let Some(theorem) = self.database.get_theorem(assertion_label) {
@@ -190,21 +203,20 @@ impl ProofBuilder {
             0
         };
 
-        // For each essential hypothesis, we would need to:
-        // 1. Apply substitution to the hypothesis statement
-        // 2. Build proof steps for the substituted hypothesis
-        // This is deferred to Phase 4 (advanced proof building)
+        // For assertions with essential hypotheses, those would need to be on the stack
+        // before we apply the assertion. In a real proof generation scenario,
+        // the hypotheses would come from previous proof steps or from the context.
+        // For now, we assume they're provided separately (Phase 4 enhancement).
         if n_essential_hyps > 0 {
-            // TODO: Phase 4 - Build proofs for essential hypotheses with substitution
+            // Note: In a complete implementation, we would need to:
+            // 1. Know which theorems/axioms prove each essential hypothesis
+            // 2. Build proofs for those recursively
+            // 3. Add those proof steps before the assertion
+            // This is complex and requires proof search - deferred
         }
 
-        // Phase 3.2: Add the assertion label
-        // This is the main step - applying the assertion/axiom/theorem
+        // Add the assertion label itself
         proof_steps.push(Arc::from(assertion_label.encoded()));
-
-        // Note: For identity substitution (empty), the proof is just the assertion label
-        // For non-trivial substitutions, we would need to add steps to construct
-        // the substituted terms before applying the assertion (Phase 3.2 enhancement)
 
         Ok(Proof::Expanded(proof_steps))
     }
@@ -230,12 +242,37 @@ impl ProofBuilder {
     pub fn build_application_proof(
         &self,
         major_label: &Label,
-        _minor_label: &Label,
+        minor_label: &Label,
         substitution: &Substitution<DbMetavariable, DbTerm>,
     ) -> Result<Proof, ProofBuildError> {
-        // For now, delegate to `build_proof` for the major premise
-        // TODO: Phase 4 - Implement full APPLY proof generation
-        self.build_proof(major_label, substitution)
+        // APPLY corresponds to modus ponens (ax-mp):
+        // Given: major = |- (ph -> ps), minor = |- ph
+        // Result: |- ps
+        // Proof: [minor, major, ax-mp]
+
+        // Build proof steps
+        let mut proof_steps: Vec<Arc<str>> = Vec::new();
+
+        // Step 1: Build proof for substituted terms (if any)
+        for (_var, term) in substitution.iter() {
+            self.build_term_steps(term, &mut proof_steps)?;
+        }
+
+        // Step 2: Add the minor premise (the hypothesis)
+        proof_steps.push(Arc::from(minor_label.encoded()));
+
+        // Step 3: Add the major premise (the implication)
+        proof_steps.push(Arc::from(major_label.encoded()));
+
+        // Step 4: Apply modus ponens (ax-mp)
+        // In Metamath, ax-mp is the standard inference rule for application
+        let axmp_label = Label::new("ax-mp").map_err(|_| ProofBuildError::MissingHypothesis {
+            label: "ax-mp".to_string(),
+        })?;
+
+        proof_steps.push(Arc::from(axmp_label.encoded()));
+
+        Ok(Proof::Expanded(proof_steps))
     }
 
     /// Build an expanded proof from condensed detachment.
@@ -259,32 +296,37 @@ impl ProofBuilder {
     pub fn build_condensed_detachment_proof(
         &self,
         major_label: &Label,
-        _minor_label: &Label,
+        minor_label: &Label,
         substitution: &Substitution<DbMetavariable, DbTerm>,
     ) -> Result<Proof, ProofBuildError> {
-        // For now, delegate to `build_proof` for the major premise
-        // TODO: Phase 4 - Implement full `CONDENSED_DETACH` proof generation
-        self.build_proof(major_label, substitution)
-    }
+        // `CONDENSED_DETACH` is modus ponens with unification:
+        // Given: major = `|- (ph -> ps)`, minor = `|- ph'` where `ph'` unifies with `ph`
+        // Substitution σ makes `ph` = `ph'`
+        // Result: `|- ps[σ]`
+        // Proof structure is the same as APPLY: [substituted terms, minor, major, ax-mp]
 
-    /// Collect all variables that appear in a term.
-    ///
-    /// This is used to determine which floating hypotheses need to be included
-    /// in the proof.
-    fn collect_variables(term: &DbTerm) -> HashSet<DbMetavariable> {
-        let mut variables = HashSet::new();
+        // Build proof steps
+        let mut proof_steps: Vec<Arc<str>> = Vec::new();
 
-        if let Some(var) = term.get_metavariable() {
-            // It's a variable - add it
-            variables.insert(var.clone());
-        } else {
-            // It's a node - recursively collect from children
-            for child in term.get_children() {
-                variables.extend(Self::collect_variables(child));
-            }
+        // Step 1: Build proof for all substituted terms
+        for (_var, term) in substitution.iter() {
+            self.build_term_steps(term, &mut proof_steps)?;
         }
 
-        variables
+        // Step 2: Add the minor premise (matches the antecedent after substitution)
+        proof_steps.push(Arc::from(minor_label.encoded()));
+
+        // Step 3: Add the major premise (the implication)
+        proof_steps.push(Arc::from(major_label.encoded()));
+
+        // Step 4: Apply modus ponens (ax-mp)
+        let axmp_label = Label::new("ax-mp").map_err(|_| ProofBuildError::MissingHypothesis {
+            label: "ax-mp".to_string(),
+        })?;
+
+        proof_steps.push(Arc::from(axmp_label.encoded()));
+
+        Ok(Proof::Expanded(proof_steps))
     }
 
     /// Build proof steps to construct a term.

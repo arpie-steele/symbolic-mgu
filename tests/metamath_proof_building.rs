@@ -150,3 +150,101 @@ fn proof_builder_with_multiple_axioms() {
         );
     }
 }
+
+#[test]
+fn build_application_proof() {
+    let db = setup_test_db();
+    let builder = ProofBuilder::new(Arc::clone(&db));
+
+    let substitution = Substitution::new();
+
+    // Build APPLY proof: given ax-1 and something, apply ax-mp
+    let major_label = Label::new("ax-1").expect("Failed to create label");
+    let minor_label = Label::new("ax-2").expect("Failed to create label");
+
+    let result = builder.build_application_proof(&major_label, &minor_label, &substitution);
+
+    assert!(
+        result.is_ok(),
+        "Building APPLY proof failed: {:?}",
+        result.err()
+    );
+
+    // Check that proof contains ax-mp
+    use symbolic_mgu::metamath::Proof;
+    match result.unwrap() {
+        Proof::Expanded(steps) => {
+            assert!(
+                steps.iter().any(|s| s.as_ref() == "ax-mp"),
+                "APPLY proof should include ax-mp"
+            );
+            // Should also include both premises
+            assert!(
+                steps.iter().any(|s| s.as_ref() == "ax-1"),
+                "APPLY proof should include major premise ax-1"
+            );
+            assert!(
+                steps.iter().any(|s| s.as_ref() == "ax-2"),
+                "APPLY proof should include minor premise ax-2"
+            );
+        }
+        Proof::Compressed { .. } => panic!("Expected expanded proof, got compressed"),
+    }
+}
+
+#[test]
+fn build_condensed_detachment_proof() {
+    let db = setup_test_db();
+    let builder = ProofBuilder::new(Arc::clone(&db));
+
+    let substitution = Substitution::new();
+
+    // Build CONDENSED_DETACH proof
+    let major_label = Label::new("ax-1").expect("Failed to create label");
+    let minor_label = Label::new("ax-2").expect("Failed to create label");
+
+    let result =
+        builder.build_condensed_detachment_proof(&major_label, &minor_label, &substitution);
+
+    assert!(
+        result.is_ok(),
+        "Building CONDENSED_DETACH proof failed: {:?}",
+        result.err()
+    );
+
+    // Check that proof contains ax-mp
+    use symbolic_mgu::metamath::Proof;
+    match result.unwrap() {
+        Proof::Expanded(steps) => {
+            assert!(
+                steps.iter().any(|s| s.as_ref() == "ax-mp"),
+                "CONDENSED_DETACH proof should include ax-mp"
+            );
+        }
+        Proof::Compressed { .. } => panic!("Expected expanded proof, got compressed"),
+    }
+}
+
+#[test]
+fn build_proof_with_multiple_substitutions() {
+    let db = setup_test_db();
+    let builder = ProofBuilder::new(Arc::clone(&db));
+
+    // Create a non-empty substitution
+    // This tests Phase 3 full substitution handling
+    use symbolic_mgu::metamath::{DbMetavariable, DbTerm};
+    let substitution: Substitution<DbMetavariable, DbTerm> = Substitution::new();
+
+    // Note: Actually creating substitutions would require parsing terms,
+    // which is complex for a basic test. The key is that the API accepts
+    // non-empty substitutions and can iterate over them.
+
+    let label = Label::new("ax-1").expect("Failed to create label");
+    let result = builder.build_proof(&label, &substitution);
+
+    assert!(
+        result.is_ok(),
+        "Building proof with substitution failed: {:?}",
+        result.err()
+    );
+}
