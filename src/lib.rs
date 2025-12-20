@@ -74,7 +74,7 @@ pub use distinct::simple_graph::Decomposition;
 pub use distinct::simple_graph::SimpleGraph;
 pub use distinct::DistinctnessGraph;
 pub use error::base::MguError;
-pub use error::err_type::MguErrorType;
+pub use error::MguErrorType;
 pub use formatter::{
     get_formatter, get_type_color, get_type_color_from_trait, register_formatter,
     register_type_color, Color, OutputFormatter,

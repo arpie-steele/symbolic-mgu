@@ -115,12 +115,13 @@
 //! assert_eq!(err.get_collection_size(), Some(3));
 //! ```
 
-use crate::{MguErrorType, Type, TypeCore};
+use crate::{Type, TypeCore};
 use std::convert::Infallible;
 use std::hash::Hash;
 use std::mem::discriminant;
 use std::ptr::addr_eq;
 use std::rc::Rc;
+use strum::EnumDiscriminants;
 use thiserror::Error;
 
 /// The common error type of the entire crate.
@@ -137,7 +138,27 @@ use thiserror::Error;
 /// error types for debugging, as we are completely dependent on
 /// user choice of which STATEMENTS to supply as axioms to determine
 /// the legality of CONTRACT and APPLY.
-#[derive(Error, Clone, Debug)]
+///
+/// The corresponding error type discriminants are automatically generated as [`MguErrorType`]
+/// using `strum::EnumDiscriminants`, ensuring they always stay in sync.
+#[derive(Error, Clone, Debug, EnumDiscriminants)]
+#[strum_discriminants(name(MguErrorType))]
+#[strum_discriminants(derive(Hash))]
+#[strum_discriminants(vis(pub))]
+#[strum_discriminants(
+    doc = "The type of MGU error, automatically generated from [`MguError`] variants."
+)]
+#[strum_discriminants(doc = "")]
+#[strum_discriminants(
+    doc = "This enum is automatically kept in sync with [`MguError`] using `strum::EnumDiscriminants`,"
+)]
+#[strum_discriminants(
+    doc = "eliminating the need for manual synchronization between error types and their discriminants."
+)]
+#[strum_discriminants(doc = "")]
+#[strum_discriminants(
+    doc = "Use [`MguError::get_error_type()`] to obtain the discriminant for introspection."
+)]
 pub enum MguError {
     /// Metavariable could not be created.
     #[error("Unknown Metavariable of type {0}: {1}.")]
@@ -566,48 +587,12 @@ impl MguError {
     }
 
     /// Get the error type to provide introspection.
+    ///
+    /// This method uses the automatically generated discriminant from `strum::EnumDiscriminants`,
+    /// ensuring it always stays in sync with the `MguError` variants.
     #[must_use]
     pub fn get_error_type(&self) -> MguErrorType {
-        match self {
-            MguError::UnknownMetavariable(_, _) => MguErrorType::UnknownMetavariable,
-            MguError::TypeMismatch(_, _) => MguErrorType::TypeMismatch,
-            MguError::SlotsMismatch(_, _) => MguErrorType::SlotsMismatch,
-            MguError::TypeUnassignable(_, _) => MguErrorType::TypeUnassignable,
-            MguError::IndexOutOfRange(_, _, _) => MguErrorType::IndexOutOfRange,
-            MguError::ChildIndexOutOfRange(_, _) => MguErrorType::ChildIndexOutOfRange,
-            MguError::SignedValueOutOfRange(_, _, _, _) => MguErrorType::SignedValueOutOfRange,
-            MguError::UnsignedValueOutOfRange(_, _, _, _) => MguErrorType::UnsignedValueOutOfRange,
-            MguError::UnsignedValueUnsupported(_, _) => MguErrorType::UnsignedValueUnsupported,
-            MguError::PairValidationFailure(_, _) => MguErrorType::PairValidationFailure,
-            MguError::UnificationFailure(_) => MguErrorType::UnificationFailure,
-            MguError::ArgumentError(_) => MguErrorType::ArgumentError,
-            MguError::VerificationFailure(_) => MguErrorType::VerificationFailure,
-            MguError::DistinctnessViolation(_) => MguErrorType::DistinctnessViolation,
-            MguError::SubstitutionCycle(_) => MguErrorType::SubstitutionCycle,
-            MguError::CliqueOrderingError => MguErrorType::CliqueOrderingError,
-            MguError::CliqueMinimumSizeError => MguErrorType::CliqueMinimumSizeError,
-            MguError::DecompositionValidationError => MguErrorType::DecompositionValidationError,
-            MguError::AllocationError(_) => MguErrorType::AllocationError,
-            MguError::NumericConversionError(_) => MguErrorType::NumericConversionError,
-            MguError::ColorParseError(_) => MguErrorType::ColorParseError,
-            MguError::TermKindMismatch { .. } => MguErrorType::TermKindMismatch,
-            MguError::NodeNotBooleanOp { .. } => MguErrorType::NodeNotBooleanOp,
-            MguError::InvalidBooleanCode { .. } => MguErrorType::InvalidBooleanCode,
-            MguError::UnsupportedBooleanArity { .. } => MguErrorType::UnsupportedBooleanArity,
-            MguError::BooleanEvaluationFailed { .. } => MguErrorType::BooleanEvaluationFailed,
-            MguError::VariableNotBound { .. } => MguErrorType::VariableNotBound,
-            MguError::VariableIndexOutOfRange { .. } => MguErrorType::VariableIndexOutOfRange,
-            MguError::UnknownNodeName { .. } => MguErrorType::UnknownNodeName,
-            MguError::NodeTypeMismatch { .. } => MguErrorType::NodeTypeMismatch,
-            MguError::FeatureRequired { .. } => MguErrorType::FeatureRequired,
-            MguError::TypeCapabilityUnsupported { .. } => MguErrorType::TypeCapabilityUnsupported,
-            MguError::BitPositionOutOfRange { .. } => MguErrorType::BitPositionOutOfRange,
-            MguError::IoError(_) => MguErrorType::IoError,
-            MguError::ParseError { .. } => MguErrorType::ParseError,
-            MguError::UnknownErrorType(_) => MguErrorType::UnknownErrorType,
-            MguError::UnknownErrorTypeMessage(_, _) => MguErrorType::UnknownErrorTypeMessage,
-            MguError::UnknownError(_) => MguErrorType::UnknownError,
-        }
+        self.into()
     }
 
     /// Get the destination type string if this is a `UnknownMetavariable`, `SignedValueOutOfRange`, `UnsignedValueOutOfRange`, or `UnsignedValueUnsupported` instance.
