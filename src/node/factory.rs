@@ -125,9 +125,9 @@
 //! Use factories to construct nodes:
 //!
 //! ```rust
-//! use symbolic_mgu::{NodeByteFactory, NodeFactory, SimpleType};
+//! use symbolic_mgu::{NodeByteFactory, NodeFactory, SimpleType, MguError};
 //!
-//! fn build_logical_nodes<NF>(factory: &NF) -> Result<(), symbolic_mgu::MguError>
+//! fn build_logical_nodes<NF>(factory: &NF) -> Result<(), MguError>
 //! where
 //!     NF: NodeFactory<NodeType = SimpleType>,
 //! {
@@ -149,9 +149,9 @@
 //! Evaluation logic never sees factories:
 //!
 //! ```rust,compile_fail
-//! use symbolic_mgu::{Node, Term};
+//! use symbolic_mgu::{Node, Term, MguError};
 //!
-//! fn evaluate_term<N, T>(term: &T) -> Result<bool, symbolic_mgu::MguError>
+//! fn evaluate_term<N, T>(term: &T) -> Result<bool, MguError>
 //! where
 //!     N: Node,
 //!     T: Term<SimpleType, MetaByte, N>,

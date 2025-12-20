@@ -107,7 +107,7 @@ fn type_checking_methods() -> Result<(), MguError> {
     Ok(())
 }
 
-/// Tests demonstrating how generic code should check capabilities
+// Tests demonstrating how generic code should check capabilities
 
 /// Example of generic code that checks for Boolean capability before use
 fn create_boolean_term<T, V, N, F>(

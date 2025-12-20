@@ -464,19 +464,20 @@ impl AssertionCore {
     ///
     /// ```no_run
     /// use std::sync::Arc;
+    /// use symbolic_mgu::MguError;
     /// use symbolic_mgu::metamath::{Label, MetamathDatabase, Parser, TypeMapping, MemoryFilesystem};
     ///
-    /// # fn example() -> Result<(), symbolic_mgu::MguError> {
+    /// # fn example() -> Result<(), MguError> {
     /// // Create and parse a database
     /// let mut fs = MemoryFilesystem::new();
     /// fs.add_file("test.mm", "$c wff $. $v ph $. wph $f wff ph $. ax-1 $a wff ph $.".to_string());
     /// let db_init = MetamathDatabase::new(TypeMapping::set_mm());
-    /// let parser = Parser::new(fs, "test.mm", db_init).map_err(|_| symbolic_mgu::MguError::UnificationFailure("parse error".to_string()))?;
-    /// let db = parser.parse().map_err(|_| symbolic_mgu::MguError::UnificationFailure("parse error".to_string()))?;
+    /// let parser = Parser::new(fs, "test.mm", db_init).map_err(|_| MguError::UnificationFailure("parse error".to_string()))?;
+    /// let db = parser.parse().map_err(|_| MguError::UnificationFailure("parse error".to_string()))?;
     ///
     /// // Get an axiom and convert to Statement
-    /// let label = Label::new("ax-1").map_err(|_| symbolic_mgu::MguError::UnificationFailure("label error".to_string()))?;
-    /// let axiom = db.get_axiom(&label).ok_or_else(|| symbolic_mgu::MguError::UnificationFailure("axiom not found".to_string()))?;
+    /// let label = Label::new("ax-1").map_err(|_| MguError::UnificationFailure("label error".to_string()))?;
+    /// let axiom = db.get_axiom(&label).ok_or_else(|| MguError::UnificationFailure("axiom not found".to_string()))?;
     /// let statement = axiom.core.to_statement(&db)?;
     /// # Ok(())
     /// # }

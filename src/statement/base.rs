@@ -125,9 +125,9 @@ where
     ///
     /// ```no_run
     /// # use symbolic_mgu::metamath::{DbType, DbMetavariable, DbNode, DbTerm};
-    /// # use symbolic_mgu::{Statement, DistinctnessGraph};
+    /// # use symbolic_mgu::{Statement, DistinctnessGraph, MguError};
     /// # use std::sync::Arc;
-    /// # fn example(db: Arc<symbolic_mgu::metamath::MetamathDatabase>) -> Result<(), symbolic_mgu::MguError> {
+    /// # fn example(db: Arc<symbolic_mgu::metamath::MetamathDatabase>) -> Result<(), MguError> {
     /// let conclusion: DbTerm = todo!();
     /// let hypotheses: Vec<DbTerm> = vec![];
     /// let distinctness = DistinctnessGraph::new();
