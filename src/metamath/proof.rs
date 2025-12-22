@@ -125,10 +125,10 @@ impl Proof {
     ///
     /// # TODO
     ///
-    /// Phase 8: Complete mandatory hypothesis handling. Currently this is a stub
+    /// Complete mandatory hypothesis handling. Currently this is a stub
     /// that provides the infrastructure. Full hypothesis collection and ordering
-    /// according to Metamath specification needs to be implemented during the
-    /// proof verification phase.
+    /// according to Metamath specification needs to be implemented during
+    /// proof verification (Architecture Phase 7).
     pub fn iter<'a>(&'a self, mandatory_hyps: &'a [Arc<str>]) -> ProofIterator<'a> {
         match self {
             Proof::Expanded(labels) => ProofIterator::Expanded(labels.iter()),
@@ -316,8 +316,9 @@ pub struct CompressedProofIterator<'a> {
     position: usize,
     /// Mandatory hypotheses (for A-T decoding).
     ///
-    /// TODO: Phase 8 - This needs proper population from theorem hypotheses
-    /// in the correct order (floating + essential).
+    /// TODO: This needs proper population from theorem hypotheses
+    /// in the correct order (floating + essential) during proof verification
+    /// (Architecture Phase 7).
     mandatory_hyps: &'a [Arc<str>],
 }
 
@@ -382,8 +383,8 @@ impl<'a> Iterator for CompressedProofIterator<'a> {
                 }
             } else if ch == 'Z' {
                 // Z is the "save to stack" operation
-                // For Phase 5 (parsing only), we skip this
-                // Phase 8 (proof verification) will implement full stack operations
+                // For current proof parsing, we skip this
+                // Proof verification (Architecture Phase 7) will implement full stack operations
                 continue;
             } else {
                 // Invalid character - skip and continue

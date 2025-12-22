@@ -60,6 +60,7 @@ path = "src/lib.rs"
 either = "1.15"
 indexmap = "1.9"
 itertools = "0.14"
+log = "0.4"
 num-bigint = { version = "0.4", optional = true }
 num-traits = "0.2.19"
 proc-macro2 = "1.0"

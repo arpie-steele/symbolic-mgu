@@ -121,6 +121,7 @@ use std::hash::Hash;
 use std::mem::discriminant;
 use std::ptr::addr_eq;
 use std::rc::Rc;
+use log;
 use strum::EnumDiscriminants;
 use thiserror::Error;
 
@@ -557,7 +558,10 @@ impl MguError {
             }
             MguErrorType::ColorParseError => MguError::ColorParseError(msg.into().to_owned()),
             _ => {
-                // TODO: log warning.
+                log::error!(
+                    "Attempted to construct error from type {:?} with message, but this type does not support messages",
+                    err_type
+                );
                 MguError::UnknownErrorTypeMessage(err_type, msg.into().to_owned())
             }
         }
@@ -571,7 +575,10 @@ impl MguError {
             MguErrorType::CliqueMinimumSizeError => MguError::CliqueMinimumSizeError,
             MguErrorType::DecompositionValidationError => MguError::DecompositionValidationError,
             _ => {
-                // TODO: log warning.
+                log::error!(
+                    "Attempted to construct bare error from type {:?}, but this type requires additional data",
+                    err_type
+                );
                 MguError::UnknownErrorType(err_type)
             }
         }

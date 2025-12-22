@@ -332,7 +332,14 @@ where
     /// Create a term from a metavariable (leaf node)
     ///
     /// # Errors
-    /// - TODO.
+    ///
+    /// Returns error if the implementation enforces constraints that the variable violates.
+    /// Simple implementations (like [`EnumTermFactory`]) typically never fail and always
+    /// return `Ok`, but database-backed or validating implementations may return errors for:
+    ///
+    /// - Invalid variable types or indices
+    /// - Memory allocation failures
+    /// - Database consistency violations
     fn create_leaf(&self, var: Self::TermMetavariable) -> Result<Self::Term, MguError>;
 
     /// Create a term from a node head and children
