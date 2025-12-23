@@ -4,12 +4,15 @@
 
 use symbolic_mgu::bool_eval::test_tautology;
 use symbolic_mgu::logic::create_dict;
-use symbolic_mgu::{EnumTermFactory, MetaByteFactory, MguError, NodeByte, Statement, TermFactory};
+use symbolic_mgu::{
+    EnumTermFactory, MetaByteFactory, MguError, NodeByte, SimpleTypeFactory, Statement, TermFactory,
+};
 
 /// Helper to parse a compact proof and verify it produces a valid statement
 fn parse_compact_proof(proof: &str) -> Result<bool, MguError> {
-    let var_factory = MetaByteFactory();
-    let term_factory = EnumTermFactory::new();
+    let type_factory = SimpleTypeFactory;
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+    let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
     let dict = create_dict(
         &term_factory,
@@ -22,7 +25,7 @@ fn parse_compact_proof(proof: &str) -> Result<bool, MguError> {
 
     // For theorems (no hypotheses), verify the assertion is a tautology
     if result.get_n_hypotheses() == 0 {
-        test_tautology(result.get_assertion())
+        test_tautology(&type_factory, result.get_assertion())
     } else {
         // For inferences with hypotheses, build H₁ → (H₂ → (... → A))
         let mut implication = result.get_assertion().clone();
@@ -32,7 +35,7 @@ fn parse_compact_proof(proof: &str) -> Result<bool, MguError> {
                 term_factory.create_node(NodeByte::Implies, vec![hyp.clone(), implication])?;
         }
 
-        test_tautology(&implication)
+        test_tautology(&type_factory, &implication)
     }
 }
 
@@ -90,8 +93,8 @@ fn regression_ddd1d221d2d2d11_produces_tautology() {
 /// Test both proofs parse without errors (validates disjointness fix)
 #[test]
 fn regression_proofs_parse_successfully() {
-    let var_factory = MetaByteFactory();
-    let term_factory = EnumTermFactory::new();
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+    let term_factory = EnumTermFactory::new(SimpleTypeFactory);
     let dict = create_dict(
         &term_factory,
         &var_factory,
@@ -126,8 +129,8 @@ fn regression_proofs_parse_successfully() {
 /// occurs-check failures and incorrect results.
 #[test]
 fn disjointness_is_enforced_in_apply() {
-    let var_factory = MetaByteFactory();
-    let term_factory = EnumTermFactory::new();
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+    let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
     let dict = create_dict(
         &term_factory,

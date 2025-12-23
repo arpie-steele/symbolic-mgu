@@ -127,8 +127,7 @@ From discussion:
 Add to `src/metamath/symbolic.rs`:
 
 ```rust
-use crate::term::simple::EnumTerm;
-use crate::term::factory::EnumTermFactory;
+use crate::{EnumTerm, EnumTermFactory};
 
 /// Term type backed by Metamath database.
 ///
@@ -232,10 +231,7 @@ Add new module `src/metamath/proof_builder.rs`:
 //! This module provides tools for generating Metamath proofs from
 //! unification substitutions discovered by symbolic-mgu operations.
 
-use crate::metamath::database::MetamathDatabase;
-use crate::metamath::label::Label;
-use crate::metamath::proof::Proof;
-use crate::metamath::symbolic::{DbMetavariable, DbTerm, DbSubstitution};
+use crate::metamath::{MetamathDatabase, Label, Proof,DbMetavariable, DbTerm, DbSubstitution};
 use std::sync::Arc;
 use thiserror::Error;
 

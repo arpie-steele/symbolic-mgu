@@ -1,6 +1,5 @@
 //! Introduce the `TypeCore` and `Type` traits.
 
-use crate::MguError;
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
@@ -37,24 +36,6 @@ where
     /// Implements sub-typing relationship (e.g., Setvar <: Class in Metamath)
     #[must_use]
     fn is_subtype_of(&self, other: &Self) -> bool;
-
-    /// Return an object which behaves like the expected Boolean type.
-    ///
-    /// # Errors
-    /// - Not every implementation will support the Boolean type.
-    fn try_boolean() -> Result<Self, MguError>;
-
-    /// Return an object which behaves like the expected Setvar type.
-    ///
-    /// # Errors
-    /// - Not every implementation will support the Setvar type.
-    fn try_setvar() -> Result<Self, MguError>;
-
-    /// Return an object which behaves like the expected Class type.
-    ///
-    /// # Errors
-    /// - Not every implementation will support the Class type.
-    fn try_class() -> Result<Self, MguError>;
 
     /// Box what is effectively a clone of this object.
     #[must_use]

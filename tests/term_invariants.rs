@@ -5,15 +5,15 @@
 
 use symbolic_mgu::{
     EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, MguError, NodeByte,
-    SimpleType, Term, TermFactory,
+    SimpleType, SimpleTypeFactory, Term, TermFactory,
 };
 use SimpleType::*;
 
 /// Test that get_n_children() matches get_children().count()
 #[test]
 fn children_count_invariant() -> Result<(), MguError> {
-    let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
-    let var_factory = MetaByteFactory();
+    let term_factory = EnumTermFactory::<_, MetaByte, NodeByte, _>::new(SimpleTypeFactory);
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
 
     // Test leaf (metavariable)
     let var = var_factory
@@ -53,8 +53,8 @@ fn children_count_invariant() -> Result<(), MguError> {
 /// Test that get_child(i) matches get_children().nth(i)
 #[test]
 fn children_indexing_invariant() -> Result<(), MguError> {
-    let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
-    let var_factory = MetaByteFactory();
+    let term_factory = EnumTermFactory::<_, MetaByte, NodeByte, _>::new(SimpleTypeFactory);
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
 
     let var1 = var_factory
         .list_metavariables_by_type(&Boolean)
@@ -95,8 +95,8 @@ fn children_indexing_invariant() -> Result<(), MguError> {
 /// Test that factory-constructed terms are always valid
 #[test]
 fn factory_terms_are_valid() -> Result<(), MguError> {
-    let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
-    let var_factory = MetaByteFactory();
+    let term_factory = EnumTermFactory::<_, MetaByte, NodeByte, _>::new(SimpleTypeFactory);
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
 
     // Leaves should be valid
     let var = var_factory
@@ -119,8 +119,8 @@ fn factory_terms_are_valid() -> Result<(), MguError> {
 /// Test that get_type() returns the correct type for metavariables
 #[test]
 fn metavariable_type_consistency() -> Result<(), MguError> {
-    let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
-    let var_factory = MetaByteFactory();
+    let term_factory = EnumTermFactory::<_, MetaByte, NodeByte, _>::new(SimpleTypeFactory);
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
 
     // Test Boolean metavariable
     let bool_var = var_factory
@@ -152,8 +152,8 @@ fn metavariable_type_consistency() -> Result<(), MguError> {
 /// Test that get_type() returns the node's type for node applications
 #[test]
 fn node_type_consistency() -> Result<(), MguError> {
-    let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
-    let var_factory = MetaByteFactory();
+    let term_factory = EnumTermFactory::<_, MetaByte, NodeByte, _>::new(SimpleTypeFactory);
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
 
     let bool_var = var_factory
         .list_metavariables_by_type(&Boolean)
@@ -176,8 +176,8 @@ fn node_type_consistency() -> Result<(), MguError> {
 fn collect_metavariables_completeness() -> Result<(), MguError> {
     use std::collections::HashSet;
 
-    let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
-    let var_factory = MetaByteFactory();
+    let term_factory = EnumTermFactory::<_, MetaByte, NodeByte, _>::new(SimpleTypeFactory);
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
 
     let var1 = var_factory
         .list_metavariables_by_type(&Boolean)
@@ -227,8 +227,8 @@ fn collect_metavariables_completeness() -> Result<(), MguError> {
 /// Test that get_children_as_slice() matches get_children() iterator
 #[test]
 fn children_slice_matches_iterator() -> Result<(), MguError> {
-    let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
-    let var_factory = MetaByteFactory();
+    let term_factory = EnumTermFactory::<_, MetaByte, NodeByte, _>::new(SimpleTypeFactory);
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
 
     let var1 = var_factory
         .list_metavariables_by_type(&Boolean)
@@ -259,8 +259,8 @@ fn children_slice_matches_iterator() -> Result<(), MguError> {
 /// Test that is_metavariable() correctly identifies leaves
 #[test]
 fn is_metavariable_correctness() -> Result<(), MguError> {
-    let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
-    let var_factory = MetaByteFactory();
+    let term_factory = EnumTermFactory::<_, MetaByte, NodeByte, _>::new(SimpleTypeFactory);
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
 
     let var = var_factory
         .list_metavariables_by_type(&Boolean)
@@ -285,8 +285,8 @@ fn is_metavariable_correctness() -> Result<(), MguError> {
 /// Test that get_metavariable() and get_node() are mutually exclusive
 #[test]
 fn metavariable_node_mutual_exclusion() -> Result<(), MguError> {
-    let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
-    let var_factory = MetaByteFactory();
+    let term_factory = EnumTermFactory::<_, MetaByte, NodeByte, _>::new(SimpleTypeFactory);
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
 
     let var = var_factory
         .list_metavariables_by_type(&Boolean)

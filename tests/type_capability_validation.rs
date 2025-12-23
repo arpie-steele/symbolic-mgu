@@ -13,25 +13,27 @@
 
 use symbolic_mgu::{
     EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, Metavariable, MetavariableFactory,
-    MguError, Node, NodeByte, SimpleType, Statement, Term, TermFactory, Type, TypeCore,
+    MguError, Node, NodeByte, SimpleType, SimpleTypeFactory, Statement, Term, TermFactory, Type,
+    TypeCore, TypeFactory,
 };
 use SimpleType::*;
 
 /// Test that SimpleType supports all three base types
 #[test]
 fn simple_type_supports_all_capabilities() {
+    let type_factory = SimpleTypeFactory;
     // Boolean should succeed
-    let boolean = SimpleType::try_boolean();
+    let boolean = type_factory.try_boolean();
     assert!(boolean.is_ok());
     assert_eq!(boolean.unwrap(), Boolean);
 
     // Setvar should succeed
-    let setvar = SimpleType::try_setvar();
+    let setvar = type_factory.try_setvar();
     assert!(setvar.is_ok());
     assert_eq!(setvar.unwrap(), Setvar);
 
     // Class should succeed
-    let class = SimpleType::try_class();
+    let class = type_factory.try_class();
     assert!(class.is_ok());
     assert_eq!(class.unwrap(), Class);
 }
@@ -39,9 +41,10 @@ fn simple_type_supports_all_capabilities() {
 /// Test that capability methods are consistent with type identity
 #[test]
 fn capability_methods_match_types() -> Result<(), MguError> {
-    let boolean = SimpleType::try_boolean()?;
-    let setvar = SimpleType::try_setvar()?;
-    let class = SimpleType::try_class()?;
+    let type_factory = SimpleTypeFactory;
+    let boolean = type_factory.try_boolean()?;
+    let setvar = type_factory.try_setvar()?;
+    let class = type_factory.try_class()?;
 
     // Each type should be distinct
     assert_ne!(boolean, setvar);
@@ -54,9 +57,10 @@ fn capability_methods_match_types() -> Result<(), MguError> {
 /// Test subtyping relationships
 #[test]
 fn subtyping_relationships() -> Result<(), MguError> {
-    let boolean = SimpleType::try_boolean()?;
-    let setvar = SimpleType::try_setvar()?;
-    let class = SimpleType::try_class()?;
+    let type_factory = SimpleTypeFactory;
+    let boolean = type_factory.try_boolean()?;
+    let setvar = type_factory.try_setvar()?;
+    let class = type_factory.try_class()?;
 
     // Boolean is subtype of Boolean
     assert!(boolean.is_subtype_of(&boolean));
@@ -85,9 +89,10 @@ fn subtyping_relationships() -> Result<(), MguError> {
 /// Test that type checking methods work correctly
 #[test]
 fn type_checking_methods() -> Result<(), MguError> {
-    let boolean = SimpleType::try_boolean()?;
-    let setvar = SimpleType::try_setvar()?;
-    let class = SimpleType::try_class()?;
+    let type_factory = SimpleTypeFactory;
+    let boolean = type_factory.try_boolean()?;
+    let setvar = type_factory.try_setvar()?;
+    let class = type_factory.try_class()?;
 
     // Test is_boolean()
     assert!(boolean.is_boolean());
@@ -110,18 +115,20 @@ fn type_checking_methods() -> Result<(), MguError> {
 // Tests demonstrating how generic code should check capabilities
 
 /// Example of generic code that checks for Boolean capability before use
-fn create_boolean_term<T, V, N, F>(
+fn create_boolean_term<T, V, N, F, TyF>(
     factory: &mut F,
-    var_factory: &impl MetavariableFactory<MetavariableType = T, Metavariable = V>,
+    var_factory: &impl MetavariableFactory<TyF, MetavariableType = T, Metavariable = V>,
+    type_factory: &TyF,
 ) -> Result<EnumTerm<T, V, N>, MguError>
 where
     T: Type,
     V: Metavariable<Type = T>,
     N: Node<Type = T>,
-    F: TermFactory<EnumTerm<T, V, N>, T, V, N, Term = EnumTerm<T, V, N>, TermMetavariable = V>,
+    F: TermFactory<EnumTerm<T, V, N>, T, V, N, TyF, Term = EnumTerm<T, V, N>, TermMetavariable = V>,
+    TyF: TypeFactory<Type = T>,
 {
     // Check if Boolean type is supported
-    let bool_type = T::try_boolean()?;
+    let bool_type = type_factory.try_boolean()?;
 
     // If we get here, Boolean is supported - proceed
     let var = var_factory
@@ -135,11 +142,12 @@ where
 /// Test that capability checking works in practice
 #[test]
 fn capability_checking_in_generic_code() -> Result<(), MguError> {
-    let mut term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
-    let var_factory = MetaByteFactory();
+    let type_factory = SimpleTypeFactory;
+    let mut term_factory = EnumTermFactory::<_, MetaByte, NodeByte, _>::new(SimpleTypeFactory);
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
 
     // This should succeed because SimpleType supports Boolean
-    let result = create_boolean_term(&mut term_factory, &var_factory);
+    let result = create_boolean_term(&mut term_factory, &var_factory, &type_factory);
     assert!(result.is_ok());
 
     let term = result?;
@@ -152,12 +160,13 @@ fn capability_checking_in_generic_code() -> Result<(), MguError> {
 /// Test creating terms with different types
 #[test]
 fn create_terms_with_all_types() -> Result<(), MguError> {
-    let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
-    let var_factory = MetaByteFactory();
+    let type_factory = SimpleTypeFactory;
+    let term_factory = EnumTermFactory::<_, MetaByte, NodeByte, _>::new(SimpleTypeFactory);
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
 
     // Boolean variable
     let bool_var = var_factory
-        .list_metavariables_by_type(&SimpleType::try_boolean()?)
+        .list_metavariables_by_type(&type_factory.try_boolean()?)
         .next()
         .unwrap();
     let bool_term = term_factory.create_leaf(bool_var)?;
@@ -165,7 +174,7 @@ fn create_terms_with_all_types() -> Result<(), MguError> {
 
     // Setvar variable
     let setvar = var_factory
-        .list_metavariables_by_type(&SimpleType::try_setvar()?)
+        .list_metavariables_by_type(&type_factory.try_setvar()?)
         .next()
         .unwrap();
     let setvar_term = term_factory.create_leaf(setvar)?;
@@ -173,7 +182,7 @@ fn create_terms_with_all_types() -> Result<(), MguError> {
 
     // Class variable
     let class_var = var_factory
-        .list_metavariables_by_type(&SimpleType::try_class()?)
+        .list_metavariables_by_type(&type_factory.try_class()?)
         .next()
         .unwrap();
     let class_term = term_factory.create_leaf(class_var)?;
@@ -185,11 +194,12 @@ fn create_terms_with_all_types() -> Result<(), MguError> {
 /// Test that statements validate Boolean type for assertions
 #[test]
 fn statements_require_boolean_assertions() -> Result<(), MguError> {
-    let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
-    let var_factory = MetaByteFactory();
+    let type_factory = SimpleTypeFactory;
+    let term_factory = EnumTermFactory::<_, MetaByte, NodeByte, _>::new(SimpleTypeFactory);
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
 
     let bool_var = var_factory
-        .list_metavariables_by_type(&SimpleType::try_boolean()?)
+        .list_metavariables_by_type(&type_factory.try_boolean()?)
         .next()
         .unwrap();
     let p = term_factory.create_leaf(bool_var)?;
@@ -198,7 +208,7 @@ fn statements_require_boolean_assertions() -> Result<(), MguError> {
     let implies = term_factory.create_node(NodeByte::Implies, vec![p.clone(), p])?;
 
     // Should succeed - assertion is Boolean
-    let stmt = Statement::simple_axiom(implies);
+    let stmt = Statement::simple_axiom(&type_factory, implies);
     assert!(stmt.is_ok());
 
     Ok(())
@@ -207,8 +217,9 @@ fn statements_require_boolean_assertions() -> Result<(), MguError> {
 /// Test that non-Boolean assertions are rejected
 #[test]
 fn statements_reject_non_boolean_assertions() {
-    let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
-    let var_factory = MetaByteFactory();
+    let type_factory = SimpleTypeFactory;
+    let term_factory = EnumTermFactory::<_, MetaByte, NodeByte, _>::new(SimpleTypeFactory);
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
 
     // Create a Setvar term (not Boolean)
     let setvar = var_factory
@@ -218,7 +229,7 @@ fn statements_reject_non_boolean_assertions() {
     let setvar_term = term_factory.create_leaf(setvar).unwrap();
 
     // Try to create statement with Setvar assertion (should fail)
-    let stmt = Statement::simple_axiom(setvar_term);
+    let stmt = Statement::simple_axiom(&type_factory, setvar_term);
     assert!(
         stmt.is_err(),
         "Statement with Setvar assertion should be rejected"
@@ -243,15 +254,16 @@ fn statements_reject_non_boolean_assertions() {
 /// Test compound Boolean expressions
 #[test]
 fn compound_boolean_expressions() -> Result<(), MguError> {
-    let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
-    let var_factory = MetaByteFactory();
+    let type_factory = SimpleTypeFactory;
+    let term_factory = EnumTermFactory::<_, MetaByte, NodeByte, _>::new(SimpleTypeFactory);
+    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
 
     let p = var_factory
-        .list_metavariables_by_type(&SimpleType::try_boolean()?)
+        .list_metavariables_by_type(&type_factory.try_boolean()?)
         .next()
         .unwrap();
     let q = var_factory
-        .list_metavariables_by_type(&SimpleType::try_boolean()?)
+        .list_metavariables_by_type(&type_factory.try_boolean()?)
         .nth(1)
         .unwrap();
 
@@ -271,7 +283,7 @@ fn compound_boolean_expressions() -> Result<(), MguError> {
     assert_eq!(implies.get_type()?, Boolean);
 
     // Should be able to create statement from this
-    let stmt = Statement::simple_axiom(implies)?;
+    let stmt = Statement::simple_axiom(&type_factory, implies)?;
     assert_eq!(stmt.get_n_hypotheses(), 0);
 
     Ok(())
@@ -280,22 +292,27 @@ fn compound_boolean_expressions() -> Result<(), MguError> {
 /// Demonstrate the pattern: check capability before attempting to use it
 #[test]
 fn demonstrate_capability_check_pattern() {
+    let type_factory = SimpleTypeFactory;
     // Pattern 1: Check before use
-    let supports_boolean = SimpleType::try_boolean().is_ok();
+    let supports_boolean = type_factory.try_boolean().is_ok();
     assert!(supports_boolean, "SimpleType should support Boolean");
 
-    let supports_setvar = SimpleType::try_setvar().is_ok();
+    let supports_setvar = type_factory.try_setvar().is_ok();
     assert!(supports_setvar, "SimpleType should support Setvar");
 
-    let supports_class = SimpleType::try_class().is_ok();
+    let supports_class = type_factory.try_class().is_ok();
     assert!(supports_class, "SimpleType should support Class");
 
     // Pattern 2: Use Result to propagate capability errors
-    fn needs_setvar_capability<T: Type>() -> Result<T, MguError> {
-        T::try_setvar()
+    fn needs_setvar_capability<T, TyF>(type_factory: &TyF) -> Result<T, MguError>
+    where
+        T: Type,
+        TyF: TypeFactory<Type = T>,
+    {
+        type_factory.try_setvar()
     }
 
     // Should succeed for SimpleType
-    let result = needs_setvar_capability::<SimpleType>();
+    let result = needs_setvar_capability::<SimpleType, _>(&SimpleTypeFactory);
     assert!(result.is_ok());
 }

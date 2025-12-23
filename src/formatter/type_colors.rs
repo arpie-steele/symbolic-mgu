@@ -4,8 +4,7 @@
 //! Formatters can query this registry to determine how to color metavariables
 //! based on their type (Boolean, Setvar, Class, or custom types).
 
-use super::color::Color;
-use crate::Type;
+use crate::{Color, Type};
 use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
 

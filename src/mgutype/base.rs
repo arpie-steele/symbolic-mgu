@@ -405,18 +405,6 @@ impl Type for SimpleType {
     fn is_subtype_of(&self, other: &Self) -> bool {
         other.may_assign_tree_to_this_var(self)
     }
-
-    fn try_boolean() -> Result<Self, MguError> {
-        Ok(Self::Boolean)
-    }
-
-    fn try_setvar() -> Result<Self, MguError> {
-        Ok(Self::Setvar)
-    }
-
-    fn try_class() -> Result<Self, MguError> {
-        Ok(Self::Class)
-    }
 }
 
 #[cfg(test)]

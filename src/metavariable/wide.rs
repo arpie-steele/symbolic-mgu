@@ -29,11 +29,11 @@
 //! # Examples
 //!
 //! ```
-//! use symbolic_mgu::{WideMetavariable, WideMetavariableFactory, MetavariableFactory, SimpleType};
+//! use symbolic_mgu::{WideMetavariable, WideMetavariableFactory, MetavariableFactory, SimpleType, SimpleTypeFactory};
 //! use SimpleType::*;
 //! use itertools::Itertools;
 //!
-//! let factory = WideMetavariableFactory();
+//! let factory = WideMetavariableFactory::new(SimpleTypeFactory);
 //!
 //! // Get first Boolean metavariable
 //! let phi = factory.list_metavariables_by_type(&Boolean).next().unwrap();
@@ -285,7 +285,7 @@ pub const WIDE_CLASSES_ASCII: &[&str] = &[
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Metavariable, MetavariableFactory, WideMetavariableFactory};
+    use crate::{Metavariable, MetavariableFactory, SimpleTypeFactory, WideMetavariableFactory};
     use std::collections::HashSet;
     use SimpleType::*;
 
@@ -336,7 +336,7 @@ mod tests {
         assert!(!WIDE_SETVARS.is_ascii());
         assert!(!WIDE_CLASSES.is_ascii());
 
-        let v_factory = WideMetavariableFactory();
+        let v_factory = WideMetavariableFactory::new(SimpleTypeFactory);
 
         let n = WIDE_BOOLEANS.chars().count();
         for (i, ch) in WIDE_BOOLEANS.chars().enumerate() {
@@ -435,7 +435,7 @@ mod tests {
         );
 
         // New Style, use factory
-        let v_factory = WideMetavariableFactory();
+        let v_factory = WideMetavariableFactory::new(SimpleTypeFactory);
         let vars: Vec<_> = v_factory
             .list_metavariables_by_type(&Boolean)
             .take(100)
@@ -462,7 +462,7 @@ mod tests {
             (1200, first_bool.clone() + "₁₀₀"), // Three-digit subscript
         ];
 
-        let v_factory = WideMetavariableFactory();
+        let v_factory = WideMetavariableFactory::new(SimpleTypeFactory);
 
         for (index, expected) in test_cases {
             let var = WideMetavariable::try_from_type_and_index(Boolean, index).unwrap();

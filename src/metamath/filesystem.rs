@@ -287,6 +287,7 @@ impl FilesystemProvider for MemoryFilesystem {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::metamath::{Label, MetamathDatabase, Parser, TypeMapping};
     use std::io::Read;
 
     #[test]
@@ -368,10 +369,6 @@ mod tests {
 
     #[test]
     fn memory_filesystem_parser_integration() {
-        use crate::metamath::database::{MetamathDatabase, TypeMapping};
-        use crate::metamath::label::Label;
-        use crate::metamath::parser::Parser;
-
         // Create an in-memory Metamath database
         let mut fs = MemoryFilesystem::new();
         fs.add_file(
@@ -403,10 +400,6 @@ ax-1 $a wff ( ph -> ( ps -> ph ) ) $.
 
     #[test]
     fn memory_filesystem_file_inclusion() {
-        use crate::metamath::database::{MetamathDatabase, TypeMapping};
-        use crate::metamath::label::Label;
-        use crate::metamath::parser::Parser;
-
         // Create a virtual filesystem with file inclusion
         let mut fs = MemoryFilesystem::new();
 

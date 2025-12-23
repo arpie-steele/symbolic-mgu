@@ -24,8 +24,7 @@
 //! assert_eq!(phi_1.to_string(), "𝜑₁");
 //! ```
 
-use crate::formatter::OutputFormatter;
-use crate::{Decorator, Metavariable, MguError, SimpleType, Type, WideCharSet};
+use crate::{Decorator, Metavariable, MguError, OutputFormatter, SimpleType, Type, WideCharSet};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 use std::marker::PhantomData;

@@ -31,6 +31,7 @@
 
 use crate::{
     Metavariable, MetavariableFactory, MguError, Node, Statement, Term, TermFactory, Type,
+    TypeFactory,
 };
 use std::collections::HashMap;
 
@@ -53,12 +54,12 @@ where
     /// # Examples
     ///
     /// ```
-    /// use symbolic_mgu::{Statement, EnumTermFactory, MetaByteFactory, NodeByte, SimpleType};
+    /// use symbolic_mgu::{Statement, EnumTermFactory, MetaByteFactory, NodeByte, SimpleType, SimpleTypeFactory};
     /// use symbolic_mgu::logic::create_dict;
     ///
     /// // Create factories and dictionary
-    /// let term_factory = EnumTermFactory::new();
-    /// let metavar_factory = MetaByteFactory();
+    /// let term_factory = EnumTermFactory::new(SimpleTypeFactory);
+    /// let metavar_factory = MetaByteFactory::new(SimpleTypeFactory);
     /// let dict = create_dict(&term_factory, &metavar_factory, NodeByte::Implies, NodeByte::Not).unwrap();
     ///
     /// // Parse "D__" (Modus Ponens with unsatisfied hypotheses)
@@ -82,15 +83,16 @@ where
     ///
     /// This function does not panic. All `unwrap()` calls are guarded by explicit
     /// length checks with SAFETY comments explaining why they cannot fail.
-    pub fn from_compact_proof<VF, TF>(
+    pub fn from_compact_proof<VF, TF, TyF>(
         proof: &str,
         var_factory: &VF,
         term_factory: &TF,
         statements: &HashMap<String, Self>,
     ) -> Result<Self, MguError>
     where
-        VF: MetavariableFactory<Metavariable = V, MetavariableType = Ty>,
-        TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N, TermMetavariable = V>,
+        VF: MetavariableFactory<TyF, Metavariable = V, MetavariableType = Ty>,
+        TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermNode = N, TermMetavariable = V>,
+        TyF: TypeFactory<Type = Ty>,
     {
         // Parse proof string into tokens (each character becomes a token)
         let tokens: Vec<String> = proof
@@ -180,21 +182,23 @@ mod tests {
     use super::*;
     use crate::{
         logic::create_dict, EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, NodeByte,
-        SimpleType,
+        SimpleType, SimpleTypeFactory,
     };
 
     /// Type alias for test statement
     type TestStatement =
         Statement<SimpleType, MetaByte, NodeByte, EnumTerm<SimpleType, MetaByte, NodeByte>>;
 
+    type TestTermFactory = EnumTermFactory<SimpleType, MetaByte, NodeByte, SimpleTypeFactory>;
+
     /// Helper to create standard dictionary for tests
     fn setup() -> (
-        EnumTermFactory<SimpleType, MetaByte, NodeByte>,
-        MetaByteFactory,
+        TestTermFactory,
+        MetaByteFactory<SimpleTypeFactory>,
         HashMap<String, TestStatement>,
     ) {
-        let term_factory = EnumTermFactory::new();
-        let metavar_factory = MetaByteFactory();
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
+        let metavar_factory = MetaByteFactory::new(SimpleTypeFactory);
         let dict = create_dict(
             &term_factory,
             &metavar_factory,

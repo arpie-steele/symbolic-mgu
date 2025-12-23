@@ -216,10 +216,10 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// use symbolic_mgu::{Term, EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, get_formatter};
+    /// use symbolic_mgu::{Term, EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, SimpleTypeFactory, get_formatter};
     /// use SimpleType::*;
     ///
-    /// let vars = MetaByteFactory();
+    /// let vars = MetaByteFactory::new(SimpleTypeFactory);
     /// let var = vars
     ///     .list_metavariables_by_type(&Boolean)
     ///     .next()

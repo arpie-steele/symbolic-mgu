@@ -60,29 +60,33 @@ mod generated_enum;
 
 use crate::{
     ub_prim_impl, Metavariable, MguError, MguErrorType, Node, NodeByte, Statement, Term,
-    TermFactory, Type,
+    TermFactory, Type, TypeFactory,
 };
 pub use generated_enum::BooleanSimpleOp;
 use std::collections::HashSet;
 use std::fmt::{Debug as DebugTrait, Display};
-use std::marker::PhantomData;
 use std::ops::{BitAnd, BitOr, BitXor, Not};
 
 /// A Node wrapper for `BooleanSimpleOp` which works with any Type that implements Boolean.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
-pub struct BooleanSimpleNode<Ty: Type>(BooleanSimpleOp, PhantomData<Ty>);
+#[derive(Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+pub struct BooleanSimpleNode<Ty: Type> {
+    /// Enum variant fully specifying arity and operation.
+    op: BooleanSimpleOp,
+    /// The type associated with a `Boolean`
+    boolean_type: Ty,
+}
 
 impl<Ty: Type> BooleanSimpleNode<Ty> {
-    /// Create a new `BooleanSimpleNode` from a `BooleanSimpleOp`.
+    /// Create a new `BooleanSimpleNode` from a `BooleanSimpleOp` and type.
     #[must_use]
-    pub fn from_op(op: BooleanSimpleOp) -> Self {
-        BooleanSimpleNode(op, PhantomData)
+    pub fn from_op(op: BooleanSimpleOp, boolean_type: Ty) -> Self {
+        BooleanSimpleNode { op, boolean_type }
     }
 }
 
 impl<Ty: Type> Display for BooleanSimpleNode<Ty> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&(self.0), f)
+        Display::fmt(&self.op, f)
     }
 }
 
@@ -90,24 +94,24 @@ impl<Ty: Type> Node for BooleanSimpleNode<Ty> {
     type Type = Ty;
 
     fn get_type_and_index(&self) -> Result<(Self::Type, usize), MguError> {
-        Ok((Self::Type::try_boolean()?, (self.0) as usize))
+        Ok((self.boolean_type.clone(), (self.op) as usize))
     }
 
     fn get_arity(&self) -> Result<usize, MguError> {
-        Ok(((self.0) as usize) >> 8)
+        Ok(((self.op) as usize) >> 8)
     }
 
     fn get_slot_type(&self, index: usize) -> Result<Self::Type, MguError> {
-        let n = ((self.0) as usize) >> 8;
+        let n = ((self.op) as usize) >> 8;
         if index < n {
-            Ok(Self::Type::try_boolean()?)
+            Ok(self.boolean_type.clone())
         } else {
             Err(MguError::from_index_and_len(index, n))
         }
     }
 
     fn to_boolean_op(&self) -> Option<BooleanSimpleOp> {
-        Some(self.0)
+        Some(self.op)
     }
 }
 
@@ -586,40 +590,43 @@ pub fn is_supported_op(node: &NodeByte) -> bool {
 /// # Examples
 ///
 /// ```rust
-/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, MguError};
+/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, SimpleTypeFactory, MguError};
 /// # use symbolic_mgu::bool_eval::test_term;
 /// # use SimpleType::*;
 /// # fn example() -> Result<(), MguError> {
 /// // Test law of excluded middle: p ∨ ¬p
-/// let vars = MetaByteFactory();
+/// let vars = MetaByteFactory::new(SimpleTypeFactory);
 /// let p = EnumTerm::Leaf(vars.list_metavariables_by_type(&Boolean).next().unwrap());
 /// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
 /// let law = EnumTerm::NodeOrLeaf(NodeByte::Or, vec![p, not_p]);
 ///
-/// assert_eq!(test_term(&law)?, Some(true));  // Tautology
+/// assert_eq!(test_term(&SimpleTypeFactory, &law)?, Some(true));  // Tautology
 ///
 /// // Test contradiction: p ∧ ¬p
 /// let p2 = EnumTerm::Leaf(vars.list_metavariables_by_type(&Boolean).next().unwrap());
 /// let not_p2 = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p2.clone()]);
 /// let contradiction = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p2, not_p2]);
 ///
-/// assert_eq!(test_term(&contradiction)?, Some(false));  // Contradiction
+/// assert_eq!(test_term(&SimpleTypeFactory, &contradiction)?, Some(false));  // Contradiction
 ///
 /// // Test contingent formula: p
 /// let p3: EnumTerm<SimpleType, MetaByte, NodeByte> =
 ///     EnumTerm::Leaf(vars.list_metavariables_by_type(&Boolean).next().unwrap());
 ///
-/// assert_eq!(test_term(&p3)?, None);  // Contingent
+/// assert_eq!(test_term(&SimpleTypeFactory, &p3)?, None);  // Contingent
 /// # Ok(())
 /// # }
 /// ```
-pub fn test_term<T, Ty, V, No>(term: &T) -> Result<Option<bool>, MguError>
+pub fn test_term<T, Ty, V, No, TyF>(type_factory: &TyF, term: &T) -> Result<Option<bool>, MguError>
 where
     T: Term<Ty, V, No>,
     Ty: Type,
     V: Metavariable<Type = Ty>,
     No: Node<Type = Ty>,
+    TyF: TypeFactory<Type = Ty>,
 {
+    let boolean_type = type_factory.try_boolean()?;
+
     // Collect all metavariables
     let mut vars_set: HashSet<V> = HashSet::new();
     term.collect_metavariables(&mut vars_set)?;
@@ -630,7 +637,7 @@ where
     let all_bools = {
         let mut all_bool = true;
         for var in &vars {
-            if var.get_type()? != Ty::try_boolean()? {
+            if var.get_type()? != boolean_type {
                 all_bool = false;
                 break;
             }
@@ -641,17 +648,17 @@ where
     if !all_bools {
         // Find the first non-Boolean variable to report in error
         let non_bool_type = {
-            let mut found_type = Ty::try_boolean()?;
+            let mut found_type = boolean_type.clone();
             for var in &vars {
                 let var_type = var.get_type()?;
-                if var_type != Ty::try_boolean()? {
+                if var_type != boolean_type {
                     found_type = var_type;
                     break;
                 }
             }
             found_type
         };
-        let expected_type = Ty::try_boolean()?;
+        let expected_type = boolean_type;
         return Err(MguError::from_found_and_expected_types(
             false,
             &non_bool_type,
@@ -662,13 +669,19 @@ where
     // Select evaluation strategy based on variable count
     match n {
         0 => {
-            let result =
-                <bool as UnsignedBits<bool, 0>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result = <bool as UnsignedBits<bool, 0>>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                type_factory,
+                term,
+                &vars,
+            )?;
             Ok(Some(result))
         }
         1..=3 => {
-            let result =
-                <u8 as UnsignedBits<u8, 3>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result = <u8 as UnsignedBits<u8, 3>>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                type_factory,
+                term,
+                &vars,
+            )?;
             let all_true = <u8 as UnsignedBits<u8, 3>>::from_bool(true);
             let all_false = <u8 as UnsignedBits<u8, 3>>::from_bool(false);
             if result == all_true {
@@ -680,8 +693,11 @@ where
             }
         }
         4 => {
-            let result =
-                <u16 as UnsignedBits<u16, 4>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result = <u16 as UnsignedBits<u16, 4>>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                type_factory,
+                term,
+                &vars,
+            )?;
             let all_true = <u16 as UnsignedBits<u16, 4>>::from_bool(true);
             let all_false = <u16 as UnsignedBits<u16, 4>>::from_bool(false);
             if result == all_true {
@@ -693,8 +709,11 @@ where
             }
         }
         5 => {
-            let result =
-                <u32 as UnsignedBits<u32, 5>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result = <u32 as UnsignedBits<u32, 5>>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                type_factory,
+                term,
+                &vars,
+            )?;
             let all_true = <u32 as UnsignedBits<u32, 5>>::from_bool(true);
             let all_false = <u32 as UnsignedBits<u32, 5>>::from_bool(false);
             if result == all_true {
@@ -706,8 +725,11 @@ where
             }
         }
         6 => {
-            let result =
-                <u64 as UnsignedBits<u64, 6>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result = <u64 as UnsignedBits<u64, 6>>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                type_factory,
+                term,
+                &vars,
+            )?;
             let all_true = <u64 as UnsignedBits<u64, 6>>::from_bool(true);
             let all_false = <u64 as UnsignedBits<u64, 6>>::from_bool(false);
             if result == all_true {
@@ -719,8 +741,11 @@ where
             }
         }
         7 => {
-            let result =
-                <u128 as UnsignedBits<u128, 7>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result = <u128 as UnsignedBits<u128, 7>>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                type_factory,
+                term,
+                &vars,
+            )?;
             let all_true = <u128 as UnsignedBits<u128, 7>>::from_bool(true);
             let all_false = <u128 as UnsignedBits<u128, 7>>::from_bool(false);
             if result == all_true {
@@ -733,7 +758,8 @@ where
         }
         #[cfg(feature = "bigint")]
         8 => {
-            let result = SomeBits::<8>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result =
+                SomeBits::<8>::eval_boolean_term::<T, Ty, V, No, TyF>(type_factory, term, &vars)?;
             let all_true = SomeBits::<8>::from_bool(true);
             let all_false = SomeBits::<8>::from_bool(false);
             if result == all_true {
@@ -746,7 +772,8 @@ where
         }
         #[cfg(feature = "bigint")]
         9 => {
-            let result = SomeBits::<9>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result =
+                SomeBits::<9>::eval_boolean_term::<T, Ty, V, No, TyF>(type_factory, term, &vars)?;
             let all_true = SomeBits::<9>::from_bool(true);
             let all_false = SomeBits::<9>::from_bool(false);
             if result == all_true {
@@ -759,7 +786,8 @@ where
         }
         #[cfg(feature = "bigint")]
         10 => {
-            let result = SomeBits::<10>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result =
+                SomeBits::<10>::eval_boolean_term::<T, Ty, V, No, TyF>(type_factory, term, &vars)?;
             let all_true = SomeBits::<10>::from_bool(true);
             let all_false = SomeBits::<10>::from_bool(false);
             if result == all_true {
@@ -772,7 +800,8 @@ where
         }
         #[cfg(feature = "bigint")]
         11 => {
-            let result = SomeBits::<11>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result =
+                SomeBits::<11>::eval_boolean_term::<T, Ty, V, No, TyF>(type_factory, term, &vars)?;
             let all_true = SomeBits::<11>::from_bool(true);
             let all_false = SomeBits::<11>::from_bool(false);
             if result == all_true {
@@ -785,7 +814,8 @@ where
         }
         #[cfg(feature = "bigint")]
         12 => {
-            let result = SomeBits::<12>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result =
+                SomeBits::<12>::eval_boolean_term::<T, Ty, V, No, TyF>(type_factory, term, &vars)?;
             let all_true = SomeBits::<12>::from_bool(true);
             let all_false = SomeBits::<12>::from_bool(false);
             if result == all_true {
@@ -798,7 +828,8 @@ where
         }
         #[cfg(feature = "bigint")]
         13 => {
-            let result = SomeBits::<13>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result =
+                SomeBits::<13>::eval_boolean_term::<T, Ty, V, No, TyF>(type_factory, term, &vars)?;
             let all_true = SomeBits::<13>::from_bool(true);
             let all_false = SomeBits::<13>::from_bool(false);
             if result == all_true {
@@ -811,7 +842,8 @@ where
         }
         #[cfg(feature = "bigint")]
         14 => {
-            let result = SomeBits::<14>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result =
+                SomeBits::<14>::eval_boolean_term::<T, Ty, V, No, TyF>(type_factory, term, &vars)?;
             let all_true = SomeBits::<14>::from_bool(true);
             let all_false = SomeBits::<14>::from_bool(false);
             if result == all_true {
@@ -824,7 +856,8 @@ where
         }
         #[cfg(feature = "bigint")]
         15 => {
-            let result = SomeBits::<15>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result =
+                SomeBits::<15>::eval_boolean_term::<T, Ty, V, No, TyF>(type_factory, term, &vars)?;
             let all_true = SomeBits::<15>::from_bool(true);
             let all_false = SomeBits::<15>::from_bool(false);
             if result == all_true {
@@ -837,7 +870,8 @@ where
         }
         #[cfg(feature = "bigint")]
         16 => {
-            let result = SomeBits::<16>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result =
+                SomeBits::<16>::eval_boolean_term::<T, Ty, V, No, TyF>(type_factory, term, &vars)?;
             let all_true = SomeBits::<16>::from_bool(true);
             let all_false = SomeBits::<16>::from_bool(false);
             if result == all_true {
@@ -850,7 +884,8 @@ where
         }
         #[cfg(feature = "bigint")]
         17 => {
-            let result = SomeBits::<17>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result =
+                SomeBits::<17>::eval_boolean_term::<T, Ty, V, No, TyF>(type_factory, term, &vars)?;
             let all_true = SomeBits::<17>::from_bool(true);
             let all_false = SomeBits::<17>::from_bool(false);
             if result == all_true {
@@ -863,7 +898,8 @@ where
         }
         #[cfg(feature = "bigint")]
         18 => {
-            let result = SomeBits::<18>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result =
+                SomeBits::<18>::eval_boolean_term::<T, Ty, V, No, TyF>(type_factory, term, &vars)?;
             let all_true = SomeBits::<18>::from_bool(true);
             let all_false = SomeBits::<18>::from_bool(false);
             if result == all_true {
@@ -876,7 +912,8 @@ where
         }
         #[cfg(feature = "bigint")]
         19 => {
-            let result = SomeBits::<19>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result =
+                SomeBits::<19>::eval_boolean_term::<T, Ty, V, No, TyF>(type_factory, term, &vars)?;
             let all_true = SomeBits::<19>::from_bool(true);
             let all_false = SomeBits::<19>::from_bool(false);
             if result == all_true {
@@ -889,7 +926,8 @@ where
         }
         #[cfg(feature = "bigint")]
         20 => {
-            let result = SomeBits::<20>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result =
+                SomeBits::<20>::eval_boolean_term::<T, Ty, V, No, TyF>(type_factory, term, &vars)?;
             let all_true = SomeBits::<20>::from_bool(true);
             let all_false = SomeBits::<20>::from_bool(false);
             if result == all_true {
@@ -925,27 +963,28 @@ where
 /// # Examples
 ///
 /// ```rust
-/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, MguError};
+/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, SimpleTypeFactory, MguError};
 /// # use symbolic_mgu::bool_eval::test_tautology;
 /// # use SimpleType::*;
 /// # fn example() -> Result<(), MguError> {
 /// // Test law of excluded middle: p ∨ ¬p
-/// let p = EnumTerm::Leaf(MetaByteFactory().list_metavariables_by_type(&Boolean).next().unwrap());
+/// let p = EnumTerm::Leaf(MetaByteFactory::new(SimpleTypeFactory).list_metavariables_by_type(&Boolean).next().unwrap());
 /// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
 /// let law = EnumTerm::NodeOrLeaf(NodeByte::Or, vec![p, not_p]);
 ///
-/// assert!(test_tautology(&law)?);  // true - it's a tautology
+/// assert!(test_tautology(&SimpleTypeFactory, &law)?);  // true? - yes, it's a tautology
 /// # Ok(())
 /// # }
 /// ```
-pub fn test_tautology<T, Ty, V, No>(term: &T) -> Result<bool, MguError>
+pub fn test_tautology<T, Ty, V, No, TyF>(type_factory: &TyF, term: &T) -> Result<bool, MguError>
 where
     T: Term<Ty, V, No>,
     Ty: Type,
     V: Metavariable<Type = Ty>,
     No: Node<Type = Ty>,
+    TyF: TypeFactory<Type = Ty>,
 {
-    test_term(term).map(|opt| opt == Some(true))
+    test_term(type_factory, term).map(|opt| opt == Some(true))
 }
 
 /// Test if a Boolean term is a contradiction.
@@ -963,27 +1002,28 @@ where
 /// # Examples
 ///
 /// ```rust
-/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, MguError};
+/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, SimpleTypeFactory, MguError};
 /// # use symbolic_mgu::bool_eval::test_contradiction;
 /// # use SimpleType::*;
 /// # fn example() -> Result<(), MguError> {
 /// // Test a simple contradiction: p ∧ ¬p
-/// let p = EnumTerm::Leaf(MetaByteFactory().list_metavariables_by_type(&Boolean).next().unwrap());
+/// let p = EnumTerm::Leaf(MetaByteFactory::new(SimpleTypeFactory).list_metavariables_by_type(&Boolean).next().unwrap());
 /// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
 /// let law = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p, not_p]);
 ///
-/// assert!(test_contradiction(&law)?);  // true - it's never true
+/// assert!(test_contradiction(&SimpleTypeFactory, &law)?);  // true? - no, it's never true
 /// # Ok(())
 /// # }
 /// ```
-pub fn test_contradiction<T, Ty, V, No>(term: &T) -> Result<bool, MguError>
+pub fn test_contradiction<T, Ty, V, No, TyF>(type_factory: &TyF, term: &T) -> Result<bool, MguError>
 where
     T: Term<Ty, V, No>,
     Ty: Type,
     V: Metavariable<Type = Ty>,
     No: Node<Type = Ty>,
+    TyF: TypeFactory<Type = Ty>,
 {
-    test_term(term).map(|opt| opt == Some(false))
+    test_term(type_factory, term).map(|opt| opt == Some(false))
 }
 
 /// Test if a Boolean term remains contingent on the content of its variables.
@@ -1001,27 +1041,28 @@ where
 /// # Examples
 ///
 /// ```rust
-/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, MguError};
+/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, SimpleTypeFactory, MguError};
 /// # use symbolic_mgu::bool_eval::test_contingent;
 /// # use SimpleType::*;
 /// # fn example() -> Result<(), MguError> {
 /// // Test term which is neither always true nor always false: p → ¬p
-/// let p = EnumTerm::Leaf(MetaByteFactory().list_metavariables_by_type(&Boolean).next().unwrap());
+/// let p = EnumTerm::Leaf(MetaByteFactory::new(SimpleTypeFactory).list_metavariables_by_type(&Boolean).next().unwrap());
 /// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
 /// let law = EnumTerm::NodeOrLeaf(NodeByte::Implies, vec![p, not_p]);
 ///
-/// assert!(test_contingent(&law)?);  // true - it's true only some of the time
+/// assert!(test_contingent(&SimpleTypeFactory, &law)?);  // true? - it's true only some of the time
 /// # Ok(())
 /// # }
 /// ```
-pub fn test_contingent<T, Ty, V, No>(term: &T) -> Result<bool, MguError>
+pub fn test_contingent<T, Ty, V, No, TyF>(type_factory: &TyF, term: &T) -> Result<bool, MguError>
 where
     T: Term<Ty, V, No>,
     Ty: Type,
     V: Metavariable<Type = Ty>,
     No: Node<Type = Ty>,
+    TyF: TypeFactory<Type = Ty>,
 {
-    test_term(term).map(|opt| opt.is_none())
+    test_term(type_factory, term).map(|opt| opt.is_none())
 }
 
 /// Test if a Boolean term is satisfiable (has at least one satisfying assignment).
@@ -1042,35 +1083,36 @@ where
 /// # Examples
 ///
 /// ```rust
-/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, MguError};
+/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, SimpleTypeFactory, MguError};
 /// # use symbolic_mgu::bool_eval::test_satisfiable;
 /// # use SimpleType::*;
 /// # fn example() -> Result<(), MguError> {
-/// let factory = MetaByteFactory();
+/// let factory = MetaByteFactory::new(SimpleTypeFactory);
 /// let p = EnumTerm::Leaf(factory.list_metavariables_by_type(&Boolean).next().unwrap());
 ///
 /// // p ∨ ¬p is a tautology, therefore satisfiable
 /// let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
 /// let tautology = EnumTerm::NodeOrLeaf(NodeByte::Or, vec![p.clone(), not_p.clone()]);
-/// assert!(test_satisfiable(&tautology)?);
+/// assert!(test_satisfiable(&SimpleTypeFactory, &tautology)?);
 ///
 /// // p is contingent, therefore satisfiable
-/// assert!(test_satisfiable(&p)?);
+/// assert!(test_satisfiable(&SimpleTypeFactory, &p)?);
 ///
 /// // p ∧ ¬p is a contradiction, therefore not satisfiable
 /// let contradiction = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p, not_p]);
-/// assert!(!test_satisfiable(&contradiction)?);
+/// assert!(!test_satisfiable(&SimpleTypeFactory, &contradiction)?);
 /// # Ok(())
 /// # }
 /// ```
-pub fn test_satisfiable<T, Ty, V, No>(term: &T) -> Result<bool, MguError>
+pub fn test_satisfiable<T, Ty, V, No, TyF>(type_factory: &TyF, term: &T) -> Result<bool, MguError>
 where
     T: Term<Ty, V, No>,
     Ty: Type,
     V: Metavariable<Type = Ty>,
     No: Node<Type = Ty>,
+    TyF: TypeFactory<Type = Ty>,
 {
-    test_term(term).map(|opt| opt != Some(false))
+    test_term(type_factory, term).map(|opt| opt != Some(false))
 }
 
 /// A row in a truth table showing one variable assignment and its result.
@@ -1116,18 +1158,18 @@ enum TruthTableBacking {
 /// # Examples
 ///
 /// ```rust
-/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, MguError};
+/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, SimpleTypeFactory, MguError};
 /// # use symbolic_mgu::bool_eval::extract_truth_table;
 /// # use SimpleType::*;
 /// # fn example() -> Result<(), MguError> {
 /// // Create truth table for: p ∧ q
-/// let vars = MetaByteFactory();
+/// let vars = MetaByteFactory::new(SimpleTypeFactory);
 /// let mut var_iter = vars.list_metavariables_by_type(&Boolean);
 /// let p = EnumTerm::Leaf(var_iter.next().unwrap());
 /// let q = EnumTerm::Leaf(var_iter.next().unwrap());
 /// let and_term = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p, q]);
 ///
-/// let table = extract_truth_table(&and_term)?;
+/// let table = extract_truth_table(&SimpleTypeFactory, &and_term)?;
 ///
 /// // Iterate over rows
 /// let rows: Vec<_> = table.into_iter().collect();
@@ -1261,18 +1303,18 @@ impl<V: Clone> ExactSizeIterator for TruthTableIterator<V> {
 /// # Examples
 ///
 /// ```rust
-/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, MguError};
+/// # use symbolic_mgu::{EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, SimpleTypeFactory, MguError};
 /// # use symbolic_mgu::bool_eval::extract_truth_table;
 /// # use SimpleType::*;
 /// # fn example() -> Result<(), MguError> {
 /// // Extract truth table for: p → q (implication)
-/// let vars = MetaByteFactory();
+/// let vars = MetaByteFactory::new(SimpleTypeFactory);
 /// let mut var_iter = vars.list_metavariables_by_type(&Boolean);
 /// let p = EnumTerm::Leaf(var_iter.next().unwrap());
 /// let q = EnumTerm::Leaf(var_iter.next().unwrap());
 /// let implies = EnumTerm::NodeOrLeaf(NodeByte::Implies, vec![p, q]);
 ///
-/// let table = extract_truth_table(&implies)?;
+/// let table = extract_truth_table(&SimpleTypeFactory, &implies)?;
 /// assert_eq!(table.num_rows(), 4);  // 2^2 = 4 rows
 /// assert_eq!(table.num_vars(), 2);
 ///
@@ -1284,13 +1326,19 @@ impl<V: Clone> ExactSizeIterator for TruthTableIterator<V> {
 /// # Ok(())
 /// # }
 /// ```
-pub fn extract_truth_table<T, Ty, V, No>(term: &T) -> Result<TruthTable<V>, MguError>
+pub fn extract_truth_table<T, Ty, V, No, TyF>(
+    type_factory: &TyF,
+    term: &T,
+) -> Result<TruthTable<V>, MguError>
 where
     T: Term<Ty, V, No>,
     Ty: Type,
     V: Metavariable<Type = Ty> + Clone,
     No: Node<Type = Ty>,
+    TyF: TypeFactory<Type = Ty>,
 {
+    let boolean_type = type_factory.try_boolean()?;
+
     // Collect all metavariables
     let mut vars_set: HashSet<V> = HashSet::new();
     term.collect_metavariables(&mut vars_set)?;
@@ -1299,9 +1347,9 @@ where
 
     // Check all variables are Boolean
     for var in &vars {
-        if var.get_type()? != Ty::try_boolean()? {
+        if var.get_type()? != boolean_type {
             let non_bool_type = var.get_type()?;
-            let expected_type = Ty::try_boolean()?;
+            let expected_type = boolean_type;
             return Err(MguError::from_found_and_expected_types(
                 false,
                 &non_bool_type,
@@ -1313,51 +1361,160 @@ where
     // Evaluate and create backing representation based on variable count
     let backing = match n {
         0 => {
-            let result =
-                <bool as UnsignedBits<bool, 0>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result = <bool as UnsignedBits<bool, 0>>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                type_factory,
+                term,
+                &vars,
+            )?;
             TruthTableBacking::Constant(result)
         }
         1..=3 => {
-            let result =
-                <u8 as UnsignedBits<u8, 3>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result = <u8 as UnsignedBits<u8, 3>>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                type_factory,
+                term,
+                &vars,
+            )?;
             TruthTableBacking::U8(result, n)
         }
         4 => {
-            let result =
-                <u16 as UnsignedBits<u16, 4>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result = <u16 as UnsignedBits<u16, 4>>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                type_factory,
+                term,
+                &vars,
+            )?;
             TruthTableBacking::U16(result)
         }
         5 => {
-            let result =
-                <u32 as UnsignedBits<u32, 5>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result = <u32 as UnsignedBits<u32, 5>>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                type_factory,
+                term,
+                &vars,
+            )?;
             TruthTableBacking::U32(result)
         }
         6 => {
-            let result =
-                <u64 as UnsignedBits<u64, 6>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result = <u64 as UnsignedBits<u64, 6>>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                type_factory,
+                term,
+                &vars,
+            )?;
             TruthTableBacking::U64(result)
         }
         7 => {
-            let result =
-                <u128 as UnsignedBits<u128, 7>>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?;
+            let result = <u128 as UnsignedBits<u128, 7>>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                type_factory,
+                term,
+                &vars,
+            )?;
             TruthTableBacking::U128(result)
         }
         #[cfg(feature = "bigint")]
         8..=20 => {
             let result = match n {
-                8 => SomeBits::<8>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
-                9 => SomeBits::<9>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
-                10 => SomeBits::<10>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
-                11 => SomeBits::<11>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
-                12 => SomeBits::<12>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
-                13 => SomeBits::<13>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
-                14 => SomeBits::<14>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
-                15 => SomeBits::<15>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
-                16 => SomeBits::<16>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
-                17 => SomeBits::<17>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
-                18 => SomeBits::<18>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
-                19 => SomeBits::<19>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
-                20 => SomeBits::<20>::eval_boolean_term::<T, Ty, V, No>(term, &vars)?.0,
+                8 => {
+                    SomeBits::<8>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                        type_factory,
+                        term,
+                        &vars,
+                    )?
+                    .0
+                }
+                9 => {
+                    SomeBits::<9>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                        type_factory,
+                        term,
+                        &vars,
+                    )?
+                    .0
+                }
+                10 => {
+                    SomeBits::<10>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                        type_factory,
+                        term,
+                        &vars,
+                    )?
+                    .0
+                }
+                11 => {
+                    SomeBits::<11>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                        type_factory,
+                        term,
+                        &vars,
+                    )?
+                    .0
+                }
+                12 => {
+                    SomeBits::<12>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                        type_factory,
+                        term,
+                        &vars,
+                    )?
+                    .0
+                }
+                13 => {
+                    SomeBits::<13>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                        type_factory,
+                        term,
+                        &vars,
+                    )?
+                    .0
+                }
+                14 => {
+                    SomeBits::<14>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                        type_factory,
+                        term,
+                        &vars,
+                    )?
+                    .0
+                }
+                15 => {
+                    SomeBits::<15>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                        type_factory,
+                        term,
+                        &vars,
+                    )?
+                    .0
+                }
+                16 => {
+                    SomeBits::<16>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                        type_factory,
+                        term,
+                        &vars,
+                    )?
+                    .0
+                }
+                17 => {
+                    SomeBits::<17>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                        type_factory,
+                        term,
+                        &vars,
+                    )?
+                    .0
+                }
+                18 => {
+                    SomeBits::<18>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                        type_factory,
+                        term,
+                        &vars,
+                    )?
+                    .0
+                }
+                19 => {
+                    SomeBits::<19>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                        type_factory,
+                        term,
+                        &vars,
+                    )?
+                    .0
+                }
+                20 => {
+                    SomeBits::<20>::eval_boolean_term::<T, Ty, V, No, TyF>(
+                        type_factory,
+                        term,
+                        &vars,
+                    )?
+                    .0
+                }
                 _ => {
                     return Err(MguError::AllocationError(
                         "Invalid number of variables for BigUint extraction".to_owned(),
@@ -1473,13 +1630,20 @@ where
     /// - A variable is not in the provided `vars` list
     /// - The variable index exceeds the bit capacity (N)
     /// - Node conversion fails
-    fn eval_boolean_term<T, Ty, V, No>(term: &T, vars: &[V]) -> Result<Self, MguError>
+    fn eval_boolean_term<T, Ty, V, No, TyF>(
+        type_factory: &TyF,
+        term: &T,
+        vars: &[V],
+    ) -> Result<Self, MguError>
     where
         T: Term<Ty, V, No>,
         Ty: Type,
         V: Metavariable<Type = Ty>,
         No: Node<Type = Ty>,
+        TyF: TypeFactory<Type = Ty>,
     {
+        let boolean_type = type_factory.try_boolean()?;
+
         if let Some(var) = term.get_metavariable() {
             // Leaf case: extract the metavariable
             let typ = var.get_type()?;
@@ -1487,7 +1651,7 @@ where
                 return Err(MguError::from_found_and_expected_types(
                     false,
                     &typ,
-                    &(Ty::try_boolean()?),
+                    &boolean_type,
                 ));
             }
             let index =
@@ -1545,7 +1709,7 @@ where
 
             let child_values = term
                 .get_children()
-                .map(|t| Self::eval_boolean_term(t, vars))
+                .map(|t| Self::eval_boolean_term(type_factory, t, vars))
                 .collect::<Vec<_>>();
             if let Some(Err(err)) = child_values.iter().find(|x| (*x).is_err()) {
                 return Err(err.clone());
@@ -1730,7 +1894,7 @@ impl<const N: usize> std::fmt::Display for SomeBits<N> {
 /// # Errors
 /// - When an Statement is not composed of purely Boolean Terms with Boolean Nodes and Boolean Metavariables.
 /// - When there are more Metavariables in the Statement than are supported. (7 or 20 if the feature `bigint` is on)
-pub fn test_validity<Ty, V, N, T, TF>(
+pub fn test_validity<Ty, V, N, T, TF, TyF>(
     statement: &Statement<Ty, V, N, TF::Term>,
     term_factory: &TF,
     implies_node: &Option<N>,
@@ -1740,7 +1904,8 @@ where
     V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
-    TF: TermFactory<T, Ty, V, N, TermNode = N>,
+    TF: TermFactory<T, Ty, V, N, TyF, TermNode = N>,
+    TyF: TypeFactory<Type = Ty>,
 {
     use MguErrorType::VerificationFailure;
     // Check if all hypotheses and assertion are Boolean
@@ -1777,14 +1942,17 @@ where
     }
 
     // Test if the nested implication is a tautology
-    test_tautology(&implication)
+    test_tautology(term_factory.type_factory(), &implication)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::SimpleType::*;
-    use crate::{MetavariableFactory, TypeCore};
+    use crate::{
+        EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, SimpleType, SimpleType::*,
+        SimpleTypeFactory, TypeCore,
+    };
+    use itertools::Itertools;
     use strum::VariantArray;
 
     /// Test that all `BooleanSimpleOp` variants evaluate to their correct truth table codes.
@@ -2057,10 +2225,8 @@ mod tests {
     /// Test law of excluded middle: p ∨ ¬p is a tautology.
     #[test]
     fn tautology_simple() {
-        use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
-
         // Create variable p
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let p_var = vars.list_metavariables_by_type(&Boolean).next().unwrap();
         let p_term = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
 
@@ -2072,7 +2238,7 @@ mod tests {
 
         // Should be a tautology
         assert!(
-            test_tautology(&law_of_excluded_middle).unwrap(),
+            test_tautology(&SimpleTypeFactory, &law_of_excluded_middle).unwrap(),
             "Law of excluded middle (p ∨ ¬p) should be a tautology"
         );
     }
@@ -2080,10 +2246,8 @@ mod tests {
     /// Test that p ∧ ¬p is not a tautology (it's a contradiction).
     #[test]
     fn tautology_not_tautology() {
-        use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
-
         // Create variable p
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let p_var = vars.list_metavariables_by_type(&Boolean).next().unwrap();
         let p_term = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
 
@@ -2095,7 +2259,7 @@ mod tests {
 
         // Should NOT be a tautology (it's a contradiction)
         assert!(
-            !test_tautology(&contradiction).unwrap(),
+            !test_tautology(&SimpleTypeFactory, &contradiction).unwrap(),
             "Contradiction (p ∧ ¬p) should not be a tautology"
         );
     }
@@ -2103,12 +2267,9 @@ mod tests {
     /// Test <span style="white-space: nowrap">De Morgan's</span> law: ¬(p ∧ q) ↔ (¬p ∨ ¬q) is a tautology.
     #[test]
     fn tautology_de_morgan() {
-        use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
-        use itertools::Itertools;
-
         // Create variables p and q
 
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (p_var, q_var) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -2135,7 +2296,7 @@ mod tests {
 
         // Should be a tautology
         assert!(
-            test_tautology(&de_morgan).unwrap(),
+            test_tautology(&SimpleTypeFactory, &de_morgan).unwrap(),
             "De Morgan's law should be a tautology"
         );
     }
@@ -2191,37 +2352,31 @@ mod tests {
 
     #[test]
     fn t_term_simple_variable() {
-        use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
-
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let p_var = vars.list_metavariables_by_type(&Boolean).next().unwrap();
         let p = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
 
         // A single variable is contingent - neither tautology nor contradiction
-        let result = test_term(&p).unwrap();
+        let result = test_term(&SimpleTypeFactory, &p).unwrap();
         assert!(result.is_none(), "Single variable should be contingent");
     }
 
     #[test]
     fn t_term_tautology() {
-        use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
-
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let p_var = vars.list_metavariables_by_type(&Boolean).next().unwrap();
         let p = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
 
         // p → p is a tautology
         let tautology = EnumTerm::NodeOrLeaf(NodeByte::Implies, vec![p.clone(), p]);
 
-        let result = test_term(&tautology).unwrap();
+        let result = test_term(&SimpleTypeFactory, &tautology).unwrap();
         assert_eq!(result, Some(true), "p → p should be a tautology");
     }
 
     #[test]
     fn t_term_contradiction() {
-        use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
-
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let p_var = vars.list_metavariables_by_type(&Boolean).next().unwrap();
         let p = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
 
@@ -2229,19 +2384,17 @@ mod tests {
         let not_p = EnumTerm::NodeOrLeaf(NodeByte::Not, vec![p.clone()]);
         let contradiction = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p, not_p]);
 
-        let result = test_term(&contradiction).unwrap();
+        let result = test_term(&SimpleTypeFactory, &contradiction).unwrap();
         assert_eq!(result, Some(false), "p ∧ ¬p should be a contradiction");
     }
 
     #[test]
     fn extract_truth_table_single_var() {
-        use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
-
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let p_var = vars.list_metavariables_by_type(&Boolean).next().unwrap();
         let p = EnumTerm::<SimpleType, MetaByte, NodeByte>::Leaf(p_var);
 
-        let table = extract_truth_table(&p).unwrap();
+        let table = extract_truth_table(&SimpleTypeFactory, &p).unwrap();
 
         // Single variable should have 2 rows
         assert_eq!(table.num_rows(), 2);
@@ -2255,10 +2408,7 @@ mod tests {
 
     #[test]
     fn extract_truth_table_two_vars() {
-        use crate::{EnumTerm, MetaByte, MetaByteFactory, SimpleType};
-        use itertools::Itertools;
-
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (p_var, q_var) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -2270,7 +2420,7 @@ mod tests {
         // Create p ∧ q
         let p_and_q = EnumTerm::NodeOrLeaf(NodeByte::And, vec![p, q]);
 
-        let table = extract_truth_table(&p_and_q).unwrap();
+        let table = extract_truth_table(&SimpleTypeFactory, &p_and_q).unwrap();
 
         // Two variables should have 4 rows
         assert_eq!(table.num_rows(), 4);
@@ -2283,12 +2433,9 @@ mod tests {
 
     #[test]
     fn boolean_simple_node_from_op() {
-        use crate::SimpleType;
-        use strum::VariantArray;
-
         // Test that we can create `BooleanSimpleNode` from `BooleanSimpleOp`
         for op in BooleanSimpleOp::VARIANTS {
-            let node = BooleanSimpleNode::<SimpleType>::from_op(*op);
+            let node = BooleanSimpleNode::<SimpleType>::from_op(*op, SimpleType::Boolean);
             // Verify arity matches
             let expected_arity = op.get_arity() as usize;
             let node_arity = node.get_arity().unwrap();

@@ -8,7 +8,8 @@
 use symbolic_mgu::logic::create_dict;
 use symbolic_mgu::{
     get_formatter, register_formatter, Color, EnumTerm, EnumTermFactory, MguError, NodeByte,
-    OutputFormatter, SimpleType, Statement, Term, WideMetavariable, WideMetavariableFactory,
+    OutputFormatter, SimpleType, SimpleTypeFactory, Statement, Term, WideMetavariable,
+    WideMetavariableFactory,
 };
 
 /// A simple JSON formatter for testing the extension API.
@@ -49,8 +50,8 @@ fn test_custom_formatter_implementation() -> Result<(), MguError> {
     register_formatter("json-test", JsonFormatter);
 
     // Create a simple proof
-    let term_factory = EnumTermFactory::new();
-    let metavar_factory = WideMetavariableFactory();
+    let term_factory = EnumTermFactory::new(SimpleTypeFactory);
+    let metavar_factory = WideMetavariableFactory::new(SimpleTypeFactory);
     let dict = create_dict(
         &term_factory,
         &metavar_factory,
@@ -83,8 +84,8 @@ fn test_custom_formatter_with_complex_proof() -> Result<(), MguError> {
     let mut proof = "D1".repeat(depth);
     proof.push('1');
 
-    let term_factory = EnumTermFactory::new();
-    let metavar_factory = WideMetavariableFactory();
+    let term_factory = EnumTermFactory::new(SimpleTypeFactory);
+    let metavar_factory = WideMetavariableFactory::new(SimpleTypeFactory);
     let dict = create_dict(
         &term_factory,
         &metavar_factory,

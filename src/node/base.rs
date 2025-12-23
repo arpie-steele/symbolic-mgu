@@ -5,8 +5,7 @@
 //! [`Term`]: `crate::Term`
 
 use crate::bool_eval::BooleanSimpleOp;
-use crate::formatter::OutputFormatter;
-use crate::{MguError, Type};
+use crate::{MguError, OutputFormatter, Type};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 

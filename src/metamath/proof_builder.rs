@@ -27,10 +27,7 @@
 //!        (floating hyps for ψ, χ, then build implication, then apply ax-1)
 //! ```
 
-use crate::metamath::database::MetamathDatabase;
-use crate::metamath::label::Label;
-use crate::metamath::proof::Proof;
-use crate::metamath::symbolic::{DbMetavariable, DbTerm};
+use crate::metamath::{DbMetavariable, DbTerm, Label, MetamathDatabase, Proof};
 use crate::{Metavariable, Substitution, Term};
 use std::sync::Arc;
 use thiserror::Error;

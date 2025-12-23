@@ -42,11 +42,11 @@
 //!
 //! ```rust
 //! use symbolic_mgu::{EnumTermFactory, TermFactory, MetaByteFactory, NodeByteFactory};
-//! use symbolic_mgu::{MetavariableFactory, NodeFactory, SimpleType, MetaByte, NodeByte, EnumTerm};
+//! use symbolic_mgu::{MetavariableFactory, NodeFactory, SimpleType, SimpleTypeFactory, MetaByte, NodeByte, EnumTerm};
 //! use SimpleType::*;
 //!
-//! let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> = EnumTermFactory::new();
-//! let metavar_factory = MetaByteFactory();
+//! let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte, _> = EnumTermFactory::new(SimpleTypeFactory);
+//! let metavar_factory = MetaByteFactory::new(SimpleTypeFactory);
 //! let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
 //!
 //! // Create variable leaf (Boolean uses uppercase P-Z)
@@ -111,11 +111,11 @@
 //!
 //! ```rust
 //! use symbolic_mgu::{EnumTermFactory, TermFactory, MetaByteFactory, NodeByteFactory};
-//! use symbolic_mgu::{MetavariableFactory, NodeFactory, SimpleType, MetaByte, NodeByte, EnumTerm};
+//! use symbolic_mgu::{MetavariableFactory, NodeFactory, SimpleType, SimpleTypeFactory, MetaByte, NodeByte, EnumTerm};
 //! use SimpleType::*;
 //!
-//! let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> = EnumTermFactory::new();
-//! let metavar_factory = MetaByteFactory();
+//! let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte, _> = EnumTermFactory::new(SimpleTypeFactory);
+//! let metavar_factory = MetaByteFactory::new(SimpleTypeFactory);
 //! let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
 //!
 //! // Build: P → Q (Boolean uses uppercase P-Z)
@@ -179,11 +179,11 @@
 //!
 //! ```rust
 //! use symbolic_mgu::{EnumTermFactory, TermFactory, MetaByteFactory, NodeByteFactory};
-//! use symbolic_mgu::{MetavariableFactory, NodeFactory, SimpleType, MetaByte, NodeByte, EnumTerm};
+//! use symbolic_mgu::{MetavariableFactory, NodeFactory, SimpleType, SimpleTypeFactory, MetaByte, NodeByte, EnumTerm};
 //! use SimpleType::*;
 //!
-//! let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> = EnumTermFactory::new();
-//! let metavar_factory = MetaByteFactory();
+//! let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte, _> = EnumTermFactory::new(SimpleTypeFactory);
+//! let metavar_factory = MetaByteFactory::new(SimpleTypeFactory);
 //! let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
 //!
 //! // Build: (P ∧ Q) → R (Boolean uses uppercase P-Z)
@@ -209,19 +209,20 @@
 //! Write code generic over any `TermFactory`:
 //!
 //! ```rust,no_run
-//! use symbolic_mgu::{Term, TermFactory, Metavariable, Node, MguError, SimpleType};
+//! use symbolic_mgu::{Term, TermFactory, Metavariable, Node, MguError, SimpleType, TypeFactory};
 //!
-//! fn build_implication<TF, T, V, N>(
+//! fn build_implication<TF, T, V, N, TyF>(
 //!     factory: &TF,
 //!     antecedent: T,
 //!     consequent: T,
 //!     implies_node: N,
 //! ) -> Result<T, MguError>
 //! where
-//!     TF: TermFactory<T, SimpleType, V, N, Term = T, TermNode = N, TermMetavariable = V>,
+//!     TF: TermFactory<T, SimpleType, V, N, TyF, Term = T, TermNode = N, TermMetavariable = V>,
 //!     T: Term<SimpleType, V, N>,
 //!     V: Metavariable<Type = SimpleType>,
 //!     N: Node<Type = SimpleType>,
+//!     TyF: TypeFactory<Type = SimpleType>,
 //! {
 //!     factory.create_node(implies_node, vec![antecedent, consequent])
 //! }
@@ -234,11 +235,11 @@
 //!
 //! ```rust
 //! use symbolic_mgu::{EnumTermFactory, TermFactory, MetaByteFactory, NodeByteFactory};
-//! use symbolic_mgu::{MetavariableFactory, NodeFactory, SimpleType, MetaByte, NodeByte, EnumTerm};
+//! use symbolic_mgu::{MetavariableFactory, NodeFactory, SimpleType, SimpleTypeFactory, MetaByte, NodeByte, EnumTerm};
 //! use SimpleType::*;
 //!
-//! let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> = EnumTermFactory::new();
-//! let metavar_factory = MetaByteFactory();
+//! let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte, _> = EnumTermFactory::new(SimpleTypeFactory);
+//! let metavar_factory = MetaByteFactory::new(SimpleTypeFactory);
 //! let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
 //!
 //! let p = term_factory.create_leaf(
@@ -294,7 +295,9 @@
 //! [`NodeFactory`]: `crate::NodeFactory`
 //! [`MetavariableFactory`]: `crate::MetavariableFactory`
 
-use crate::{Metavariable, MetavariableFactory, MguError, Node, NodeFactory, Term, Type};
+use crate::{
+    Metavariable, MetavariableFactory, MguError, Node, NodeFactory, Term, Type, TypeFactory,
+};
 use std::fmt::Debug;
 
 /// Factory for creating Term instances
@@ -303,12 +306,18 @@ use std::fmt::Debug;
 /// even though applications may provide a single object implementing all three.
 ///
 /// Implementations typically cache terms to avoid redundant construction.
-pub trait TermFactory<T, Ty, V, N>: Debug
+///
+/// # Type Factory Access
+///
+/// `TermFactory` provides access to a [`TypeFactory`] via the `type_factory()` method,
+/// enabling type construction for production code that already has a term factory.
+pub trait TermFactory<T, Ty, V, N, TyF>: Debug
 where
     T: Term<Ty, V, N>,
     Ty: Type,
     V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
+    TyF: TypeFactory<Type = Ty>,
 {
     /// Concrete instance of the Type trait.
     type TermType: Type;
@@ -322,11 +331,26 @@ where
     /// Concrete instance of the Metavariable trait.
     type TermMetavariable: Metavariable<Type = Ty>;
 
-    /// Create new `TermFactory` from other factories.
+    /// Get access to the type factory.
+    ///
+    /// This allows production code to construct type instances through the term factory:
+    ///
+    /// ```rust
+    /// use symbolic_mgu::{EnumTermFactory, TermFactory, SimpleTypeFactory, TypeFactory, MetaByte, NodeByte};
+    ///
+    /// let type_factory = SimpleTypeFactory;
+    /// let term_factory: EnumTermFactory<_, MetaByte, NodeByte, _> = EnumTermFactory::new(SimpleTypeFactory);
+    ///
+    /// // Get Boolean type through the term factory
+    /// let bool_type = term_factory.type_factory().try_boolean().unwrap();
+    /// ```
+    fn type_factory(&self) -> &TyF;
+
+    /// Create new `TermFactory` from a type factory and other factories.
     #[must_use]
-    fn from_factories<VF, NF>(vars: VF, nodes: NF) -> Self
+    fn from_factories<VF, NF>(type_factory: TyF, vars: VF, nodes: NF) -> Self
     where
-        VF: MetavariableFactory<Metavariable = V>,
+        VF: MetavariableFactory<TyF, Metavariable = V>,
         NF: NodeFactory<Node = N>;
 
     /// Create a term from a metavariable (leaf node)
@@ -340,6 +364,8 @@ where
     /// - Invalid variable types or indices
     /// - Memory allocation failures
     /// - Database consistency violations
+    ///
+    /// [`EnumTermFactory`]: `crate::EnumTermFactory`
     fn create_leaf(&self, var: Self::TermMetavariable) -> Result<Self::Term, MguError>;
 
     /// Create a term from a node head and children

@@ -4,13 +4,10 @@
 //! statements and populate the database with constants, variables, and
 //! their scoping information.
 
-use crate::metamath::database::{
-    Axiom, ConstantInfo, DatabaseError, EssentialHyp, FloatingHyp, MetamathDatabase, Theorem,
-    VariableInfo,
-};
 use crate::metamath::{
-    AssertionCore, CommentMetadata, FilesystemProvider, Label, Proof, ProofError, SyntaxInfo,
-    Token, TokenKind, Tokenizer,
+    AssertionCore, Axiom, CommentMetadata, ConstantInfo, DatabaseError, EssentialHyp,
+    FilesystemProvider, FloatingHyp, Label, MetamathDatabase, Proof, ProofError, SyntaxInfo,
+    Theorem, Token, TokenKind, Tokenizer, VariableInfo,
 };
 use std::collections::HashSet;
 use std::io;

@@ -1,7 +1,10 @@
 //! Rules for Propositional Logic in the C-N basis.
 
 use crate::logic::require_var_is_boolean;
-use crate::{DistinctnessGraph, Metavariable, MguError, Node, Statement, Term, TermFactory, Type};
+use crate::{
+    DistinctnessGraph, Metavariable, MguError, Node, Statement, Term, TermFactory, Type,
+    TypeFactory,
+};
 
 /// Index of the minor premise (φ) in Modus Ponens hypotheses.
 ///
@@ -29,15 +32,15 @@ pub const MP_MAJOR_PREMISE: usize = 1;
 ///
 /// ```
 /// use symbolic_mgu::logic::propositional::rules::cn_basis::modus_ponens;
-/// use symbolic_mgu::{EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, Metavariable, NodeByte, SimpleType};
+/// use symbolic_mgu::{EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, Metavariable, NodeByte, SimpleType, SimpleTypeFactory};
 /// use itertools::Itertools;
 /// use SimpleType::*;
 ///
 /// // Create factory for building terms
-/// let factory = EnumTermFactory::new();
+/// let factory = EnumTermFactory::new(SimpleTypeFactory);
 ///
 /// // Get two boolean metavariables
-/// let vars = MetaByteFactory();
+/// let vars = MetaByteFactory::new(SimpleTypeFactory);
 /// let (phi, psi) = vars.list_metavariables_by_type(&Boolean).tuples().next().unwrap();
 ///
 /// // Create Modus Ponens: (ψ; φ, (φ → ψ); ∅)
@@ -49,7 +52,7 @@ pub const MP_MAJOR_PREMISE: usize = 1;
 /// # Errors
 ///
 /// Returns an error if term construction or statement validation fails.
-pub fn modus_ponens<Ty, V, N, T, TF>(
+pub fn modus_ponens<Ty, V, N, T, TF, TyF>(
     factory: &TF,
     phi_var: V,
     psi_var: V,
@@ -60,11 +63,12 @@ where
     V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
-    TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+    TF: TermFactory<T, Ty, V, N, TyF, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+    TyF: TypeFactory<Type = Ty>,
 {
     // Verify both variables are Boolean
-    require_var_is_boolean(&phi_var)?;
-    require_var_is_boolean(&psi_var)?;
+    require_var_is_boolean(factory.type_factory(), &phi_var)?;
+    require_var_is_boolean(factory.type_factory(), &psi_var)?;
 
     // Build terms for φ and ψ
     let phi = factory.create_leaf(phi_var.clone())?;
@@ -83,7 +87,7 @@ where
     // No distinctness constraints
     let dist_graph = DistinctnessGraph::default();
 
-    Statement::new(assertion, hypotheses, dist_graph)
+    Statement::new(factory.type_factory(), assertion, hypotheses, dist_graph)
 }
 
 #[cfg(test)]
@@ -92,28 +96,36 @@ mod tests {
     use crate::bool_eval::BooleanSimpleNode;
     use crate::bool_eval::BooleanSimpleOp::ImpliesAB2;
     use crate::logic::build_boolean_statement_from_polish;
-    use crate::{EnumTermFactory, MetavariableFactory, SimpleType, WideMetavariableFactory};
+    use crate::{
+        EnumTermFactory, MetavariableFactory, SimpleType, SimpleTypeFactory,
+        WideMetavariableFactory,
+    };
 
     type MyType = SimpleType;
     type MyNode = BooleanSimpleNode<MyType>;
 
     #[test]
     fn modus_ponens_equals_polish() {
-        let var_factory = WideMetavariableFactory::new();
+        let var_factory = WideMetavariableFactory::new(SimpleTypeFactory);
         let vars = var_factory
             .list_metavariables_by_type(&MyType::Boolean)
             .take(2)
             .collect::<Vec<_>>();
-        let factory = EnumTermFactory::new();
+        let factory = EnumTermFactory::new(SimpleTypeFactory);
 
-        let from_builder =
-            modus_ponens(&factory, vars[0], vars[1], MyNode::from_op(ImpliesAB2)).unwrap();
+        let from_builder = modus_ponens(
+            &factory,
+            vars[0],
+            vars[1],
+            MyNode::from_op(ImpliesAB2, SimpleType::Boolean),
+        )
+        .unwrap();
 
         let from_polish = build_boolean_statement_from_polish(
             "p;Cpq;q",
             &factory,
             &vars,
-            &[MyNode::from_op(ImpliesAB2)],
+            &[MyNode::from_op(ImpliesAB2, SimpleType::Boolean)],
         )
         .unwrap();
 
@@ -167,13 +179,19 @@ mod tests {
 
     #[test]
     fn modus_ponens_constants() {
-        let vars = WideMetavariableFactory::new()
+        let vars = WideMetavariableFactory::new(SimpleTypeFactory)
             .list_metavariables_by_type(&MyType::Boolean)
             .take(2)
             .collect::<Vec<_>>();
-        let factory = EnumTermFactory::new();
+        let factory = EnumTermFactory::new(SimpleTypeFactory);
 
-        let mp = modus_ponens(&factory, vars[0], vars[1], MyNode::from_op(ImpliesAB2)).unwrap();
+        let mp = modus_ponens(
+            &factory,
+            vars[0],
+            vars[1],
+            MyNode::from_op(ImpliesAB2, SimpleType::Boolean),
+        )
+        .unwrap();
 
         // Verify the index constants are correct
         assert_eq!(

@@ -79,6 +79,7 @@ pub use symbolic::DbMetavariableIterator;
 pub use symbolic::DbNode;
 pub use symbolic::DbTerm;
 pub use symbolic::DbType;
+pub use symbolic::DbTypeFactory;
 pub use tokenizer::Token;
 pub use tokenizer::TokenKind;
 pub use tokenizer::Tokenizer;

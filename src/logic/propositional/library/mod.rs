@@ -23,7 +23,7 @@
 //! - Rules: Substitution, Detachment
 
 use crate::logic::build_boolean_statement_from_polish;
-use crate::{Metavariable, MguError, Node, Statement, Term, TermFactory, Type};
+use crate::{Metavariable, MguError, Node, Statement, Term, TermFactory, Type, TypeFactory};
 use strum::{Display, EnumCount, EnumString, FromRepr, VariantArray, VariantNames};
 
 /// Historical formula of propositional calculus.
@@ -270,13 +270,13 @@ impl<S: AsRef<str>> LibraryFormula<S> {
     ///
     /// ```
     /// use symbolic_mgu::logic::propositional::library::PM_1_2_AC;
-    /// use symbolic_mgu::{EnumTermFactory, WideMetavariableFactory, MetavariableFactory, SimpleType};
+    /// use symbolic_mgu::{EnumTermFactory, WideMetavariableFactory, MetavariableFactory, SimpleType, SimpleTypeFactory};
     /// use symbolic_mgu::bool_eval::{BooleanSimpleNode, BooleanSimpleOp};
     /// use SimpleType::*;
     /// use strum::VariantArray;
     ///
-    /// let factory = EnumTermFactory::new();
-    /// let var_factory = WideMetavariableFactory::new();
+    /// let factory = EnumTermFactory::new(SimpleTypeFactory);
+    /// let var_factory = WideMetavariableFactory::new(SimpleTypeFactory);
     /// let vars = var_factory
     ///     .list_metavariables_by_type(&Boolean)
     ///     .take(26)
@@ -284,7 +284,7 @@ impl<S: AsRef<str>> LibraryFormula<S> {
     /// let nodes = <BooleanSimpleOp as VariantArray>::VARIANTS
     ///     .iter()
     ///     .cloned()
-    ///     .map(BooleanSimpleNode::from_op)
+    ///     .map(|op| BooleanSimpleNode::from_op(op, Boolean))
     ///     .collect::<Vec<_>>();
     ///
     /// let statement = PM_1_2_AC.build_statement(&factory, &vars, &nodes);
@@ -294,7 +294,7 @@ impl<S: AsRef<str>> LibraryFormula<S> {
     /// # Errors
     ///
     /// Returns an error if the Polish notation is invalid or if statement construction fails.
-    pub fn build_statement<Ty, V, N, T, TF>(
+    pub fn build_statement<Ty, V, N, T, TF, TyF>(
         &self,
         factory: &TF,
         vars: &[V],
@@ -305,7 +305,18 @@ impl<S: AsRef<str>> LibraryFormula<S> {
         V: Metavariable<Type = Ty>,
         N: Node<Type = Ty>,
         T: Term<Ty, V, N>,
-        TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+        TF: TermFactory<
+            T,
+            Ty,
+            V,
+            N,
+            TyF,
+            TermType = Ty,
+            Term = T,
+            TermMetavariable = V,
+            TermNode = N,
+        >,
+        TyF: TypeFactory<Type = Ty>,
     {
         build_boolean_statement_from_polish(self.polish.as_ref(), factory, vars, nodes)
     }
@@ -1083,7 +1094,10 @@ usual rules of rejection as stated in 6.6 the special rule (3) ∗α, ∗β → 
 mod tests {
     use super::*;
     use crate::bool_eval::{test_validity, BooleanSimpleNode, BooleanSimpleOp};
-    use crate::{EnumTermFactory, MetavariableFactory, SimpleType, Type, WideMetavariableFactory};
+    use crate::{
+        EnumTermFactory, MetavariableFactory, SimpleType, SimpleTypeFactory,
+        WideMetavariableFactory,
+    };
     use strum::VariantArray;
 
     type TestNode = BooleanSimpleNode<SimpleType>;
@@ -1093,18 +1107,21 @@ mod tests {
     #[test]
     fn library_of_valid_statements() {
         let library = FormulaLibrary::standard();
-        let var_factory = WideMetavariableFactory::new();
-        let factory = EnumTermFactory::new();
+        let var_factory = WideMetavariableFactory::new(SimpleTypeFactory);
+        let factory = EnumTermFactory::new(SimpleTypeFactory);
         let vars = var_factory
-            .list_metavariables_by_type(&SimpleType::try_boolean().unwrap())
+            .list_metavariables_by_type(&SimpleType::Boolean)
             .take(26)
             .collect::<Vec<_>>();
         let nodes = <BooleanSimpleOp as VariantArray>::VARIANTS
             .iter()
             .cloned()
-            .map(BooleanSimpleNode::from_op)
+            .map(|op| BooleanSimpleNode::from_op(op, SimpleType::Boolean))
             .collect::<Vec<TestNode>>();
-        let implies_node = Some(BooleanSimpleNode::from_op(BooleanSimpleOp::ImpliesAB2));
+        let implies_node = Some(BooleanSimpleNode::from_op(
+            BooleanSimpleOp::ImpliesAB2,
+            SimpleType::Boolean,
+        ));
 
         for entry in library.iter() {
             let name = entry.primary_name();

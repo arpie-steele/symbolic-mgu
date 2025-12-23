@@ -13,7 +13,7 @@ use crate::logic::propositional::rules::cn_basis::{
 };
 use crate::{
     apply_substitution, unify, DistinctnessGraph, Metavariable, MetavariableFactory, MguError,
-    Node, NodeFactory, Substitution, Term, TermFactory, Type,
+    Node, NodeFactory, Substitution, Term, TermFactory, Type, TypeFactory,
 };
 use std::collections::HashSet;
 use std::marker::PhantomData;
@@ -46,9 +46,10 @@ where
     /// - Indices are out of range or equal
     /// - Unification fails
     /// - Distinctness constraints are violated
-    pub fn contract<TF>(&self, factory: &TF, n: usize, m: usize) -> Result<Self, MguError>
+    pub fn contract<TF, TyF>(&self, factory: &TF, n: usize, m: usize) -> Result<Self, MguError>
     where
-        TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N, TermMetavariable = V>,
+        TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermNode = N, TermMetavariable = V>,
+        TyF: TypeFactory<Type = Ty>,
     {
         // Validate indices
         if n == m {
@@ -96,13 +97,14 @@ where
     /// # Errors
     ///
     /// Returns an error if term construction fails.
-    fn apply_var_substitution<TF>(
+    fn apply_var_substitution<TF, TyF>(
         &self,
         term_factory: &TF,
         mapping: &std::collections::HashMap<V, V>,
     ) -> Result<Self, MguError>
     where
-        TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N, TermMetavariable = V>,
+        TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermNode = N, TermMetavariable = V>,
+        TyF: TypeFactory<Type = Ty>,
     {
         // Convert variable mapping to term mapping
         let mut term_mapping = std::collections::HashMap::new();
@@ -152,15 +154,16 @@ where
     /// # Errors
     ///
     /// Returns an error if metavariable creation fails.
-    pub fn relabel_disjoint<VF, TF>(
+    pub fn relabel_disjoint<VF, TF, TyF>(
         &self,
         var_factory: &VF,
         term_factory: &TF,
         avoid: &HashSet<V>,
     ) -> Result<Self, MguError>
     where
-        VF: MetavariableFactory<Metavariable = V, MetavariableType = Ty>,
-        TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N, TermMetavariable = V>,
+        VF: MetavariableFactory<TyF, Metavariable = V, MetavariableType = Ty>,
+        TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermNode = N, TermMetavariable = V>,
+        TyF: TypeFactory<Type = Ty>,
     {
         let my_vars = self.collect_metavariables()?;
 
@@ -216,7 +219,7 @@ where
     /// - Index is out of range
     /// - Unification fails
     /// - Distinctness constraints are violated
-    pub fn apply<VF, TF>(
+    pub fn apply<VF, TF, TyF>(
         &self,
         var_factory: &VF,
         term_factory: &TF,
@@ -224,8 +227,9 @@ where
         other: &Self,
     ) -> Result<Self, MguError>
     where
-        VF: MetavariableFactory<Metavariable = V, MetavariableType = Ty>,
-        TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N, TermMetavariable = V>,
+        VF: MetavariableFactory<TyF, Metavariable = V, MetavariableType = Ty>,
+        TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermNode = N, TermMetavariable = V>,
+        TyF: TypeFactory<Type = Ty>,
     {
         // Validate index
         let hyp_n = self
@@ -300,15 +304,16 @@ where
     /// - Length of proofs doesn't match number of hypotheses
     /// - Unification fails
     /// - Distinctness constraints are violated
-    pub fn apply_multiple<VF, TF>(
+    pub fn apply_multiple<VF, TF, TyF>(
         &self,
         var_factory: &VF,
         term_factory: &TF,
         proofs: &[Option<Self>],
     ) -> Result<Self, MguError>
     where
-        VF: MetavariableFactory<Metavariable = V, MetavariableType = Ty>,
-        TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N, TermMetavariable = V>,
+        VF: MetavariableFactory<TyF, Metavariable = V, MetavariableType = Ty>,
+        TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermNode = N, TermMetavariable = V>,
+        TyF: TypeFactory<Type = Ty>,
     {
         // Validate that proofs length matches hypotheses length
         if proofs.len() != self.hypotheses.len() {
@@ -435,8 +440,8 @@ where
     /// use SimpleType::*;
     ///
     /// # fn example() -> Result<(), MguError> {
-    /// let var_factory = MetaByteFactory();
-    /// let term_factory = EnumTermFactory::new();
+    /// let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+    /// let term_factory = EnumTermFactory::new(SimpleTypeFactory);
     ///
     /// // Create P and (P → Q)
     /// let p = var_factory.create("P", &Boolean)?;
@@ -450,8 +455,8 @@ where
     /// )?;
     ///
     /// // Build statements: minor = (P; ∅; ∅) and major = ((P → Q); ∅; ∅)
-    /// let minor = Statement::simple_axiom(p_term)?;
-    /// let major = Statement::simple_axiom(p_implies_q)?;
+    /// let minor = Statement::simple_axiom(&SimpleTypeFactory, p_term)?;
+    /// let major = Statement::simple_axiom(&SimpleTypeFactory, p_implies_q)?;
     ///
     /// // Condensed detachment: should derive Q
     /// let result = Statement::condensed_detach(
@@ -467,7 +472,7 @@ where
     /// # Ok(())
     /// # }
     /// ```
-    pub fn condensed_detach<VF, TF>(
+    pub fn condensed_detach<VF, TF, TyF>(
         var_factory: &VF,
         term_factory: &TF,
         minor: &Self,
@@ -475,19 +480,31 @@ where
         implies_node: N,
     ) -> Result<Self, MguError>
     where
-        VF: MetavariableFactory<Metavariable = V, MetavariableType = Ty>,
-        TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermNode = N, TermMetavariable = V>,
+        VF: MetavariableFactory<TyF, Metavariable = V, MetavariableType = Ty>,
+        TF: TermFactory<
+            T,
+            Ty,
+            V,
+            N,
+            TyF,
+            TermType = Ty,
+            Term = T,
+            TermMetavariable = V,
+            TermNode = N,
+        >,
+        TyF: TypeFactory<Type = Ty>,
     {
         // Create fresh Boolean metavariables for modus ponens
+        let bool_type = var_factory.type_factory().try_boolean()?;
         let phi_var = var_factory
-            .list_metavariables_by_type(&Ty::try_boolean()?)
+            .list_metavariables_by_type(&bool_type)
             .next()
             .ok_or_else(|| {
                 MguError::AllocationError("Could not create fresh Boolean variable φ".to_string())
             })?;
 
         let psi_var = var_factory
-            .list_metavariables_by_type(&Ty::try_boolean()?)
+            .list_metavariables_by_type(&bool_type)
             .nth(1)
             .ok_or_else(|| {
                 MguError::AllocationError("Could not create fresh Boolean variable ψ".to_string())
@@ -528,16 +545,16 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// use symbolic_mgu::{Statement, MetaByte, Metavariable, SimpleType, NodeByte, Node};
+    /// use symbolic_mgu::{Statement, MetaByte, Metavariable, SimpleType, SimpleTypeFactory, NodeByte, Node};
     /// use symbolic_mgu::{EnumTerm, EnumTermFactory, MetaByteFactory, MetavariableFactory};
     /// use itertools::Itertools;
     /// use SimpleType::*;
     ///
-    /// let var_factory = MetaByteFactory();
-    /// let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte>::new();
+    /// let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+    /// let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte, _>::new(SimpleTypeFactory);
     ///
     /// // Create φ₂ → φ₅ (non-canonical variables)
-    /// let vars = MetaByteFactory();
+    /// let vars = MetaByteFactory::new(SimpleTypeFactory);
     /// let (_, _, phi2, _, _, phi5) = vars
     ///         .list_metavariables_by_type(&Boolean)
     ///         .tuples()
@@ -549,7 +566,7 @@ where
     /// let phi5_term = EnumTerm::Leaf(phi5);
     /// let implication = EnumTerm::NodeOrLeaf(implies, vec![phi2_term, phi5_term]);
     ///
-    /// let stmt = Statement::simple_axiom(implication).unwrap();
+    /// let stmt = Statement::simple_axiom(&SimpleTypeFactory, implication).unwrap();
     ///
     /// // Canonicalize to get (φ₀ → φ₁)
     /// let canonical = stmt.canonicalize(&var_factory, &term_factory).unwrap();
@@ -562,14 +579,15 @@ where
     /// # Errors
     ///
     /// Returns an error if variable or term creation fails.
-    pub fn canonicalize<VF, TF>(
+    pub fn canonicalize<VF, TF, TyF>(
         &self,
         var_factory: &VF,
         term_factory: &TF,
     ) -> Result<Self, MguError>
     where
-        VF: MetavariableFactory<Metavariable = V, MetavariableType = Ty>,
-        TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N, TermMetavariable = V>,
+        VF: MetavariableFactory<TyF, Metavariable = V, MetavariableType = Ty>,
+        TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermNode = N, TermMetavariable = V>,
+        TyF: TypeFactory<Type = Ty>,
     {
         use itertools::Itertools;
         use std::collections::HashMap;
@@ -737,29 +755,29 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// # use symbolic_mgu::{Statement, SimpleType, MetaByte, MetaByteFactory, MetavariableFactory};
+    /// # use symbolic_mgu::{Statement, SimpleType, SimpleTypeFactory, MetaByte, MetaByteFactory, MetavariableFactory};
     /// # use symbolic_mgu::{WideMetavariable, WideMetavariableFactory};
     /// # use symbolic_mgu::{NodeByte, NodeByteFactory, EnumTerm, EnumTermFactory, TermFactory, MguError};
     /// # use SimpleType::*;
     /// # fn example() -> Result<(), MguError> {
     /// // Original statement using MetaByte
-    /// let meta_var_factory = MetaByteFactory();
-    /// let term_factory: EnumTermFactory<SimpleType, _, NodeByte> = EnumTermFactory::new();
+    /// let meta_var_factory = MetaByteFactory::new(SimpleTypeFactory);
+    /// let term_factory: EnumTermFactory<SimpleType, _, NodeByte, _> = EnumTermFactory::new(SimpleTypeFactory);
     /// let p = meta_var_factory.create("P", &Boolean)?;
     /// let p_term = term_factory.create_leaf(p)?;
-    /// let stmt = Statement::new(p_term, vec![], Default::default())?;
+    /// let stmt = Statement::new(&SimpleTypeFactory, p_term, vec![], Default::default())?;
     ///
     /// // Convert to WideMetavariable
-    /// let var_factory = WideMetavariableFactory();
+    /// let var_factory = WideMetavariableFactory::new(SimpleTypeFactory);
     /// let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
-    /// let wide_term_factory = EnumTermFactory::new();
+    /// let wide_term_factory = EnumTermFactory::new(SimpleTypeFactory);
     ///
     /// let converted: Statement<SimpleType, WideMetavariable, NodeByte, EnumTerm<_, _, _>> =
     ///     stmt.convert(&var_factory, &node_factory, &wide_term_factory)?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn convert<Ty2, V2, N2, T2, VF, NF, TF>(
+    pub fn convert<Ty2, V2, N2, T2, VF, NF, TF, TyF>(
         &self,
         var_factory: &VF,
         node_factory: &NF,
@@ -770,9 +788,10 @@ where
         V2: Metavariable<Type = Ty2>,
         N2: Node<Type = Ty2>,
         T2: Term<Ty2, V2, N2>,
-        VF: MetavariableFactory<Metavariable = V2, MetavariableType = Ty2>,
+        VF: MetavariableFactory<TyF, Metavariable = V2, MetavariableType = Ty2>,
         NF: NodeFactory<Node = N2, NodeType = Ty2>,
-        TF: TermFactory<T2, Ty2, V2, N2, Term = T2, TermNode = N2, TermMetavariable = V2>,
+        TF: TermFactory<T2, Ty2, V2, N2, TyF, Term = T2, TermNode = N2, TermMetavariable = V2>,
+        TyF: TypeFactory<Type = Ty2>,
     {
         use std::collections::HashMap;
 
@@ -795,11 +814,11 @@ where
         for (src_type, src_vars) in vars_by_type {
             // Convert type using capability checks
             let dest_type = if src_type.is_boolean() {
-                Ty2::try_boolean()?
+                var_factory.type_factory().try_boolean()?
             } else if src_type.is_setvar() {
-                Ty2::try_setvar()?
+                var_factory.type_factory().try_setvar()?
             } else if src_type.is_class() {
-                Ty2::try_class()?
+                var_factory.type_factory().try_class()?
             } else {
                 return Err(MguError::ArgumentError(
                     "Unsupported type conversion: source type does not support boolean/setvar/class checks".to_string()
@@ -829,7 +848,7 @@ where
         ///
         /// This helper function is used by `Statement::convert()` to recursively
         /// transform terms by mapping variables and replicating nodes.
-        fn convert_term_impl<Ty, V, N, T, Ty2, V2, N2, T2, NF, TF>(
+        fn convert_term_impl<Ty, V, N, T, Ty2, V2, N2, T2, NF, TF, TyF>(
             term: &T,
             var_map: &HashMap<V, V2>,
             node_factory: &NF,
@@ -845,7 +864,8 @@ where
             N2: Node<Type = Ty2>,
             T2: Term<Ty2, V2, N2>,
             NF: NodeFactory<Node = N2, NodeType = Ty2>,
-            TF: TermFactory<T2, Ty2, V2, N2, Term = T2, TermNode = N2, TermMetavariable = V2>,
+            TF: TermFactory<T2, Ty2, V2, N2, TyF, Term = T2, TermNode = N2, TermMetavariable = V2>,
+            TyF: TypeFactory<Type = Ty2>,
         {
             if let Some(src_var) = term.get_metavariable() {
                 // Leaf case: look up mapped variable
@@ -865,11 +885,11 @@ where
 
                 // Convert the node's type
                 let dest_node_type = if node_type.is_boolean() {
-                    Ty2::try_boolean()?
+                    term_factory.type_factory().try_boolean()?
                 } else if node_type.is_setvar() {
-                    Ty2::try_setvar()?
+                    term_factory.type_factory().try_setvar()?
                 } else if node_type.is_class() {
-                    Ty2::try_class()?
+                    term_factory.type_factory().try_class()?
                 } else {
                     return Err(MguError::ArgumentError(
                         "Unsupported node type conversion".to_string(),
@@ -927,9 +947,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::logic::create_dict;
     use crate::{
         EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte,
-        SimpleType, Statement, Term, TermFactory,
+        SimpleType, SimpleTypeFactory, Statement, Term, TermFactory,
     };
     use itertools::Itertools;
     use std::collections::HashSet;
@@ -945,8 +966,9 @@ mod tests {
     #[test]
     fn contract_with_equal_indices_fails() {
         // CONTRACT(stmt, 0, 0) should error: can't contract with self
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         // Create simple statement: (φ; [P, Q]; {})
         let (phi, p, q) = var_factory
@@ -959,8 +981,13 @@ mod tests {
         let p_term = term_factory.create_leaf(p).unwrap();
         let q_term = term_factory.create_leaf(q).unwrap();
 
-        let stmt: TestStatement =
-            Statement::new(phi_term, vec![p_term, q_term], Default::default()).unwrap();
+        let stmt: TestStatement = Statement::new(
+            &type_factory,
+            phi_term,
+            vec![p_term, q_term],
+            Default::default(),
+        )
+        .unwrap();
 
         // Try to contract hypothesis 0 with itself
         let result = stmt.contract(&term_factory, 0, 0);
@@ -979,8 +1006,9 @@ mod tests {
     #[test]
     fn contract_with_out_of_bounds_n_fails() {
         // CONTRACT(stmt, 99, 0) should error: index out of range
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let phi = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -994,8 +1022,13 @@ mod tests {
         let phi_term = term_factory.create_leaf(phi).unwrap();
         let p_term = term_factory.create_leaf(p).unwrap();
 
-        let stmt: TestStatement =
-            Statement::new(phi_term, vec![p_term.clone()], Default::default()).unwrap();
+        let stmt: TestStatement = Statement::new(
+            &type_factory,
+            phi_term,
+            vec![p_term.clone()],
+            Default::default(),
+        )
+        .unwrap();
 
         // Try with n out of bounds (statement has only 1 hypothesis)
         let result = stmt.contract(&term_factory, 99, 0);
@@ -1014,8 +1047,9 @@ mod tests {
     #[test]
     fn contract_with_out_of_bounds_m_fails() {
         // CONTRACT(stmt, 0, 99) should error: index out of range
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let phi = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -1030,7 +1064,7 @@ mod tests {
         let p_term = term_factory.create_leaf(p).unwrap();
 
         let stmt: TestStatement =
-            Statement::new(phi_term, vec![p_term], Default::default()).unwrap();
+            Statement::new(&type_factory, phi_term, vec![p_term], Default::default()).unwrap();
 
         // Try with m out of bounds
         let result = stmt.contract(&term_factory, 0, 99);
@@ -1055,8 +1089,9 @@ mod tests {
         // Hypothesis 0: P → Q
         // Hypothesis 1: P ∧ Q
         // CONTRACT(stmt, 0, 1) should error: Implies ≠ And
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (phi, p, q) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -1078,8 +1113,13 @@ mod tests {
             .create_node(NodeByte::And, vec![p_term, q_term])
             .unwrap();
 
-        let stmt: TestStatement =
-            Statement::new(phi_term, vec![p_implies_q, p_and_q], Default::default()).unwrap();
+        let stmt: TestStatement = Statement::new(
+            &type_factory,
+            phi_term,
+            vec![p_implies_q, p_and_q],
+            Default::default(),
+        )
+        .unwrap();
 
         // Try to contract different operators
         let result = stmt.contract(&term_factory, 0, 1);
@@ -1113,8 +1153,9 @@ mod tests {
         // - Unify with identity substitution (P ↦ P)
         // - Result: (φ; [P]; {})
         // - Only one copy of P in hypotheses
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (p, phi) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -1127,6 +1168,7 @@ mod tests {
 
         // Statement: (φ; [P, P]; {})
         let stmt: TestStatement = Statement::new(
+            &type_factory,
             phi_term,
             vec![p_term.clone(), p_term.clone()],
             Default::default(),
@@ -1167,8 +1209,9 @@ mod tests {
         // contract(stmt, 0, 1) should succeed
         // Result assertion: χ → χ (both renamed to same variable)
         // Result hypotheses: [χ]
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (phi, psi) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -1186,6 +1229,7 @@ mod tests {
 
         // Statement: (φ → ψ; [φ, ψ]; {})
         let stmt: TestStatement = Statement::new(
+            &type_factory,
             phi_implies_psi,
             vec![phi_term.clone(), psi_term.clone()],
             Default::default(),
@@ -1248,8 +1292,9 @@ mod tests {
     #[test]
     fn apply_with_out_of_bounds_index_fails() {
         // APPLY(stmt, 99, other) should error: index out of range
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (phi, psi) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -1260,9 +1305,14 @@ mod tests {
         let phi_term = term_factory.create_leaf(phi).unwrap();
         let psi_term = term_factory.create_leaf(psi).unwrap();
 
-        let stmt1: TestStatement =
-            Statement::new(phi_term, vec![psi_term.clone()], Default::default()).unwrap();
-        let stmt2: TestStatement = Statement::simple_axiom(psi_term).unwrap();
+        let stmt1: TestStatement = Statement::new(
+            &type_factory,
+            phi_term,
+            vec![psi_term.clone()],
+            Default::default(),
+        )
+        .unwrap();
+        let stmt2: TestStatement = Statement::simple_axiom(&type_factory, psi_term).unwrap();
 
         // Try with index out of bounds (stmt1 has only 1 hypothesis at index 0)
         let result = stmt1.apply(&var_factory, &term_factory, 99, &stmt2);
@@ -1289,8 +1339,9 @@ mod tests {
     fn apply_unification_failure() {
         // S1.`hypothesis`[0]: P → Q
         // S2.assertion: P ∧ Q (different operator, won't unify)
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (phi, p, q) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -1313,11 +1364,16 @@ mod tests {
             .unwrap();
 
         // stmt1: (φ; [P → Q]; {})
-        let stmt1: TestStatement =
-            Statement::new(phi_term, vec![p_implies_q], Default::default()).unwrap();
+        let stmt1: TestStatement = Statement::new(
+            &type_factory,
+            phi_term,
+            vec![p_implies_q],
+            Default::default(),
+        )
+        .unwrap();
 
         // stmt2: (P ∧ Q; []; {})
-        let stmt2: TestStatement = Statement::simple_axiom(p_and_q).unwrap();
+        let stmt2: TestStatement = Statement::simple_axiom(&type_factory, p_and_q).unwrap();
 
         // Try to apply: unify `hypothesis`[0] (P → Q) with assertion (P ∧ Q)
         let result = stmt1.apply(&var_factory, &term_factory, 0, &stmt2);
@@ -1344,8 +1400,9 @@ mod tests {
     fn apply_multiple_with_empty_proofs_fails() {
         // Statement with 2 hypotheses, proofs = []
         // Should error: insufficient proofs
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (phi, p, q) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -1357,8 +1414,13 @@ mod tests {
         let p_term = term_factory.create_leaf(p).unwrap();
         let q_term = term_factory.create_leaf(q).unwrap();
 
-        let stmt: TestStatement =
-            Statement::new(phi_term, vec![p_term, q_term], Default::default()).unwrap();
+        let stmt: TestStatement = Statement::new(
+            &type_factory,
+            phi_term,
+            vec![p_term, q_term],
+            Default::default(),
+        )
+        .unwrap();
 
         let empty_proofs: Vec<Option<TestStatement>> = vec![];
 
@@ -1383,8 +1445,9 @@ mod tests {
     fn apply_multiple_with_too_few_proofs_fails() {
         // Statement with 3 hypotheses, proofs.len() = 2
         // Should error: insufficient proofs
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (phi, p, q, r) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -1399,6 +1462,7 @@ mod tests {
 
         // Statement with 3 hypotheses
         let stmt: TestStatement = Statement::new(
+            &type_factory,
             phi_term,
             vec![p_term.clone(), q_term.clone(), r_term.clone()],
             Default::default(),
@@ -1406,8 +1470,8 @@ mod tests {
         .unwrap();
 
         // Only 2 proofs for 3 hypotheses
-        let proof1 = Statement::simple_axiom(p_term).unwrap();
-        let proof2 = Statement::simple_axiom(q_term).unwrap();
+        let proof1 = Statement::simple_axiom(&type_factory, p_term).unwrap();
+        let proof2 = Statement::simple_axiom(&type_factory, q_term).unwrap();
         let proofs = vec![Some(proof1), Some(proof2)];
 
         let result = stmt.apply_multiple(&var_factory, &term_factory, &proofs);
@@ -1430,8 +1494,9 @@ mod tests {
     fn apply_multiple_with_too_many_proofs_fails() {
         // Statement with 2 hypotheses, proofs.len() = 3
         // Should error or ignore extras? Check implementation behavior.
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (phi, p, q, r) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -1446,6 +1511,7 @@ mod tests {
 
         // Statement with 2 hypotheses
         let stmt: TestStatement = Statement::new(
+            &type_factory,
             phi_term,
             vec![p_term.clone(), q_term.clone()],
             Default::default(),
@@ -1453,9 +1519,9 @@ mod tests {
         .unwrap();
 
         // 3 proofs for 2 hypotheses
-        let proof1 = Statement::simple_axiom(p_term).unwrap();
-        let proof2 = Statement::simple_axiom(q_term).unwrap();
-        let proof3 = Statement::simple_axiom(r_term).unwrap();
+        let proof1 = Statement::simple_axiom(&type_factory, p_term).unwrap();
+        let proof2 = Statement::simple_axiom(&type_factory, q_term).unwrap();
+        let proof3 = Statement::simple_axiom(&type_factory, r_term).unwrap();
         let proofs = vec![Some(proof1), Some(proof2), Some(proof3)];
 
         let result = stmt.apply_multiple(&var_factory, &term_factory, &proofs);
@@ -1482,8 +1548,9 @@ mod tests {
     fn condensed_detach_non_implication_major_fails() {
         // Major premise: P ∧ Q (not an implication)
         // Should error: major premise must be implication
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (p, q) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -1500,10 +1567,10 @@ mod tests {
             .unwrap();
 
         // Major: (P ∧ Q; []; {}) - not an implication
-        let major: TestStatement = Statement::simple_axiom(p_and_q).unwrap();
+        let major: TestStatement = Statement::simple_axiom(&type_factory, p_and_q).unwrap();
 
         // Minor: (P; []; {})
-        let minor: TestStatement = Statement::simple_axiom(p_term).unwrap();
+        let minor: TestStatement = Statement::simple_axiom(&type_factory, p_term).unwrap();
 
         // Try condensed detachment with non-implication major premise
         let result = TestStatement::condensed_detach(
@@ -1527,8 +1594,9 @@ mod tests {
         // Major: P → Q
         // Minor: R (unifies with P via substitution R := P)
         // Should succeed, yielding Q
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (p, q, r) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -1546,10 +1614,10 @@ mod tests {
             .unwrap();
 
         // Major: (P → Q; []; {})
-        let major: TestStatement = Statement::simple_axiom(p_implies_q).unwrap();
+        let major: TestStatement = Statement::simple_axiom(&type_factory, p_implies_q).unwrap();
 
         // Minor: (R; []; {}) - won't unify with P
-        let minor: TestStatement = Statement::simple_axiom(r_term).unwrap();
+        let minor: TestStatement = Statement::simple_axiom(&type_factory, r_term).unwrap();
 
         // Try condensed detachment with non-matching premises
         let result = TestStatement::condensed_detach(
@@ -1581,8 +1649,9 @@ mod tests {
     fn canonicalize_is_idempotent() {
         // Property: canon(canon(S)) = canon(S)
         // Canonicalization should reach a fixed point after one application.
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         // Create a statement with non-canonical variables: φ₂ → φ₅
         let (_, _, phi2, _, _, phi5) = var_factory
@@ -1598,7 +1667,7 @@ mod tests {
             .create_node(NodeByte::Implies, vec![phi2_term, phi5_term])
             .unwrap();
 
-        let stmt: TestStatement = Statement::simple_axiom(implication).unwrap();
+        let stmt: TestStatement = Statement::simple_axiom(&type_factory, implication).unwrap();
 
         // First canonicalization: φ₂ → φ₅ becomes φ₀ → φ₁
         let canon1 = stmt.canonicalize(&var_factory, &term_factory).unwrap();
@@ -1621,8 +1690,9 @@ mod tests {
         // Property: if S1 ≡ᵅ S2, then canon(S1) = canon(S2)
         // α-equivalent statements (same structure, different variables) should
         // have identical canonical forms.
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         // Create first statement: φ₂ → φ₅
         let (_, _, phi2, _, _, phi5) = var_factory
@@ -1638,7 +1708,7 @@ mod tests {
             .create_node(NodeByte::Implies, vec![phi2_term, phi5_term])
             .unwrap();
 
-        let stmt1: TestStatement = Statement::simple_axiom(impl1).unwrap();
+        let stmt1: TestStatement = Statement::simple_axiom(&type_factory, impl1).unwrap();
 
         // Create second statement: φ₃ → φ₇ (α-equivalent to first)
         let (_, _, _, phi3, _, _, _, phi7) = var_factory
@@ -1654,7 +1724,7 @@ mod tests {
             .create_node(NodeByte::Implies, vec![phi3_term, phi7_term])
             .unwrap();
 
-        let stmt2: TestStatement = Statement::simple_axiom(impl2).unwrap();
+        let stmt2: TestStatement = Statement::simple_axiom(&type_factory, impl2).unwrap();
 
         // Canonicalize both
         let canon1 = stmt1.canonicalize(&var_factory, &term_factory).unwrap();
@@ -1674,8 +1744,9 @@ mod tests {
     fn canonicalize_preserves_logical_meaning() {
         // Property: S and canon(S) are logically equivalent (mutually included)
         // Canonicalization only renames variables, so the logical meaning is preserved.
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         // Create a statement with non-canonical variables
         let (_, _, phi2, _, _, phi5, _, phi7) = var_factory
@@ -1693,8 +1764,13 @@ mod tests {
             .create_node(NodeByte::Implies, vec![phi2_term, phi5_term])
             .unwrap();
 
-        let stmt: TestStatement =
-            Statement::new(implication, vec![phi7_term], Default::default()).unwrap();
+        let stmt: TestStatement = Statement::new(
+            &type_factory,
+            implication,
+            vec![phi7_term],
+            Default::default(),
+        )
+        .unwrap();
 
         // Canonicalize
         let canon = stmt.canonicalize(&var_factory, &term_factory).unwrap();
@@ -1723,8 +1799,9 @@ mod tests {
     fn canonicalize_simple_axiom() {
         // Edge case: Statement with no hypotheses
         // Only assertion needs variable renumbering
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         // Create φ₅ → φ₂ (non-canonical order)
         let (_, _, phi2, _, _, phi5) = var_factory
@@ -1740,7 +1817,7 @@ mod tests {
             .create_node(NodeByte::Implies, vec![phi5_term, phi2_term])
             .unwrap();
 
-        let stmt: TestStatement = Statement::simple_axiom(implication).unwrap();
+        let stmt: TestStatement = Statement::simple_axiom(&type_factory, implication).unwrap();
 
         // Canonicalize should produce φ₀ → φ₁
         let canon = stmt.canonicalize(&var_factory, &term_factory).unwrap();
@@ -1765,8 +1842,9 @@ mod tests {
     fn canonicalize_single_hypothesis() {
         // Edge case: Single hypothesis
         // factorial(1) = 1, so no permutations to try - only variable renumbering
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         // Create (φ₃ → φ₇; [φ₅]; {})
         let (_, _, _, phi3, _, phi5, _, phi7) = var_factory
@@ -1783,8 +1861,13 @@ mod tests {
             .create_node(NodeByte::Implies, vec![phi3_term, phi7_term])
             .unwrap();
 
-        let stmt: TestStatement =
-            Statement::new(implication, vec![phi5_term], Default::default()).unwrap();
+        let stmt: TestStatement = Statement::new(
+            &type_factory,
+            implication,
+            vec![phi5_term],
+            Default::default(),
+        )
+        .unwrap();
 
         // Canonicalize
         let canon = stmt.canonicalize(&var_factory, &term_factory).unwrap();
@@ -1810,8 +1893,9 @@ mod tests {
     fn canonicalize_many_hypotheses() {
         // Edge case: Many hypotheses (5) - factorial(5) = 120 permutations
         // This is a performance check - should complete in reasonable time
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         // Create 6 distinct Boolean variables (1 for assertion + 5 for hypotheses)
         // Use variables from middle of alphabet to ensure renumbering happens
@@ -1837,7 +1921,7 @@ mod tests {
         ];
 
         let stmt: TestStatement =
-            Statement::new(assertion, hypotheses, Default::default()).unwrap();
+            Statement::new(&type_factory, assertion, hypotheses, Default::default()).unwrap();
 
         // This should complete without hanging
         let canon = stmt.canonicalize(&var_factory, &term_factory).unwrap();
@@ -1855,8 +1939,9 @@ mod tests {
     fn canonicalize_duplicate_hypotheses() {
         // Edge case: Duplicate hypotheses [P, Q, P]
         // Multiple permutations yield same result due to duplicates
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (_, _, phi2, phi3, _, phi5) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -1870,6 +1955,7 @@ mod tests {
 
         // Create (φ₅; [φ₂, φ₃, φ₂]; {}) - φ₂ appears twice
         let stmt: TestStatement = Statement::new(
+            &type_factory,
             phi5_term,
             vec![phi2_term.clone(), phi3_term, phi2_term.clone()],
             Default::default(),
@@ -1905,8 +1991,9 @@ mod tests {
     fn contract_with_empty_distinctness_graph() {
         // Most common case - no distinctness constraints
         // Should succeed for any unifiable hypotheses
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (phi, psi) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -1923,6 +2010,7 @@ mod tests {
             .unwrap();
 
         let stmt: TestStatement = Statement::new(
+            &type_factory,
             implication,
             vec![phi_term, psi_term],
             Default::default(), // Empty distinctness graph
@@ -1961,8 +2049,9 @@ mod tests {
         // - Hypothesis 1: χ
         // - Hypothesis 2: χ
         // All three are now identical, should be deduplicated to single χ
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (phi, psi) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -1979,6 +2068,7 @@ mod tests {
             .unwrap();
 
         let stmt: TestStatement = Statement::new(
+            &type_factory,
             implication,
             vec![phi_term.clone(), psi_term, phi_term],
             Default::default(),
@@ -2016,8 +2106,9 @@ mod tests {
         // Simp (axiom 1): (φ → (ψ → φ); []; {})
         //
         // apply(MP, 0, Simp) should consume first hypothesis
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (phi, psi) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -2045,6 +2136,7 @@ mod tests {
 
         // Modus Ponens: (φ → ψ; [φ → ψ, φ]; {})
         let modus_ponens: TestStatement = Statement::new(
+            &type_factory,
             phi_implies_psi.clone(),
             vec![phi_implies_psi.clone(), phi_term.clone()],
             Default::default(),
@@ -2052,7 +2144,7 @@ mod tests {
         .unwrap();
 
         // Simp: (φ → (ψ → φ); []; {})
-        let simp: TestStatement = Statement::simple_axiom(axiom1).unwrap();
+        let simp: TestStatement = Statement::simple_axiom(&type_factory, axiom1).unwrap();
 
         // Apply simp to first hypothesis of `modus_ponens`
         let result = modus_ponens.apply(&var_factory, &term_factory, 0, &simp);
@@ -2078,8 +2170,9 @@ mod tests {
         // Statement with 1 hypothesis
         // Apply statement that satisfies it
         // Result should have 0 hypotheses (theorem)
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (phi, psi) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -2097,6 +2190,7 @@ mod tests {
 
         // Statement with single hypothesis: (φ; [φ → ψ]; {})
         let stmt: TestStatement = Statement::new(
+            &type_factory,
             phi_term.clone(),
             vec![phi_implies_psi.clone()],
             Default::default(),
@@ -2104,7 +2198,7 @@ mod tests {
         .unwrap();
 
         // Axiom to apply: (φ → ψ; []; {})
-        let axiom: TestStatement = Statement::simple_axiom(phi_implies_psi).unwrap();
+        let axiom: TestStatement = Statement::simple_axiom(&type_factory, phi_implies_psi).unwrap();
 
         // Apply axiom to consume the only hypothesis
         let result = stmt.apply(&var_factory, &term_factory, 0, &axiom);
@@ -2135,8 +2229,9 @@ mod tests {
         // Modus Ponens: 2 hypotheses
         // Provide 2 proofs
         // Verify both hypotheses satisfied
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (phi, psi) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -2154,6 +2249,7 @@ mod tests {
 
         // Modus Ponens: (ψ; [φ → ψ, φ]; {})
         let modus_ponens: TestStatement = Statement::new(
+            &type_factory,
             psi_term.clone(),
             vec![phi_implies_psi.clone(), phi_term.clone()],
             Default::default(),
@@ -2161,8 +2257,9 @@ mod tests {
         .unwrap();
 
         // Two axioms to apply
-        let axiom1: TestStatement = Statement::simple_axiom(phi_implies_psi).unwrap();
-        let axiom2: TestStatement = Statement::simple_axiom(phi_term).unwrap();
+        let axiom1: TestStatement =
+            Statement::simple_axiom(&type_factory, phi_implies_psi).unwrap();
+        let axiom2: TestStatement = Statement::simple_axiom(&type_factory, phi_term).unwrap();
 
         // Apply both axioms to satisfy both hypotheses
         let proofs = vec![Some(axiom1), Some(axiom2)];
@@ -2206,8 +2303,9 @@ mod tests {
         // Result: Q
         //
         // This is the simplest case from logic textbooks
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (p, q) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -2224,10 +2322,10 @@ mod tests {
             .unwrap();
 
         // Major: (P → Q; []; {})
-        let major: TestStatement = Statement::simple_axiom(p_implies_q).unwrap();
+        let major: TestStatement = Statement::simple_axiom(&type_factory, p_implies_q).unwrap();
 
         // Minor: (P; []; {})
-        let minor: TestStatement = Statement::simple_axiom(p_term).unwrap();
+        let minor: TestStatement = Statement::simple_axiom(&type_factory, p_term).unwrap();
 
         // Apply condensed detachment
         let result = TestStatement::condensed_detach(
@@ -2272,8 +2370,9 @@ mod tests {
         // Result: ψ → χ
         //
         // Tests that condensed detachment correctly applies substitutions
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (phi, psi, chi) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -2299,10 +2398,11 @@ mod tests {
             .unwrap();
 
         // Major: (φ → (ψ → χ); []; {})
-        let major: TestStatement = Statement::simple_axiom(phi_implies_psi_implies_chi).unwrap();
+        let major: TestStatement =
+            Statement::simple_axiom(&type_factory, phi_implies_psi_implies_chi).unwrap();
 
         // Minor: (φ; []; {})
-        let minor: TestStatement = Statement::simple_axiom(phi_term).unwrap();
+        let minor: TestStatement = Statement::simple_axiom(&type_factory, phi_term).unwrap();
 
         // Apply condensed detachment
         let result = TestStatement::condensed_detach(
@@ -2346,8 +2446,9 @@ mod tests {
         // Example: φ₂ → φ₅ should canonicalize to φ₀ → φ₁
         //
         // This verifies the documented behavior matches actual implementation
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         // Create φ₂ and φ₅ (using specific indices)
         let phi2 = var_factory
@@ -2367,7 +2468,7 @@ mod tests {
             .create_node(NodeByte::Implies, vec![phi2_term, phi5_term])
             .unwrap();
 
-        let stmt: TestStatement = Statement::simple_axiom(implication).unwrap();
+        let stmt: TestStatement = Statement::simple_axiom(&type_factory, implication).unwrap();
 
         // Canonicalize
         let canon = stmt.canonicalize(&var_factory, &term_factory).unwrap();
@@ -2410,8 +2511,9 @@ mod tests {
         // Property: If S1 ⊇ S2 and S2 ⊇ S3, then S1 ⊇ S3
         //
         // This tests the transitivity of the inclusion relation
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let type_factory = SimpleTypeFactory;
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let (phi, psi, chi) = var_factory
             .list_metavariables_by_type(&Boolean)
@@ -2430,10 +2532,16 @@ mod tests {
         //
         // Inclusion: S3 ⊇ S2 ⊇ S1
         // (More hypotheses means less general, so S3 is included in S2)
-        let s1: TestStatement = Statement::simple_axiom(phi_term.clone()).unwrap();
-        let s2: TestStatement =
-            Statement::new(phi_term.clone(), vec![psi_term.clone()], Default::default()).unwrap();
+        let s1: TestStatement = Statement::simple_axiom(&type_factory, phi_term.clone()).unwrap();
+        let s2: TestStatement = Statement::new(
+            &type_factory,
+            phi_term.clone(),
+            vec![psi_term.clone()],
+            Default::default(),
+        )
+        .unwrap();
         let s3: TestStatement = Statement::new(
+            &type_factory,
             phi_term.clone(),
             vec![psi_term, chi_term],
             Default::default(),
@@ -2464,10 +2572,9 @@ mod tests {
         //
         // Example: `"D2D1DD23D13"` → `"D2D1DD2_D_3"`
         // This creates a statement with 2 hypotheses that *might* be unifiable
-        use crate::logic::create_dict;
 
-        let var_factory = MetaByteFactory();
-        let term_factory = EnumTermFactory::new();
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+        let term_factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let dict = create_dict(
             &term_factory,

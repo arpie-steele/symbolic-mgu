@@ -5,7 +5,7 @@
 //! - [`NormalizingSubstitution`]: Maintains substitutions in normal form
 //! - [`apply_substitution`]: Applies a substitution to a term
 
-use crate::{Metavariable, MguError, Node, Term, TermFactory, Type};
+use crate::{Metavariable, MguError, Node, Term, TermFactory, Type, TypeFactory};
 use std::collections::HashMap;
 
 /// A substitution mapping metavariables to terms.
@@ -202,12 +202,13 @@ where
 /// ```text
 /// {P ↦ (((U → R) → S)), T ↦ (U → R), Q ↦ U}
 /// ```
-pub struct NormalizingSubstitution<V, N, T, TF>
+pub struct NormalizingSubstitution<V, N, T, TF, TyF>
 where
     V: Metavariable + std::hash::Hash + Eq + Clone,
     N: Node<Type = V::Type>,
     T: Term<V::Type, V, N> + Clone + PartialEq,
-    TF: TermFactory<T, V::Type, V, N, Term = T, TermNode = N>,
+    TF: TermFactory<T, V::Type, V, N, TyF, Term = T, TermNode = N>,
+    TyF: TypeFactory<Type = V::Type>,
 {
     /// The underlying substitution being maintained in normal form
     inner: Substitution<V, T>,
@@ -215,14 +216,17 @@ where
     _phantom_node: std::marker::PhantomData<N>,
     /// `PhantomData` to hold the `TermFactory` type parameter
     _phantom_factory: std::marker::PhantomData<TF>,
+    /// `PhantomData` to hold the `TermFactory` type parameter
+    _phantom_type_factory: std::marker::PhantomData<TyF>,
 }
 
-impl<V, N, T, TF> NormalizingSubstitution<V, N, T, TF>
+impl<V, N, T, TF, TyF> NormalizingSubstitution<V, N, T, TF, TyF>
 where
     V: Metavariable + std::hash::Hash + Eq + Clone,
     N: Node<Type = V::Type>,
     T: Term<V::Type, V, N> + Clone + PartialEq,
-    TF: TermFactory<T, V::Type, V, N, Term = T, TermNode = N>,
+    TF: TermFactory<T, V::Type, V, N, TyF, Term = T, TermNode = N>,
+    TyF: TypeFactory<Type = V::Type>,
 {
     /// Create a new empty normalizing substitution.
     #[must_use]
@@ -231,6 +235,7 @@ where
             inner: Substitution::new(),
             _phantom_node: std::marker::PhantomData,
             _phantom_factory: std::marker::PhantomData,
+            _phantom_type_factory: std::marker::PhantomData,
         }
     }
 
@@ -241,6 +246,7 @@ where
             inner: subst,
             _phantom_node: std::marker::PhantomData,
             _phantom_factory: std::marker::PhantomData,
+            _phantom_type_factory: std::marker::PhantomData,
         }
     }
 
@@ -360,12 +366,13 @@ where
     }
 }
 
-impl<V, N, T, TF> Default for NormalizingSubstitution<V, N, T, TF>
+impl<V, N, T, TF, TyF> Default for NormalizingSubstitution<V, N, T, TF, TyF>
 where
     V: Metavariable + std::hash::Hash + Eq + Clone,
     N: Node<Type = V::Type>,
     T: Term<V::Type, V, N> + Clone + PartialEq,
-    TF: TermFactory<T, V::Type, V, N, Term = T, TermNode = N>,
+    TF: TermFactory<T, V::Type, V, N, TyF, Term = T, TermNode = N>,
+    TyF: TypeFactory<Type = V::Type>,
 {
     fn default() -> Self {
         Self::new()
@@ -411,7 +418,7 @@ where
 /// # Errors
 ///
 /// Returns an error if term construction or type checking fails.
-pub fn apply_substitution<V, Ty, N, T, TF>(
+pub fn apply_substitution<V, Ty, N, T, TF, TyF>(
     factory: &TF,
     subst: &Substitution<V, T>,
     term: &T,
@@ -421,7 +428,8 @@ where
     Ty: Type,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N> + Clone + PartialEq,
-    TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N>,
+    TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermNode = N>,
+    TyF: TypeFactory<Type = Ty>,
 {
     // If this is a metavariable, check if it's in the substitution
     if let Some(var) = term.get_metavariable() {
@@ -471,7 +479,7 @@ where
 /// - Nodes don't match
 /// - Occurs check fails (would create cyclic substitution)
 /// - Type constraints are violated
-pub fn unify<V, Ty, N, T, TF>(
+pub fn unify<V, Ty, N, T, TF, TyF>(
     factory: &TF,
     term1: &T,
     term2: &T,
@@ -481,7 +489,8 @@ where
     Ty: Type,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N> + Clone + PartialEq,
-    TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N>,
+    TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermNode = N>,
+    TyF: TypeFactory<Type = Ty>,
 {
     unify_with_subst(factory, &Substitution::new(), term1, term2)
 }
@@ -495,7 +504,7 @@ where
 /// # Errors
 ///
 /// Returns an error if unification fails.
-fn unify_with_subst<V, Ty, N, T, TF>(
+fn unify_with_subst<V, Ty, N, T, TF, TyF>(
     factory: &TF,
     subst: &Substitution<V, T>,
     term1: &T,
@@ -506,10 +515,12 @@ where
     Ty: Type,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N> + Clone + PartialEq,
-    TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N>,
+    TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermNode = N>,
+    TyF: TypeFactory<Type = Ty>,
 {
     // Convert to normalizing substitution for internal use
-    let mut norm_subst = NormalizingSubstitution::<V, N, T, TF>::from_substitution(subst.clone());
+    let mut norm_subst =
+        NormalizingSubstitution::<V, N, T, TF, TyF>::from_substitution(subst.clone());
 
     // First, apply current substitution to both terms
     let t1 = apply_substitution(factory, subst, term1)?;
@@ -654,7 +665,7 @@ mod tests {
     use super::*;
     use crate::{
         EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, NodeFactory,
-        OutputFormatter, SimpleType,
+        OutputFormatter, SimpleType, SimpleTypeFactory,
     };
     use itertools::Itertools;
     use SimpleType::*;
@@ -663,20 +674,20 @@ mod tests {
 
     /// Minimal `TermFactory` implementation for testing
     #[derive(Debug)]
-    struct TestTermFactory;
+    struct TestTermFactory(SimpleTypeFactory);
 
-    impl TermFactory<TestTerm, SimpleType, MetaByte, NodeByte> for TestTermFactory {
+    impl TermFactory<TestTerm, SimpleType, MetaByte, NodeByte, SimpleTypeFactory> for TestTermFactory {
         type TermType = SimpleType;
         type Term = TestTerm;
         type TermNode = NodeByte;
         type TermMetavariable = MetaByte;
 
-        fn from_factories<VF, NF>(_vars: VF, _nodes: NF) -> Self
+        fn from_factories<VF, NF>(type_factory: SimpleTypeFactory, _vars: VF, _nodes: NF) -> Self
         where
-            VF: MetavariableFactory<Metavariable = MetaByte>,
+            VF: MetavariableFactory<SimpleTypeFactory, Metavariable = MetaByte>,
             NF: NodeFactory<Node = NodeByte>,
         {
-            TestTermFactory
+            TestTermFactory(type_factory)
         }
 
         fn create_leaf(&self, var: Self::TermMetavariable) -> Result<Self::Term, MguError> {
@@ -698,6 +709,10 @@ mod tests {
             }
             Ok(TestTerm::NodeOrLeaf(node, children))
         }
+
+        fn type_factory(&self) -> &SimpleTypeFactory {
+            &self.0
+        }
     }
 
     #[test]
@@ -709,7 +724,7 @@ mod tests {
 
     #[test]
     fn single_binding() {
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (var, other_var) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -737,8 +752,8 @@ mod tests {
 
     #[test]
     fn identical_terms_unify() {
-        let factory = TestTermFactory;
-        let vars = MetaByteFactory();
+        let factory = TestTermFactory(SimpleTypeFactory);
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let var1 = vars.list_metavariables_by_type(&Boolean).next().unwrap();
         let term1 = TestTerm::Leaf(var1);
         let term2 = TestTerm::Leaf(var1);
@@ -751,8 +766,8 @@ mod tests {
 
     #[test]
     fn different_variables_unify() {
-        let factory = TestTermFactory;
-        let vars = MetaByteFactory();
+        let factory = TestTermFactory(SimpleTypeFactory);
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (var1, var2) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -769,8 +784,8 @@ mod tests {
 
     #[test]
     fn type_mismatch_fails() {
-        let factory = TestTermFactory;
-        let vars = MetaByteFactory();
+        let factory = TestTermFactory(SimpleTypeFactory);
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let var_bool = vars.list_metavariables_by_type(&Boolean).next().unwrap();
         let var_class = vars.list_metavariables_by_type(&Class).next().unwrap();
         let term_bool = TestTerm::Leaf(var_bool);
@@ -782,7 +797,7 @@ mod tests {
 
     #[test]
     fn occurs_check_detects_cycle() {
-        let var = MetaByteFactory()
+        let var = MetaByteFactory::new(SimpleTypeFactory)
             .list_metavariables_by_type(&Boolean)
             .next()
             .unwrap();
@@ -800,8 +815,8 @@ mod tests {
 
     #[test]
     fn occurs_check_prevents_unification() {
-        let factory = TestTermFactory;
-        let vars = MetaByteFactory();
+        let factory = TestTermFactory(SimpleTypeFactory);
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let var = vars.list_metavariables_by_type(&Boolean).next().unwrap();
         let term_var = TestTerm::Leaf(var);
 
@@ -816,8 +831,8 @@ mod tests {
 
     #[test]
     fn apply_substitution_to_var() {
-        let factory = TestTermFactory;
-        let vars = MetaByteFactory();
+        let factory = TestTermFactory(SimpleTypeFactory);
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (var1, var2) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -836,8 +851,8 @@ mod tests {
 
     #[test]
     fn apply_substitution_to_node() {
-        let factory = TestTermFactory;
-        let vars = MetaByteFactory();
+        let factory = TestTermFactory(SimpleTypeFactory);
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (var1, var2) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -865,7 +880,7 @@ mod tests {
 
     #[test]
     fn substitution_iter() {
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let mut var_iter = vars.list_metavariables_by_type(&Boolean);
         let var1 = var_iter.next().unwrap();
         let var2 = var_iter.next().unwrap();
@@ -893,7 +908,7 @@ mod tests {
 
     #[test]
     fn substitution_iter_mut() {
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (var1, var2) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -916,7 +931,7 @@ mod tests {
 
     #[test]
     fn ensure_acyclic_direct_cycle() {
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let var1 = vars.list_metavariables_by_type(&Boolean).next().unwrap();
 
         // Create term: Not(`var1`), forming cycle `{var1 ↦ Not(var1)}`
@@ -937,7 +952,7 @@ mod tests {
 
     #[test]
     fn ensure_acyclic_two_element_cycle() {
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (var1, var2) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -963,7 +978,7 @@ mod tests {
 
     #[test]
     fn ensure_acyclic_longer_chain_cycle() {
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (var1, var2, var3) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -990,7 +1005,7 @@ mod tests {
 
     #[test]
     fn ensure_acyclic_accepts_acyclic() {
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (var1, var2, var3) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -1012,8 +1027,8 @@ mod tests {
 
     #[test]
     fn normalizing_substitution_simple_chain() {
-        let factory = TestTermFactory;
-        let vars = MetaByteFactory();
+        let factory = TestTermFactory(SimpleTypeFactory);
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (var1, var2, var3) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -1021,7 +1036,7 @@ mod tests {
             .unwrap();
 
         // Create chain: `{var1 ↦ var2, var2 ↦ var3}`
-        let mut norm_subst = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory>::new();
+        let mut norm_subst = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory, _>::new();
 
         norm_subst
             .extend(&factory, var1, TestTerm::Leaf(var2))
@@ -1038,8 +1053,8 @@ mod tests {
 
     #[test]
     fn normalizing_substitution_complex_chain() {
-        let factory = TestTermFactory;
-        let vars = MetaByteFactory();
+        let factory = TestTermFactory(SimpleTypeFactory);
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (var_p, var_t, var_s, var_q) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -1053,7 +1068,7 @@ mod tests {
             vec![TestTerm::Leaf(var_t), TestTerm::Leaf(var_s)],
         );
 
-        let mut norm_subst = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory>::new();
+        let mut norm_subst = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory, _>::new();
 
         norm_subst.extend(&factory, var_p, term_implies).unwrap();
         norm_subst
@@ -1072,8 +1087,8 @@ mod tests {
 
     #[test]
     fn normalizing_substitution_extend() {
-        let factory = TestTermFactory;
-        let vars = MetaByteFactory();
+        let factory = TestTermFactory(SimpleTypeFactory);
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (var1, var2, var3, var4) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -1092,7 +1107,7 @@ mod tests {
         assert!(term4.is_ok());
         let term4 = term4.unwrap();
 
-        let mut subst = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory>::new();
+        let mut subst = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory, _>::new();
         assert!(subst.extend(&factory, var1, term2.clone()).is_ok());
         assert_eq!(subst.clone_inner().len(), 1);
         assert!(subst.clone_inner().contains(&var1));
@@ -1127,8 +1142,8 @@ mod tests {
 
     #[test]
     fn normalizing_substitution_order_independence() {
-        let factory = TestTermFactory;
-        let vars = MetaByteFactory();
+        let factory = TestTermFactory(SimpleTypeFactory);
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (var1, var2, var3) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -1136,12 +1151,12 @@ mod tests {
             .unwrap();
 
         // Order 1: `{var1 ↦ var2, var2 ↦ var3}`
-        let mut subst1 = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory>::new();
+        let mut subst1 = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory, _>::new();
         subst1.extend(&factory, var1, TestTerm::Leaf(var2)).unwrap();
         subst1.extend(&factory, var2, TestTerm::Leaf(var3)).unwrap();
 
         // Order 2: `{var2 ↦ var3, var1 ↦ var2}`
-        let mut subst2 = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory>::new();
+        let mut subst2 = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory, _>::new();
         subst2.extend(&factory, var2, TestTerm::Leaf(var3)).unwrap();
         subst2.extend(&factory, var1, TestTerm::Leaf(var2)).unwrap();
 
@@ -1157,8 +1172,8 @@ mod tests {
 
     #[test]
     fn normalizing_substitution_try_normalize() {
-        let factory = TestTermFactory;
-        let vars = MetaByteFactory();
+        let factory = TestTermFactory(SimpleTypeFactory);
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (var1, var2, var3) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -1171,10 +1186,11 @@ mod tests {
         plain_subst.extend(var2, TestTerm::Leaf(var3)).unwrap();
 
         // Normalize using `try_normalize`
-        let norm_result = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory>::try_normalize(
-            &factory,
-            plain_subst,
-        );
+        let norm_result =
+            NormalizingSubstitution::<_, NodeByte, _, TestTermFactory, _>::try_normalize(
+                &factory,
+                plain_subst,
+            );
         assert!(norm_result.is_ok());
 
         let norm_subst = norm_result.unwrap();
@@ -1187,8 +1203,8 @@ mod tests {
 
     #[test]
     fn normalizing_substitution_try_normalize_rejects_cycle() {
-        let factory = TestTermFactory;
-        let vars = MetaByteFactory();
+        let factory = TestTermFactory(SimpleTypeFactory);
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (var1, var2) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -1201,10 +1217,11 @@ mod tests {
         plain_subst.extend(var2, TestTerm::Leaf(var1)).unwrap();
 
         // `try_normalize` should reject cycles
-        let norm_result = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory>::try_normalize(
-            &factory,
-            plain_subst,
-        );
+        let norm_result =
+            NormalizingSubstitution::<_, NodeByte, _, TestTermFactory, _>::try_normalize(
+                &factory,
+                plain_subst,
+            );
         assert!(
             norm_result.is_err(),
             "try_normalize should reject cyclic substitution"
@@ -1219,15 +1236,15 @@ mod tests {
     fn normalizing_substitution_extend_conflict() {
         // Test that NormalizingSubstitution::extend() properly detects
         // conflicting bindings (lines 298-303)
-        let factory = TestTermFactory;
-        let vars = MetaByteFactory();
+        let factory = TestTermFactory(SimpleTypeFactory);
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (var1, var2, var3) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .unwrap();
 
-        let mut norm_subst = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory>::new();
+        let mut norm_subst = NormalizingSubstitution::<_, NodeByte, _, TestTermFactory, _>::new();
 
         // First binding: `var1` ↦ `var2`
         norm_subst
@@ -1254,8 +1271,8 @@ mod tests {
     fn occurs_check_reverse_case() {
         // Test occurs check when the second term is the variable
         // (unifying f(x) with x, not just x with f(x))
-        let factory = TestTermFactory;
-        let vars = MetaByteFactory();
+        let factory = TestTermFactory(SimpleTypeFactory);
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let var = vars.list_metavariables_by_type(&Boolean).next().unwrap();
 
         let var_term = TestTerm::Leaf(var);
@@ -1281,8 +1298,8 @@ mod tests {
     #[test]
     fn type_error_both_directions() {
         // Test type mismatch errors in both directions of unification
-        let factory = TestTermFactory;
-        let vars = MetaByteFactory();
+        let factory = TestTermFactory(SimpleTypeFactory);
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
 
         let var_bool = vars.list_metavariables_by_type(&Boolean).next().unwrap();
         let var_class = vars.list_metavariables_by_type(&Class).next().unwrap();
@@ -1308,8 +1325,8 @@ mod tests {
     fn unify_setvar_with_class_variable() {
         // Test that Setvar can unify with Class variable (Setvar ⊆ Class)
         // but the binding goes the right direction
-        let factory = TestTermFactory;
-        let vars = MetaByteFactory();
+        let factory = TestTermFactory(SimpleTypeFactory);
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
 
         let var_setvar = vars.list_metavariables_by_type(&Setvar).next().unwrap();
         let var_class = vars.list_metavariables_by_type(&Class).next().unwrap();
@@ -1406,20 +1423,22 @@ mod tests {
 
     /// Factory for creating pathological terms (always returns the singleton).
     #[derive(Debug)]
-    struct PathologicalFactory;
+    struct PathologicalFactory(SimpleTypeFactory);
 
-    impl TermFactory<PathologicalTerm, SimpleType, MetaByte, NodeByte> for PathologicalFactory {
+    impl TermFactory<PathologicalTerm, SimpleType, MetaByte, NodeByte, SimpleTypeFactory>
+        for PathologicalFactory
+    {
         type TermType = SimpleType;
         type Term = PathologicalTerm;
         type TermNode = NodeByte;
         type TermMetavariable = MetaByte;
 
-        fn from_factories<VF, NF>(_vars: VF, _nodes: NF) -> Self
+        fn from_factories<VF, NF>(type_factory: SimpleTypeFactory, _vars: VF, _nodes: NF) -> Self
         where
-            VF: MetavariableFactory<Metavariable = MetaByte>,
+            VF: MetavariableFactory<SimpleTypeFactory, Metavariable = MetaByte>,
             NF: NodeFactory<Node = NodeByte>,
         {
-            PathologicalFactory
+            Self(type_factory)
         }
 
         fn create_leaf(&self, _var: MetaByte) -> Result<PathologicalTerm, MguError> {
@@ -1432,6 +1451,10 @@ mod tests {
             _children: Vec<PathologicalTerm>,
         ) -> Result<PathologicalTerm, MguError> {
             Ok(PathologicalTerm) // Ignores everything!
+        }
+
+        fn type_factory(&self) -> &SimpleTypeFactory {
+            &self.0
         }
     }
 
@@ -1446,7 +1469,7 @@ mod tests {
         //
         // But a pathological Term could violate this invariant.
 
-        let factory = PathologicalFactory;
+        let factory = PathologicalFactory(SimpleTypeFactory);
         let subst = Substitution::<MetaByte, PathologicalTerm>::new();
         let pathological = PathologicalTerm;
 

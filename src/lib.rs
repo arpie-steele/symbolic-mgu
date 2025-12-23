@@ -96,6 +96,8 @@ pub use metavariable::wide::WIDE_SETVARS_ASCII;
 pub use metavariable::wide_factory::WideMetavariableFactory;
 pub use metavariable::Metavariable;
 pub use mgutype::base::SimpleType;
+pub use mgutype::type_factory::SimpleTypeFactory;
+pub use mgutype::type_factory::TypeFactory;
 pub use mgutype::type_trait::Type;
 pub use mgutype::type_trait::TypeCore;
 pub use node::base::Node;

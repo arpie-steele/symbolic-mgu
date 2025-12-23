@@ -34,7 +34,7 @@
 //! }
 //! ```
 
-use crate::metamath::label::Label;
+use crate::metamath::Label;
 use std::sync::Arc;
 use thiserror::Error;
 

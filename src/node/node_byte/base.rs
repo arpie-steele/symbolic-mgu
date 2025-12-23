@@ -6,8 +6,7 @@
 //! [`AsciiMetaVar`]: `crate::AsciiMetaVar`
 
 use crate::bool_eval::BooleanSimpleOp;
-use crate::formatter::OutputFormatter;
-use crate::{enum0, MguError, Node, SimpleType};
+use crate::{enum0, MguError, Node, OutputFormatter, SimpleType};
 use strum::{
     Display, EnumCount, EnumDiscriminants, EnumString, FromRepr, VariantArray, VariantNames,
 };
@@ -1544,8 +1543,7 @@ impl Node for NodeByte {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::NodeByteFactory;
-    use crate::SimpleType;
+    use crate::{NodeByteFactory, SimpleType};
     use SimpleType::*;
 
     #[test]

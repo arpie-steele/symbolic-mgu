@@ -1,17 +1,18 @@
 //! Tests for formatter system.
 
-use crate::formatter::{get_formatter, Color};
 use crate::{
-    EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, Metavariable, MetavariableFactory, Node,
-    NodeByte, NodeByteFactory, NodeFactory, SimpleType, Term, TermFactory,
+    get_formatter, Color, EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, Metavariable,
+    MetavariableFactory, Node, NodeByte, NodeByteFactory, NodeFactory, SimpleType,
+    SimpleTypeFactory, Term, TermFactory,
 };
 use SimpleType::*;
 
 /// Helper to create a simple term: P → Q
 #[must_use]
 fn create_simple_term() -> EnumTerm<SimpleType, MetaByte, NodeByte> {
-    let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> = EnumTermFactory::new();
-    let metavar_factory = MetaByteFactory();
+    let term_factory: EnumTermFactory<_, MetaByte, NodeByte, _> =
+        EnumTermFactory::new(SimpleTypeFactory);
+    let metavar_factory = MetaByteFactory::new(SimpleTypeFactory);
     let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
 
     let p = metavar_factory.create("P", &Boolean).unwrap();
@@ -68,7 +69,7 @@ fn color_formatters_provide_colors() {
 
 #[test]
 fn metabyte_ascii_formatting() {
-    let metavar_factory = MetaByteFactory();
+    let metavar_factory = MetaByteFactory::new(SimpleTypeFactory);
     let p = metavar_factory.create("P", &Boolean).unwrap();
 
     let formatter = get_formatter("ascii");
@@ -78,7 +79,7 @@ fn metabyte_ascii_formatting() {
 
 #[test]
 fn metabyte_utf8_formatting() {
-    let metavar_factory = MetaByteFactory();
+    let metavar_factory = MetaByteFactory::new(SimpleTypeFactory);
     let p = metavar_factory.create("P", &Boolean).unwrap();
 
     let formatter = get_formatter("utf8");
@@ -146,8 +147,9 @@ fn term_latex_formatting() {
 #[test]
 fn complex_term_formatting() {
     // Build: (P ∧ Q) → R
-    let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> = EnumTermFactory::new();
-    let metavar_factory = MetaByteFactory();
+    let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte, _> =
+        EnumTermFactory::new(SimpleTypeFactory);
+    let metavar_factory = MetaByteFactory::new(SimpleTypeFactory);
     let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
 
     let p = term_factory
@@ -182,8 +184,9 @@ fn complex_term_formatting() {
 #[test]
 fn unary_operator_formatting() {
     // Build: ¬P
-    let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> = EnumTermFactory::new();
-    let metavar_factory = MetaByteFactory();
+    let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte, _> =
+        EnumTermFactory::new(SimpleTypeFactory);
+    let metavar_factory = MetaByteFactory::new(SimpleTypeFactory);
     let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
 
     let p = term_factory

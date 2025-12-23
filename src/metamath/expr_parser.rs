@@ -4,7 +4,8 @@
 //! into `DbTerm` instances for use with symbolic-mgu's unification operations.
 
 use crate::metamath::{
-    DbMetavariableFactory, DbNode, DbTerm, MetamathDatabase, PatternElement, SyntaxAxiomPattern,
+    DbMetavariableFactory, DbNode, DbTerm, DbTypeFactory, MetamathDatabase, PatternElement,
+    SyntaxAxiomPattern,
 };
 use crate::{EnumTermFactory, MetavariableFactory, MguError, TermFactory};
 use std::sync::Arc;
@@ -79,9 +80,10 @@ pub fn parse_sequence(
         // Check floating hypothesis: `(type_code, symbol)` → hypothesis
         if let Some(_float_hyp) = db_arc.lookup_floating_hyp(type_code, symbol) {
             // It's a variable bound to this type
-            let var_factory = DbMetavariableFactory::new(Arc::clone(db_arc));
+            let var_factory =
+                DbMetavariableFactory::new(DbTypeFactory::new(db_arc.clone()), Arc::clone(db_arc));
             let var = var_factory.create_by_name(symbol)?;
-            let term_factory = EnumTermFactory::new();
+            let term_factory = EnumTermFactory::new(DbTypeFactory::new(db_arc.clone()));
             return term_factory.create_leaf(var);
         }
 
@@ -212,7 +214,7 @@ fn parse_with_pattern(
 
     // Build the node
     let node = DbNode::new(pattern.label.clone(), Arc::clone(db_arc));
-    let factory = EnumTermFactory::new();
+    let factory = EnumTermFactory::new(DbTypeFactory::new(db_arc.clone()));
     factory.create_node(node, children)
 }
 

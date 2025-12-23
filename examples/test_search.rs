@@ -5,8 +5,8 @@
 
 use symbolic_mgu::search::{get_iterator, TermSearchStaticState};
 use symbolic_mgu::{
-    get_formatter, EnumTermFactory, MetavariableFactory, MguError, NodeByte, SimpleType, Term,
-    WideMetavariable, WideMetavariableFactory,
+    get_formatter, EnumTermFactory, MetavariableFactory, MguError, NodeByte, SimpleType,
+    SimpleTypeFactory, Term, WideMetavariable, WideMetavariableFactory,
 };
 
 fn run() -> Result<(), MguError> {
@@ -15,7 +15,7 @@ fn run() -> Result<(), MguError> {
     let formatter = get_formatter("utf8");
 
     // Create variables of different types
-    let vf = WideMetavariableFactory();
+    let vf = WideMetavariableFactory::new(SimpleTypeFactory);
     let vars = vf
         .list_metavariables_by_type(&Boolean)
         .take(3)
@@ -48,7 +48,7 @@ fn run() -> Result<(), MguError> {
         OperatorMapsTo,      // Class, arity 5 (Setvar, Class, Setvar, Class, Class)
     ];
 
-    let factory = EnumTermFactory::<SimpleType, WideMetavariable, NodeByte>::new();
+    let factory = EnumTermFactory::<_, WideMetavariable, NodeByte, _>::new(SimpleTypeFactory);
     let search = TermSearchStaticState::new(factory, &nodes, &vars)?;
 
     // Demonstrate term generation for different types

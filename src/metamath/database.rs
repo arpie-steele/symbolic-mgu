@@ -30,7 +30,7 @@
 
 use crate::metamath::{
     parse_expression, parse_sequence, CommentMetadata, DbMetavariable, DbMetavariableFactory,
-    DbNode, DbTerm, DbType, Label, Proof, SyntaxAxiomPattern,
+    DbNode, DbTerm, DbType, DbTypeFactory, Label, Proof, SyntaxAxiomPattern,
 };
 use crate::{DistinctnessGraph, MetavariableFactory, MguError, Statement};
 use indexmap::IndexMap;
@@ -191,17 +191,17 @@ pub enum DatabaseError {
 /// ```
 #[derive(Debug, Clone)]
 pub struct TypeMapping {
-    /// Type codes that represent Boolean/wff types.
-    boolean_types: HashSet<Arc<str>>,
-    /// Type codes that represent set variables.
-    setvar_types: HashSet<Arc<str>>,
-    /// Type codes that represent class expressions.
-    class_types: HashSet<Arc<str>>,
+    /// Type code that represents Boolean/wff types.
+    boolean_type: Option<Arc<str>>,
+    /// Type code that represents set variables.
+    setvar_type: Option<Arc<str>>,
+    /// Type code that represents class expressions.
+    class_type: Option<Arc<str>>,
     /// Type code used for logical assertions (e.g., "|-" in set.mm).
     ///
     /// Statements with this type code are logical axioms/theorems asserting logical truths,
     /// as opposed to syntax axioms that define term constructors.
-    assertion_type: Arc<str>,
+    assertion_type: Option<Arc<str>>,
 }
 
 impl TypeMapping {
@@ -213,20 +213,11 @@ impl TypeMapping {
     /// - `class` → class expression
     /// - `|-` → logical assertion
     pub fn set_mm() -> Self {
-        let mut boolean_types = HashSet::new();
-        boolean_types.insert(Arc::from("wff"));
-
-        let mut setvar_types = HashSet::new();
-        setvar_types.insert(Arc::from("setvar"));
-
-        let mut class_types = HashSet::new();
-        class_types.insert(Arc::from("class"));
-
         Self {
-            boolean_types,
-            setvar_types,
-            class_types,
-            assertion_type: Arc::from("|-"),
+            boolean_type: Some(Arc::from("wff")),
+            setvar_type: Some(Arc::from("setvar")),
+            class_type: Some(Arc::from("class")),
+            assertion_type: Some(Arc::from("|-")),
         }
     }
 
@@ -236,30 +227,39 @@ impl TypeMapping {
     /// - `bool` → Boolean
     /// - `|-` → logical assertion
     pub fn hol_mm() -> Self {
-        let mut boolean_types = HashSet::new();
-        boolean_types.insert(Arc::from("bool"));
-
         Self {
-            boolean_types,
-            setvar_types: HashSet::new(),
-            class_types: HashSet::new(),
-            assertion_type: Arc::from("|-"),
+            boolean_type: Some(Arc::from("bool")),
+            setvar_type: None,
+            class_type: None,
+            assertion_type: Some(Arc::from("|-")),
         }
     }
 
     /// Check if a type code represents a Boolean/wff type.
     pub fn is_boolean(&self, type_code: &str) -> bool {
-        self.boolean_types.contains(type_code)
+        if let Some(saved_code) = &self.boolean_type {
+            saved_code.as_ref() == type_code
+        } else {
+            false
+        }
     }
 
     /// Check if a type code represents a set variable type.
     pub fn is_setvar(&self, type_code: &str) -> bool {
-        self.setvar_types.contains(type_code)
+        if let Some(saved_code) = &self.setvar_type {
+            saved_code.as_ref() == type_code
+        } else {
+            false
+        }
     }
 
     /// Check if a type code represents a class type.
     pub fn is_class(&self, type_code: &str) -> bool {
-        self.class_types.contains(type_code)
+        if let Some(saved_code) = &self.class_type {
+            saved_code.as_ref() == type_code
+        } else {
+            false
+        }
     }
 
     /// Check if a type code represents a logical assertion (as opposed to syntax).
@@ -267,20 +267,57 @@ impl TypeMapping {
     /// Logical assertions (typically "|-") denote axioms/theorems asserting logical truths,
     /// while other type codes denote syntax axioms that define term constructors.
     pub fn is_assertion_type(&self, type_code: &str) -> bool {
-        self.assertion_type.as_ref() == type_code
+        if let Some(saved_code) = &self.assertion_type {
+            saved_code.as_ref() == type_code
+        } else {
+            false
+        }
     }
 
     /// Get a Boolean type code for this database.
     ///
-    /// Returns the first Boolean type code configured for this database.
+    /// Returns the Boolean type code configured for this database.
     /// For `set.mm`, this is "wff". For `hol.mm`, this is "bool".
     ///
     /// # Returns
     ///
     /// A Boolean type code, or `None` if no Boolean types are configured.
     #[must_use]
-    pub fn get_boolean_type(&self) -> Option<Arc<str>> {
-        self.boolean_types.iter().next().cloned()
+    pub fn get_boolean_type(&self) -> &Option<Arc<str>> {
+        &self.boolean_type
+    }
+    /// Get the `Setvar` type code for this database.
+    ///
+    /// Returns the  `Setvar` type code configured for this database.
+    ///
+    /// # Returns
+    ///
+    /// A Boolean type code, or `None` if no Boolean types are configured.
+    #[must_use]
+    pub fn get_setvar_type(&self) -> &Option<Arc<str>> {
+        &self.setvar_type
+    }
+    /// Get the `Class` type code for this database.
+    ///
+    /// Returns the  `Class` type code configured for this database.
+    ///
+    /// # Returns
+    ///
+    /// A `Setvar` type code, or `None` if no Boolean types are configured.
+    #[must_use]
+    pub fn get_class_type(&self) -> &Option<Arc<str>> {
+        &self.class_type
+    }
+    /// Get the Assertion type code for this database.
+    ///
+    /// Returns the first Boolean type code configured for this database.
+    ///
+    /// # Returns
+    ///
+    /// A `Class` type code, or `None` if no Boolean types are configured.
+    #[must_use]
+    pub fn get_assertion_type(&self) -> &Option<Arc<str>> {
+        &self.assertion_type
     }
 }
 
@@ -489,13 +526,14 @@ impl AssertionCore {
         // Parse the conclusion (assertion statement)
         let conclusion = if db.type_mapping().is_assertion_type(&self.statement[0]) {
             // Statement starts with "|-" - skip it and parse rest as Boolean
-            let boolean_type =
-                db.type_mapping()
-                    .get_boolean_type()
-                    .ok_or_else(|| MguError::ParseError {
-                        location: "assertion".to_string(),
-                        message: "No Boolean type configured in database".to_string(),
-                    })?;
+            let boolean_type = db
+                .type_mapping()
+                .get_boolean_type()
+                .clone()
+                .ok_or_else(|| MguError::ParseError {
+                    location: "assertion".to_string(),
+                    message: "No Boolean type configured in database".to_string(),
+                })?;
 
             // Parse the sequence after "|-" as a Boolean expression
             parse_sequence(&self.statement[1..], &boolean_type, db)?
@@ -517,6 +555,7 @@ impl AssertionCore {
                 let boolean_type =
                     db.type_mapping()
                         .get_boolean_type()
+                        .clone()
                         .ok_or_else(|| MguError::ParseError {
                             location: "hypothesis".to_string(),
                             message: "No Boolean type configured in database".to_string(),
@@ -1432,7 +1471,8 @@ impl MetamathDatabase {
         db_arc: &Arc<MetamathDatabase>,
     ) -> DistinctnessGraph<DbMetavariable> {
         let mut graph = DistinctnessGraph::new();
-        let factory = DbMetavariableFactory::new(Arc::clone(db_arc));
+        let factory =
+            DbMetavariableFactory::new(DbTypeFactory::new(Arc::clone(db_arc)), Arc::clone(db_arc));
 
         // Collect all distinctness constraints from scope
         let all_distinctness = self.current_scope().collect_distinctness();

@@ -637,7 +637,7 @@ impl<F: FilesystemProvider> Tokenizer<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metamath::filesystem::StdFilesystem;
+    use crate::metamath::{Label, StdFilesystem};
     use std::io::Write;
 
     #[test]
@@ -928,8 +928,6 @@ mod tests {
 
     #[test]
     fn utf8_label_tokenization() -> io::Result<()> {
-        use crate::metamath::label::Label;
-
         // Use pre-populated fixture file
         let fs = StdFilesystem::with_base_dir("tests/fixtures");
         let mut tokenizer = Tokenizer::new(fs, "utf8_labels.mm")?;

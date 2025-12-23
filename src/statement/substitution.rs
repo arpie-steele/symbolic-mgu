@@ -6,7 +6,7 @@
 use super::base::Statement;
 use crate::{
     apply_substitution, DistinctnessGraph, Metavariable, MguError, Node, Substitution, Term,
-    TermFactory, Type,
+    TermFactory, Type, TypeFactory,
 };
 use std::collections::HashSet;
 use std::marker::PhantomData;
@@ -59,13 +59,14 @@ where
     /// # Errors
     ///
     /// Returns an error if distinctness constraints are violated.
-    fn transform_distinctness_graph<TF>(
+    fn transform_distinctness_graph<TF, TyF>(
         &self,
         factory: &TF,
         subst: &Substitution<V, T>,
     ) -> Result<DistinctnessGraph<V>, MguError>
     where
-        TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N, TermMetavariable = V>,
+        TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermNode = N, TermMetavariable = V>,
+        TyF: TypeFactory<Type = Ty>,
     {
         let mut new_graph = DistinctnessGraph::new();
 
@@ -123,9 +124,14 @@ where
     /// Returns an error if:
     /// - Term construction fails
     /// - Distinctness constraints are violated
-    pub fn substitute<TF>(&self, factory: &TF, subst: &Substitution<V, T>) -> Result<Self, MguError>
+    pub fn substitute<TF, TyF>(
+        &self,
+        factory: &TF,
+        subst: &Substitution<V, T>,
+    ) -> Result<Self, MguError>
     where
-        TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N, TermMetavariable = V>,
+        TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermNode = N, TermMetavariable = V>,
+        TyF: TypeFactory<Type = Ty>,
     {
         // Apply substitution to assertion and hypotheses
         let new_assertion = apply_substitution(factory, subst, &self.assertion)?;

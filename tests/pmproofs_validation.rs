@@ -17,8 +17,8 @@ use serde_json::Value;
 use symbolic_mgu::bool_eval::test_validity;
 use symbolic_mgu::logic::create_dict;
 use symbolic_mgu::{
-    EnumTerm, EnumTermFactory, Metavariable, NodeByte, SimpleType, Statement, WideMetavariable,
-    WideMetavariableFactory,
+    EnumTerm, EnumTermFactory, Metavariable, NodeByte, SimpleType, SimpleTypeFactory, Statement,
+    WideMetavariable, WideMetavariableFactory,
 };
 use SimpleType::*;
 
@@ -91,8 +91,9 @@ fn all_pm_subproofs_are_tautologies() {
     println!("  Total subproofs in database: {}", subproofs.len());
 
     // Set up factories and dictionary using WideMetavariable for unlimited variable space
-    let var_factory = WideMetavariableFactory();
-    let term_factory = EnumTermFactory::<SimpleType, WideMetavariable, NodeByte>::new();
+    let var_factory = WideMetavariableFactory::new(SimpleTypeFactory);
+    let term_factory =
+        EnumTermFactory::<SimpleType, WideMetavariable, NodeByte, _>::new(SimpleTypeFactory);
     let dict = create_dict(
         &term_factory,
         &var_factory,

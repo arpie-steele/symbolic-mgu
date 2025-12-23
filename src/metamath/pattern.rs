@@ -4,8 +4,7 @@
 //! efficient pattern matching structures. Syntax axioms define term constructors
 //! (like implication, conjunction, etc.) and their arity and argument types.
 
-use crate::metamath::database::{Axiom, MetamathDatabase, SymbolKind, SyntaxInfo};
-use crate::metamath::label::Label;
+use crate::metamath::{Axiom, Label, MetamathDatabase, SymbolKind, SyntaxInfo};
 use std::sync::Arc;
 
 /// A pre-processed syntax axiom pattern for efficient matching.
@@ -167,8 +166,7 @@ impl SyntaxAxiomPattern {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metamath::database::{AssertionCore, TypeMapping};
-    use crate::metamath::label::Label;
+    use crate::metamath::{AssertionCore, Label, TypeMapping};
     use crate::DistinctnessGraph;
     use std::collections::HashSet;
 

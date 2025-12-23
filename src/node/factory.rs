@@ -125,7 +125,7 @@
 //! Use factories to construct nodes:
 //!
 //! ```rust
-//! use symbolic_mgu::{NodeByteFactory, NodeFactory, SimpleType, MguError};
+//! use symbolic_mgu::{NodeByteFactory, NodeFactory, SimpleType, SimpleTypeFactory, MguError};
 //!
 //! fn build_logical_nodes<NF>(factory: &NF) -> Result<(), MguError>
 //! where

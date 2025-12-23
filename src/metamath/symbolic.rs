@@ -14,10 +14,10 @@
 //! lists, and syntax axiom definitions.
 
 use crate::bool_eval::BooleanSimpleOp;
-use crate::metamath::database::{MetamathDatabase, TypeMapping};
-use crate::metamath::label::Label;
-use crate::term::simple::EnumTerm;
-use crate::{Metavariable, MetavariableFactory, MguError, Node, Type, TypeCore};
+use crate::metamath::{Label, MetamathDatabase, TypeMapping};
+use crate::{
+    EnumTerm, Metavariable, MetavariableFactory, MguError, Node, Type, TypeCore, TypeFactory,
+};
 use std::cmp::Ordering;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -29,6 +29,88 @@ use std::sync::Arc;
 /// The `Arc<MetamathDatabase>` references are held within `DbType`,
 /// `DbMetavariable`, and `DbNode`, avoiding the need for a wrapper type.
 pub type DbTerm = EnumTerm<DbType, DbMetavariable, DbNode>;
+
+/// Factory for constructing [`DbType`] instances from a Metamath database.
+///
+/// Unlike [`SimpleTypeFactory`](crate::SimpleTypeFactory), `DbTypeFactory` requires
+/// database context to construct types, as type codes are database-specific.
+///
+/// # Examples
+///
+/// ```
+/// use symbolic_mgu::metamath::{DbTypeFactory, MetamathDatabase, TypeMapping};
+/// use symbolic_mgu::TypeFactory;
+/// use std::sync::Arc;
+///
+/// let db = Arc::new(MetamathDatabase::new(TypeMapping::set_mm()));
+/// let type_factory = DbTypeFactory::new(Arc::clone(&db));
+///
+/// // Get Boolean type (wff in set.mm)
+/// let wff_type = type_factory.try_boolean().unwrap();
+/// ```
+#[derive(Debug, Clone)]
+pub struct DbTypeFactory {
+    /// Reference to the Metamath database for type code lookups.
+    database: Arc<MetamathDatabase>,
+}
+
+impl DbTypeFactory {
+    /// Create a new `DbTypeFactory` with the given database.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use symbolic_mgu::metamath::{DbTypeFactory, MetamathDatabase, TypeMapping};
+    /// use std::sync::Arc;
+    ///
+    /// let db = Arc::new(MetamathDatabase::new(TypeMapping::set_mm()));
+    /// let type_factory = DbTypeFactory::new(db);
+    /// ```
+    #[must_use]
+    pub fn new(database: Arc<MetamathDatabase>) -> Self {
+        Self { database }
+    }
+}
+
+impl TypeFactory for DbTypeFactory {
+    type Type = DbType;
+
+    fn try_boolean(&self) -> Result<DbType, MguError> {
+        let type_code = self
+            .database
+            .type_mapping()
+            .get_boolean_type()
+            .clone()
+            .ok_or(MguError::TypeCapabilityUnsupported {
+                capability: "Boolean",
+            })?;
+        Ok(DbType::new(type_code, Arc::clone(&self.database)))
+    }
+
+    fn try_setvar(&self) -> Result<DbType, MguError> {
+        let type_code = self
+            .database
+            .type_mapping()
+            .get_setvar_type()
+            .clone()
+            .ok_or(MguError::TypeCapabilityUnsupported {
+                capability: "Setvar",
+            })?;
+        Ok(DbType::new(type_code, Arc::clone(&self.database)))
+    }
+
+    fn try_class(&self) -> Result<DbType, MguError> {
+        let type_code = self
+            .database
+            .type_mapping()
+            .get_class_type()
+            .clone()
+            .ok_or(MguError::TypeCapabilityUnsupported {
+                capability: "Class",
+            })?;
+        Ok(DbType::new(type_code, Arc::clone(&self.database)))
+    }
+}
 
 /// A Type implementation backed by a Metamath database.
 ///
@@ -151,33 +233,6 @@ impl Type for DbType {
         // Type conversions (e.g., `setvar` to class) must go through explicit syntax axioms
         // like `"cv"` in the proof, not through implicit sub-typing.
         self == other
-    }
-
-    /// Unimplemented due to lack of access to database object from a static trait method.
-    ///
-    /// # Panics
-    ///
-    /// Always.
-    fn try_boolean() -> Result<Self, MguError> {
-        panic!("DbType::try_boolean() requires database context - construct DbType with a database reference instead")
-    }
-
-    /// Unimplemented due to lack of access to database object from a static trait method.
-    ///
-    /// # Panics
-    ///
-    /// Always.
-    fn try_setvar() -> Result<Self, MguError> {
-        panic!("DbType::try_setvar() requires database context - construct DbType with a database reference instead")
-    }
-
-    /// Unimplemented due to lack of access to database object from a static trait method.
-    ///
-    /// # Panics
-    ///
-    /// Always.
-    fn try_class() -> Result<Self, MguError> {
-        panic!("DbType::try_class() requires database context - construct DbType with a database reference instead")
     }
 }
 
@@ -329,24 +384,30 @@ impl Metavariable for DbMetavariable {
 /// supporting variable lookup by name or by type and index.
 #[derive(Debug, Clone)]
 pub struct DbMetavariableFactory {
+    /// Type factory for constructing type instances.
+    type_factory: DbTypeFactory,
     /// Reference to the database for variable lookups
     database: Arc<MetamathDatabase>,
 }
 
 impl DbMetavariableFactory {
-    /// Create a new `DbMetavariableFactory` from a database reference.
+    /// Create a new `DbMetavariableFactory` from a type factory.
     ///
     /// # Example
     ///
     /// ```
-    /// use symbolic_mgu::metamath::{DbMetavariableFactory, MetamathDatabase, TypeMapping};
+    /// use symbolic_mgu::metamath::{DbTypeFactory, DbMetavariableFactory, MetamathDatabase, TypeMapping};
     /// use std::sync::Arc;
     ///
     /// let db = Arc::new(MetamathDatabase::new(TypeMapping::set_mm()));
-    /// let factory = DbMetavariableFactory::new(db);
+    /// let type_factory = DbTypeFactory::new(Arc::clone(&db));
+    /// let var_factory = DbMetavariableFactory::new(type_factory, db);
     /// ```
-    pub fn new(database: Arc<MetamathDatabase>) -> Self {
-        Self { database }
+    pub fn new(type_factory: DbTypeFactory, database: Arc<MetamathDatabase>) -> Self {
+        Self {
+            type_factory,
+            database,
+        }
     }
 
     /// Get the database reference.
@@ -355,10 +416,14 @@ impl DbMetavariableFactory {
     }
 }
 
-impl MetavariableFactory for DbMetavariableFactory {
+impl MetavariableFactory<DbTypeFactory> for DbMetavariableFactory {
     type Metavariable = DbMetavariable;
     type MetavariableType = DbType;
     type MetavariableIterator<'a> = DbMetavariableIterator<'a>;
+
+    fn type_factory(&self) -> &DbTypeFactory {
+        &self.type_factory
+    }
 
     fn create_by_name(&self, name: &str) -> Result<Self::Metavariable, MguError> {
         // Look up the variable in the database
@@ -609,7 +674,8 @@ impl Node for DbNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::metamath::database::TypeMapping;
+    use crate::metamath::TypeMapping;
+    use crate::{EnumTerm, Term};
 
     #[test]
     fn dbtype_creation() {
@@ -789,7 +855,7 @@ mod tests {
             .unwrap();
         let db = Arc::new(db);
 
-        let factory = DbMetavariableFactory::new(Arc::clone(&db));
+        let factory = DbMetavariableFactory::new(DbTypeFactory::new(db.clone()), db.clone());
 
         // Create by name
         let ph = factory.create_by_name("ph").unwrap();
@@ -816,7 +882,7 @@ mod tests {
             .unwrap();
         let db = Arc::new(db);
 
-        let factory = DbMetavariableFactory::new(Arc::clone(&db));
+        let factory = DbMetavariableFactory::new(DbTypeFactory::new(db.clone()), Arc::clone(&db));
         let wff_type = DbType::new(Arc::from("wff"), Arc::clone(&db));
 
         let ph = factory.create_by_type_and_index(&wff_type, 0).unwrap();
@@ -839,7 +905,7 @@ mod tests {
             .unwrap();
         let db = Arc::new(db);
 
-        let factory = DbMetavariableFactory::new(Arc::clone(&db));
+        let factory = DbMetavariableFactory::new(DbTypeFactory::new(db.clone()), Arc::clone(&db));
         let wff_type = DbType::new(Arc::from("wff"), Arc::clone(&db));
 
         // List all wff variables
@@ -861,7 +927,7 @@ mod tests {
             .unwrap();
         let db = Arc::new(db);
 
-        let factory = DbMetavariableFactory::new(Arc::clone(&db));
+        let factory = DbMetavariableFactory::new(DbTypeFactory::new(db.clone()), Arc::clone(&db));
         let wff_type = DbType::new(Arc::from("wff"), Arc::clone(&db));
         let setvar_type = DbType::new(Arc::from("setvar"), Arc::clone(&db));
 
@@ -943,8 +1009,6 @@ mod tests {
     /// the `Term` construction.
     #[test]
     fn integration_term_construction() {
-        use crate::{EnumTerm, Term};
-
         // Create database and register variables with types
         let db = MetamathDatabase::new(TypeMapping::set_mm());
 
@@ -963,7 +1027,7 @@ mod tests {
         let db = Arc::new(db);
 
         // Create factory
-        let factory = DbMetavariableFactory::new(Arc::clone(&db));
+        let factory = DbMetavariableFactory::new(DbTypeFactory::new(db.clone()), Arc::clone(&db));
 
         // Create metavariables by name
         let ph = factory.create_by_name("ph").unwrap();

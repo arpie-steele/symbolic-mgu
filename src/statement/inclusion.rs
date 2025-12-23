@@ -27,7 +27,7 @@
 
 use crate::{
     apply_substitution, unify, DistinctnessGraph, Metavariable, MetavariableFactory, MguError,
-    Node, Statement, Substitution, Term, TermFactory, Type,
+    Node, Statement, Substitution, Term, TermFactory, Type, TypeFactory,
 };
 
 impl<Ty, V, N, T> Statement<Ty, V, N, T>
@@ -65,12 +65,12 @@ where
     /// # Examples
     ///
     /// ```
-    /// use symbolic_mgu::{Statement, EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, TermFactory};
+    /// use symbolic_mgu::{Statement, EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, SimpleTypeFactory, TermFactory};
     /// use SimpleType::*;
     /// use itertools::Itertools;
     ///
-    /// let term_factory = EnumTermFactory::new();
-    /// let var_factory = MetaByteFactory();
+    /// let term_factory = EnumTermFactory::new(SimpleTypeFactory);
+    /// let var_factory = MetaByteFactory::new(SimpleTypeFactory);
     ///
     /// // Create two simple axioms
     /// let (p, q) = var_factory
@@ -85,11 +85,11 @@ where
     ///     NodeByte::Implies,
     ///     vec![p_term.clone(), p_term]
     /// ).unwrap();
-    /// let s1 = Statement::simple_axiom(p_implies_p).unwrap();
+    /// let s1 = Statement::simple_axiom(&SimpleTypeFactory, p_implies_p).unwrap();
     ///
     /// // Create Q - general variable
     /// let q_term = term_factory.create_leaf(q).unwrap();
-    /// let s2 = Statement::simple_axiom(q_term).unwrap();
+    /// let s2 = Statement::simple_axiom(&SimpleTypeFactory, q_term).unwrap();
     ///
     /// // The specific structure is included in the general variable
     /// // (substitution: Q ↦ (P → P) makes s2's assertion equal s1's)
@@ -98,15 +98,16 @@ where
     /// // But the general variable is NOT included in the specific structure
     /// assert!(!s2.is_included_in(&var_factory, &term_factory, &s1).unwrap());
     /// ```
-    pub fn is_included_in<VF, TF>(
+    pub fn is_included_in<VF, TF, TyF>(
         &self,
         var_factory: &VF,
         term_factory: &TF,
         other: &Self,
     ) -> Result<bool, MguError>
     where
-        VF: MetavariableFactory<Metavariable = V, MetavariableType = Ty>,
-        TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N, TermMetavariable = V>,
+        VF: MetavariableFactory<TyF, Metavariable = V, MetavariableType = Ty>,
+        TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermNode = N, TermMetavariable = V>,
+        TyF: TypeFactory<Type = Ty>,
     {
         // Check if self ⊆ other (equivalently: other ⊇ self)
         // We need to find a substitution σ such that:
@@ -248,12 +249,12 @@ where
     /// # Examples
     ///
     /// ```
-    /// use symbolic_mgu::{Statement, EnumTermFactory, MetaByteFactory, MetavariableFactory, MetaByte, NodeByte, SimpleType, DistinctnessGraph, TermFactory};
+    /// use symbolic_mgu::{Statement, EnumTermFactory, MetaByteFactory, MetavariableFactory, MetaByte, NodeByte, SimpleType, SimpleTypeFactory, DistinctnessGraph, TermFactory};
     /// use SimpleType::*;
     /// use itertools::Itertools;
     ///
-    /// let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> = EnumTermFactory::new();
-    /// let var_factory = MetaByteFactory();
+    /// let term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte, _> = EnumTermFactory::new(SimpleTypeFactory);
+    /// let var_factory = MetaByteFactory::new(SimpleTypeFactory);
     ///
     /// let (p, q, r, s) = var_factory
     ///         .list_metavariables_by_type(&Boolean)
@@ -265,12 +266,12 @@ where
     /// // s1: Q from P
     /// let p_term = term_factory.create_leaf(p).unwrap();
     /// let q_term = term_factory.create_leaf(q).unwrap();
-    /// let s1 = Statement::new(q_term, vec![p_term], DistinctnessGraph::default()).unwrap();
+    /// let s1 = Statement::new(&SimpleTypeFactory, q_term, vec![p_term], DistinctnessGraph::default()).unwrap();
     ///
     /// // s2: S from R
     /// let r_term = term_factory.create_leaf(r).unwrap();
     /// let s_term = term_factory.create_leaf(s).unwrap();
-    /// let s2 = Statement::new(s_term, vec![r_term], DistinctnessGraph::default()).unwrap();
+    /// let s2 = Statement::new(&SimpleTypeFactory, s_term, vec![r_term], DistinctnessGraph::default()).unwrap();
     ///
     /// // They are identical (differ only by variable renaming)
     /// assert!(s1.is_identical(&var_factory, &term_factory, &s2).unwrap());
@@ -278,15 +279,16 @@ where
     /// // Every statement is identical to itself
     /// assert!(s1.is_identical(&var_factory, &term_factory, &s1).unwrap());
     /// ```
-    pub fn is_identical<VF, TF>(
+    pub fn is_identical<VF, TF, TyF>(
         &self,
         var_factory: &VF,
         term_factory: &TF,
         other: &Self,
     ) -> Result<bool, MguError>
     where
-        VF: MetavariableFactory<Metavariable = V, MetavariableType = Ty>,
-        TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N, TermMetavariable = V>,
+        VF: MetavariableFactory<TyF, Metavariable = V, MetavariableType = Ty>,
+        TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermNode = N, TermMetavariable = V>,
+        TyF: TypeFactory<Type = Ty>,
     {
         // Check mutual inclusion
         let self_in_other = self.is_included_in(var_factory, term_factory, other)?;
@@ -305,13 +307,14 @@ where
     /// # Errors
     ///
     /// Returns an error if distinctness constraints are violated.
-    fn transform_distinctness_graph_static<TF>(
+    fn transform_distinctness_graph_static<TF, TyF>(
         term_factory: &TF,
         graph: &DistinctnessGraph<V>,
         subst: &Substitution<V, T>,
     ) -> Result<DistinctnessGraph<V>, MguError>
     where
-        TF: TermFactory<T, Ty, V, N, Term = T, TermNode = N, TermMetavariable = V>,
+        TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermNode = N, TermMetavariable = V>,
+        TyF: TypeFactory<Type = Ty>,
     {
         let mut new_graph = DistinctnessGraph::new();
 
@@ -350,7 +353,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, NodeByte, SimpleType};
+    use crate::{
+        EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, NodeByte, SimpleType,
+        SimpleTypeFactory,
+    };
     use itertools::Itertools;
     use SimpleType::*;
 
@@ -360,10 +366,13 @@ mod tests {
 
     /// Helper to create standard factories for tests
     fn setup() -> (
-        EnumTermFactory<SimpleType, MetaByte, NodeByte>,
-        MetaByteFactory,
+        EnumTermFactory<SimpleType, MetaByte, NodeByte, SimpleTypeFactory>,
+        MetaByteFactory<SimpleTypeFactory>,
     ) {
-        (EnumTermFactory::new(), MetaByteFactory())
+        (
+            EnumTermFactory::new(SimpleTypeFactory),
+            MetaByteFactory::new(SimpleTypeFactory),
+        )
     }
 
     #[test]
@@ -377,7 +386,7 @@ mod tests {
             .unwrap();
 
         let p_term = term_factory.create_leaf(p).unwrap();
-        let stmt = TestStatement::simple_axiom(p_term).unwrap();
+        let stmt = TestStatement::simple_axiom(term_factory.type_factory(), p_term).unwrap();
 
         assert!(stmt
             .is_included_in(&var_factory, &term_factory, &stmt)
@@ -395,7 +404,7 @@ mod tests {
             .unwrap();
 
         let p_term = term_factory.create_leaf(p).unwrap();
-        let stmt = TestStatement::simple_axiom(p_term).unwrap();
+        let stmt = TestStatement::simple_axiom(term_factory.type_factory(), p_term).unwrap();
 
         assert!(stmt
             .is_identical(&var_factory, &term_factory, &stmt)
@@ -409,7 +418,7 @@ mod tests {
         // s1 ⊆ s2 (equivalently: s2 ⊇ s1) because σ = {Q ↦ Implies(P, P)} makes `A_s2·σ = A_s1`
         let (term_factory, var_factory) = setup();
 
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (p, q) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -421,11 +430,11 @@ mod tests {
         let implies_p_p = term_factory
             .create_node(NodeByte::Implies, vec![p_term.clone(), p_term])
             .unwrap();
-        let s1 = TestStatement::simple_axiom(implies_p_p).unwrap();
+        let s1 = TestStatement::simple_axiom(term_factory.type_factory(), implies_p_p).unwrap();
 
         // Create Q - just a variable (general)
         let q_term = term_factory.create_leaf(q).unwrap();
-        let s2 = TestStatement::simple_axiom(q_term).unwrap();
+        let s2 = TestStatement::simple_axiom(term_factory.type_factory(), q_term).unwrap();
 
         // s1 should be included in s2 (s2 is more general)
         assert!(s1.is_included_in(&var_factory, &term_factory, &s2).unwrap());
@@ -439,7 +448,7 @@ mod tests {
         // Statements with same structure but different variable names are identical
         let (term_factory, var_factory) = setup();
 
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (p, q, r, s) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -450,12 +459,24 @@ mod tests {
         // s1: Q from P
         let p_term = term_factory.create_leaf(p).unwrap();
         let q_term = term_factory.create_leaf(q).unwrap();
-        let s1 = TestStatement::new(q_term, vec![p_term], DistinctnessGraph::default()).unwrap();
+        let s1 = TestStatement::new(
+            term_factory.type_factory(),
+            q_term,
+            vec![p_term],
+            DistinctnessGraph::default(),
+        )
+        .unwrap();
 
         // s2: S from R
         let r_term = term_factory.create_leaf(r).unwrap();
         let s_term = term_factory.create_leaf(s).unwrap();
-        let s2 = TestStatement::new(s_term, vec![r_term], DistinctnessGraph::default()).unwrap();
+        let s2 = TestStatement::new(
+            term_factory.type_factory(),
+            s_term,
+            vec![r_term],
+            DistinctnessGraph::default(),
+        )
+        .unwrap();
 
         // They should be identical (differ only by variable renaming)
         assert!(s1.is_identical(&var_factory, &term_factory, &s2).unwrap());
@@ -466,7 +487,7 @@ mod tests {
         // Statements with same hypotheses in different order should be identical
         let (term_factory, var_factory) = setup();
 
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (p, q, r) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -479,6 +500,7 @@ mod tests {
 
         // s1: R from [P, Q]
         let s1 = TestStatement::new(
+            term_factory.type_factory(),
             r_term.clone(),
             vec![p_term.clone(), q_term.clone()],
             DistinctnessGraph::default(),
@@ -486,8 +508,13 @@ mod tests {
         .unwrap();
 
         // s2: R from [Q, P] (same hypotheses, different order)
-        let s2 =
-            TestStatement::new(r_term, vec![q_term, p_term], DistinctnessGraph::default()).unwrap();
+        let s2 = TestStatement::new(
+            term_factory.type_factory(),
+            r_term,
+            vec![q_term, p_term],
+            DistinctnessGraph::default(),
+        )
+        .unwrap();
 
         // They should be identical
         assert!(s1.is_identical(&var_factory, &term_factory, &s2).unwrap());
@@ -502,7 +529,7 @@ mod tests {
         // s2 ⊄ s1 because collapsing to one hypothesis would violate P≠Q
         let (term_factory, var_factory) = setup();
 
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (p, q, r) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -519,6 +546,7 @@ mod tests {
 
         // s1: R from [P, Q] with P≠Q
         let s1 = TestStatement::new(
+            term_factory.type_factory(),
             r_term.clone(),
             vec![p_term.clone(), q_term.clone()],
             dist_graph,
@@ -526,7 +554,13 @@ mod tests {
         .unwrap();
 
         // s2: R from [P] (no distinctness)
-        let s2 = TestStatement::new(r_term, vec![p_term], DistinctnessGraph::default()).unwrap();
+        let s2 = TestStatement::new(
+            term_factory.type_factory(),
+            r_term,
+            vec![p_term],
+            DistinctnessGraph::default(),
+        )
+        .unwrap();
 
         // s1 (more hypotheses with distinctness) IS included in s2
         assert!(s1.is_included_in(&var_factory, &term_factory, &s2).unwrap());
@@ -540,7 +574,7 @@ mod tests {
         // Statements with incompatible structures are not included
         let (term_factory, var_factory) = setup();
 
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (p, q) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -554,13 +588,13 @@ mod tests {
         let implies_p_q = term_factory
             .create_node(NodeByte::Implies, vec![p_term.clone(), q_term.clone()])
             .unwrap();
-        let s1 = TestStatement::simple_axiom(implies_p_q).unwrap();
+        let s1 = TestStatement::simple_axiom(term_factory.type_factory(), implies_p_q).unwrap();
 
         // s2: Not(P) (different structure)
         let not_p = term_factory
             .create_node(NodeByte::Not, vec![p_term])
             .unwrap();
-        let s2 = TestStatement::simple_axiom(not_p).unwrap();
+        let s2 = TestStatement::simple_axiom(term_factory.type_factory(), not_p).unwrap();
 
         // They should not be included in each other
         assert!(!s1.is_included_in(&var_factory, &term_factory, &s2).unwrap());
@@ -573,7 +607,7 @@ mod tests {
         // when checking inclusion
         let (term_factory, var_factory) = setup();
 
-        let vars = MetaByteFactory();
+        let vars = MetaByteFactory::new(SimpleTypeFactory);
         let (p, q) = vars
             .list_metavariables_by_type(&Boolean)
             .tuples()
@@ -590,13 +624,13 @@ mod tests {
         let implies_twice = term_factory
             .create_node(NodeByte::Implies, vec![implies_p_q.clone(), implies_p_q])
             .unwrap();
-        let s1 = TestStatement::simple_axiom(implies_twice).unwrap();
+        let s1 = TestStatement::simple_axiom(term_factory.type_factory(), implies_twice).unwrap();
 
         // s2: Implies(P, P) - more general
         let implies_p_p = term_factory
             .create_node(NodeByte::Implies, vec![p_term.clone(), p_term])
             .unwrap();
-        let s2 = TestStatement::simple_axiom(implies_p_p).unwrap();
+        let s2 = TestStatement::simple_axiom(term_factory.type_factory(), implies_p_p).unwrap();
 
         // s1 should be included in s2
         // Without relabeling, this would fail with occurs-check because

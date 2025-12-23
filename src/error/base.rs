@@ -116,12 +116,12 @@
 //! ```
 
 use crate::{Type, TypeCore};
+use log::error;
 use std::convert::Infallible;
 use std::hash::Hash;
 use std::mem::discriminant;
 use std::ptr::addr_eq;
 use std::rc::Rc;
-use log;
 use strum::EnumDiscriminants;
 use thiserror::Error;
 
@@ -558,7 +558,7 @@ impl MguError {
             }
             MguErrorType::ColorParseError => MguError::ColorParseError(msg.into().to_owned()),
             _ => {
-                log::error!(
+                error!(
                     "Attempted to construct error from type {:?} with message, but this type does not support messages",
                     err_type
                 );
@@ -575,7 +575,7 @@ impl MguError {
             MguErrorType::CliqueMinimumSizeError => MguError::CliqueMinimumSizeError,
             MguErrorType::DecompositionValidationError => MguError::DecompositionValidationError,
             _ => {
-                log::error!(
+                error!(
                     "Attempted to construct bare error from type {:?}, but this type requires additional data",
                     err_type
                 );

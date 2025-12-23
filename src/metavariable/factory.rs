@@ -41,9 +41,9 @@
 //! Suitable for simple variable schemes and testing.
 //!
 //! ```rust
-//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType::*};
+//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType::*, SimpleTypeFactory};
 //!
-//! let factory = MetaByteFactory();
+//! let factory = MetaByteFactory::new(SimpleTypeFactory);
 //!
 //! // Create Boolean variables by name (uppercase P-Z)
 //! let p = factory.create("P", &Boolean).unwrap();
@@ -87,9 +87,9 @@
 //! Simple factory for unit tests using ASCII variable names:
 //!
 //! ```rust
-//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType::*};
+//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType::*, SimpleTypeFactory};
 //!
-//! let factory = MetaByteFactory();
+//! let factory = MetaByteFactory::new(SimpleTypeFactory);
 //!
 //! // Create variables with ASCII names (Boolean uses uppercase P-Z)
 //! let phi = factory.create("P", &Boolean).unwrap();
@@ -128,9 +128,9 @@
 //! ### Pattern 1: Creating Variables with Type Constraints
 //!
 //! ```rust
-//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType::*};
+//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType::*, SimpleTypeFactory};
 //!
-//! let factory = MetaByteFactory();
+//! let factory = MetaByteFactory::new(SimpleTypeFactory);
 //!
 //! // Type-safe variable creation
 //! let phi = factory.create("P", &Boolean).unwrap();
@@ -141,9 +141,9 @@
 //! ### Pattern 2: Enumerating Variables by Type
 //!
 //! ```rust
-//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType::*};
+//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleType::*, SimpleTypeFactory};
 //!
-//! let factory = MetaByteFactory();
+//! let factory = MetaByteFactory::new(SimpleTypeFactory);
 //!
 //! // List all Boolean variables
 //! let boolean_vars: Vec<_> = factory
@@ -162,10 +162,10 @@
 //! that don't conflict with existing ones:
 //!
 //! ```rust
-//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, Metavariable, SimpleType::*};
+//! use symbolic_mgu::{MetaByteFactory, MetavariableFactory, Metavariable, SimpleType::*, SimpleTypeFactory};
 //! use std::collections::HashSet;
 //!
-//! let factory = MetaByteFactory();
+//! let factory = MetaByteFactory::new(SimpleTypeFactory);
 //!
 //! // Collect used variables (Boolean uses uppercase P-Z)
 //! let mut used_vars = HashSet::new();
@@ -190,15 +190,21 @@
 //! [`NodeFactory`]: `crate::NodeFactory`
 //! [`TermFactory`]: `crate::TermFactory`
 
-use crate::{Metavariable, MguError, Type};
+use crate::{Metavariable, MguError, Type, TypeFactory};
 use std::fmt::Debug;
 
 /// Factory for creating [`Metavariable`] instances
 ///
 /// Implementations may be stateful (caching, interning) or stateless.
 /// Supports multiple construction strategies: by name, by code, from database, etc.
-pub trait MetavariableFactory: Debug
+///
+/// # Type Factory Access
+///
+/// `MetavariableFactory` provides access to a [`TypeFactory`] via the `type_factory()` method,
+/// enabling type construction for production code that already has a metavariable factory.
+pub trait MetavariableFactory<TyF>: Debug
 where
+    TyF: TypeFactory,
     Self::Metavariable: Metavariable<Type = Self::MetavariableType>,
 {
     /// Concrete instance of the [`Type`] trait which this factory produces.
@@ -216,6 +222,22 @@ where
     type MetavariableIterator<'a>: Iterator<Item = Self::Metavariable> + 'a
     where
         Self: 'a;
+
+    /// Get access to the type factory.
+    ///
+    /// This allows production code to construct type instances through the metavariable factory:
+    ///
+    /// ```rust
+    /// use symbolic_mgu::{MetaByteFactory, MetavariableFactory, SimpleTypeFactory, TypeFactory};
+    ///
+    /// let type_factory = SimpleTypeFactory;
+    /// let var_factory = MetaByteFactory::new(type_factory);
+    ///
+    /// // Get Boolean type through the metavariable factory
+    /// let bool_type = var_factory.type_factory().try_boolean().unwrap();
+    /// let vars = var_factory.list_metavariables_by_type(&bool_type);
+    /// ```
+    fn type_factory(&self) -> &TyF;
 
     /// Create a metavariable with name and type constraint
     ///
