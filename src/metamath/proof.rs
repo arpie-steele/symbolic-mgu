@@ -4,12 +4,22 @@
 //! - **Expanded**: Direct sequence of labels (theorem/axiom/hypothesis references)
 //! - **Compressed**: Parenthesized label list + encoded proof string using A-Z notation
 //!
-//! Compressed proof encoding (per Metamath specification):
+//! Compressed proof encoding uses A-Y in mixed radix notation:
 //! - Codes have the format: `[U-Y]*[A-T]` (zero or more U-Y, then exactly one A-T)
 //! - A-T terminates the code and contributes 0-19
 //! - Each U-Y contributes (1-5) × (place value), where place values are 20, 100, 500, ...
 //! - Z alone is the "save to stack" operation (not part of a number)
-//! - Examples: `A` =0, `T` = 19, `UA` = 20, `UT` = 39, `VA` = 40, `YA` = 100, `UUA` = 120, `UYA` = 200, `VUA` = 220
+//! - Examples: `A` = 0, `T` = 19, `UA` = 20, `UT` = 39, `VA` = 40, `YA` = 100, `UUA` = 120, `UYA` = 200, `VUA` = 220
+//!
+//! **Reference space for [U-Y]*[A-T] codes**:
+//! - Indices 0 to m-1: Mandatory hypotheses (m total, in declaration order)
+//! - Indices m to m+n-1: Labels from proof declaration (n total)
+//! - Indices m+n onward: Proof steps saved by Z operator (for proof verification)
+//!
+//! **Mandatory hypotheses** (per Metamath book sections 4.2.7-4.2.8):
+//! - Active $f statements where the variable appears in any $e hypothesis OR the $p conclusion
+//! - Active $e statements
+//! - All in declaration order (interleaved, not grouped)
 //!
 //! # Example
 //!
@@ -117,18 +127,26 @@ pub enum Proof {
 impl Proof {
     /// Returns an iterator over proof steps (labels).
     ///
-    /// For compressed proofs, the iterator decodes the proof string on-the-fly.
+    /// For compressed proofs, the iterator decodes the proof string on-the-fly
+    /// using A-Y mixed radix notation to index into the reference space.
     ///
     /// # Arguments
     ///
-    /// * `mandatory_hyps` - Mandatory hypotheses for this theorem (for A-T decoding)
+    /// * `mandatory_hyps` - Mandatory hypotheses in declaration order:
+    ///   - Active $f statements (variable appears in $e or $p)
+    ///   - Active $e statements
+    ///   - Interleaved as declared, not grouped
     ///
     /// # TODO
     ///
-    /// Complete mandatory hypothesis handling. Currently this is a stub
-    /// that provides the infrastructure. Full hypothesis collection and ordering
-    /// according to Metamath specification needs to be implemented during
-    /// proof verification (Architecture Phase 7).
+    /// Implement mandatory hypothesis collection in `database.rs`:
+    /// 1. When processing a $p statement, collect all active $f where the variable
+    ///    appears in any $e hypothesis OR the $p conclusion
+    /// 2. Collect all active $e statements
+    /// 3. Store in declaration order (interleaved)
+    /// 4. Pass to this method for proof verification
+    ///
+    /// See Metamath book sections 4.2.7-4.2.8 for complete specification.
     pub fn iter<'a>(&'a self, mandatory_hyps: &'a [Arc<str>]) -> ProofIterator<'a> {
         match self {
             Proof::Expanded(labels) => ProofIterator::Expanded(labels.iter()),
@@ -305,8 +323,8 @@ impl<'a> Iterator for ProofIterator<'a> {
 /// - Codes: `[U-Y]*[A-T]` format (zero or more U-Y, terminated by A-T)
 /// - A-T contributes 0-19 (ones place)
 /// - U-Y contributes (1-5) × (place value), where place values are 20, 100, 500, ...
-/// - Z is the "save to stack" operation (skipped during iteration)
-/// - Decoded numbers index into: `mandatory_hypotheses` ++ `label_list`
+/// - Z is the "save to stack" operation (skipped during iteration; for proof verification)
+/// - Decoded numbers index into: `mandatory_hypotheses` ++ `label_list` ++ `Z_saved_steps`
 pub struct CompressedProofIterator<'a> {
     /// Label list from the compressed proof.
     labels: &'a [Arc<str>],
@@ -314,11 +332,13 @@ pub struct CompressedProofIterator<'a> {
     proof_string: &'a str,
     /// Current position in the proof string.
     position: usize,
-    /// Mandatory hypotheses (for A-T decoding).
+    /// Mandatory hypotheses in declaration order.
     ///
-    /// TODO: This needs proper population from theorem hypotheses
-    /// in the correct order (floating + essential) during proof verification
-    /// (Architecture Phase 7).
+    /// Contains active $f and $e statements interleaved in declaration order.
+    /// Used for decoding [U-Y]*[A-T] references to indices 0 to m-1.
+    ///
+    /// TODO: Currently an empty slice. Needs population from `database.rs`
+    /// when processing $p statements (see `Proof::iter()` documentation).
     mandatory_hyps: &'a [Arc<str>],
 }
 
@@ -374,12 +394,14 @@ impl<'a> Iterator for CompressedProofIterator<'a> {
                     place_value = place_value.saturating_mul(5);
                 }
 
-                // Look up in combined list: `mandatory_hyps` followed by labels
+                // Look up in reference space: mandatory_hyps ++ labels ++ Z_saved_steps
+                // Currently only mandatory_hyps and labels are implemented
                 if number < self.mandatory_hyps.len() {
                     return Some(&self.mandatory_hyps[number]);
                 } else {
                     let label_index = number - self.mandatory_hyps.len();
                     return self.labels.get(label_index);
+                    // TODO: Z-saved steps lookup (indices beyond labels) for proof verification
                 }
             } else if ch == 'Z' {
                 // Z is the "save to stack" operation
