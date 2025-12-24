@@ -701,6 +701,12 @@ impl<F: FilesystemProvider> Parser<F> {
         // Also collect ALL hypotheses in scope (for label lookup in compressed proofs)
         let all_hypotheses = self.database.current_scope().collect_hypotheses();
 
+        // Get mandatory hypothesis labels in declaration order for compressed proof decoding
+        let mandatory_hyp_labels = self
+            .database
+            .current_scope()
+            .mandatory_hypothesis_labels(&statement, &active_vars);
+
         // Parse proof (Phase 5)
         // Read proof tokens until we find `$.`, skipping comments
         let mut proof_tokens = Vec::new();
@@ -769,6 +775,7 @@ impl<F: FilesystemProvider> Parser<F> {
                 distinctness,
             },
             all_hypotheses,
+            mandatory_hyp_labels,
             proof,
         };
 

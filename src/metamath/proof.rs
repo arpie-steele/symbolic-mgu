@@ -17,8 +17,8 @@
 //! - Indices m+n onward: Proof steps saved by Z operator (for proof verification)
 //!
 //! **Mandatory hypotheses** (per Metamath book sections 4.2.7-4.2.8):
-//! - Active $f statements where the variable appears in any $e hypothesis OR the $p conclusion
-//! - Active $e statements
+//! - Active `$f` statements where the variable appears in any `$e` hypothesis OR the `$p` conclusion
+//! - Active `$e` statements
 //! - All in declaration order (interleaved, not grouped)
 //!
 //! # Example
@@ -133,20 +133,12 @@ impl Proof {
     /// # Arguments
     ///
     /// * `mandatory_hyps` - Mandatory hypotheses in declaration order:
-    ///   - Active $f statements (variable appears in $e or $p)
-    ///   - Active $e statements
+    ///   - Active `$f` statements (variable appears in `$e `or `$p`)
+    ///   - Active `$e` statements
     ///   - Interleaved as declared, not grouped
     ///
-    /// # TODO
-    ///
-    /// Implement mandatory hypothesis collection in `database.rs`:
-    /// 1. When processing a $p statement, collect all active $f where the variable
-    ///    appears in any $e hypothesis OR the $p conclusion
-    /// 2. Collect all active $e statements
-    /// 3. Store in declaration order (interleaved)
-    /// 4. Pass to this method for proof verification
-    ///
-    /// See Metamath book sections 4.2.7-4.2.8 for complete specification.
+    /// These labels are collected during parsing via `Scope::mandatory_hypothesis_labels()`
+    /// and stored in `Theorem::mandatory_hyp_labels`. See Metamath book sections 4.2.7-4.2.8.
     pub fn iter<'a>(&'a self, mandatory_hyps: &'a [Arc<str>]) -> ProofIterator<'a> {
         match self {
             Proof::Expanded(labels) => ProofIterator::Expanded(labels.iter()),
@@ -334,11 +326,10 @@ pub struct CompressedProofIterator<'a> {
     position: usize,
     /// Mandatory hypotheses in declaration order.
     ///
-    /// Contains active $f and $e statements interleaved in declaration order.
+    /// Contains active `$f` and `$e` statements interleaved in declaration order.
     /// Used for decoding [U-Y]*[A-T] references to indices 0 to m-1.
     ///
-    /// TODO: Currently an empty slice. Needs population from `database.rs`
-    /// when processing $p statements (see `Proof::iter()` documentation).
+    /// Populated from `Theorem::mandatory_hyp_labels` during proof iteration.
     mandatory_hyps: &'a [Arc<str>],
 }
 
@@ -394,8 +385,8 @@ impl<'a> Iterator for CompressedProofIterator<'a> {
                     place_value = place_value.saturating_mul(5);
                 }
 
-                // Look up in reference space: mandatory_hyps ++ labels ++ Z_saved_steps
-                // Currently only mandatory_hyps and labels are implemented
+                // Look up in reference space: `mandatory_hyps ++ labels ++ Z_saved_steps`
+                // TODO: Currently only `mandatory_hyps` and `labels` are implemented
                 if number < self.mandatory_hyps.len() {
                     return Some(&self.mandatory_hyps[number]);
                 } else {

@@ -938,6 +938,7 @@ mod tests {
                 distinctness: DistinctnessGraph::new(),
             },
             all_hypotheses: (Vec::new(), Vec::new()),
+            mandatory_hyp_labels: Vec::new(),
             proof: None,
         };
 

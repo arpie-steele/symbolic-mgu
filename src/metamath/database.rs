@@ -28,6 +28,7 @@
 //! // db.parse_file("set.mm")?;
 //! ```
 
+use crate::bool_eval::BooleanSimpleOp;
 use crate::metamath::{
     parse_expression, parse_sequence, CommentMetadata, DbMetavariable, DbMetavariableFactory,
     DbNode, DbTerm, DbType, DbTypeFactory, Label, Proof, SyntaxAxiomPattern,
@@ -604,6 +605,9 @@ pub struct Theorem {
     /// ALL hypotheses that were in scope (for label lookup in compressed proofs).
     /// This includes both mandatory and non-mandatory hypotheses.
     pub all_hypotheses: (Vec<FloatingHyp>, Vec<EssentialHyp>),
+    /// Mandatory hypothesis labels in declaration order for compressed proof decoding.
+    /// Contains filtered `$f` (where variable appears in `$e` or `$p`) and all `$e`, interleaved.
+    pub mandatory_hyp_labels: Vec<Arc<str>>,
     /// Proof in either expanded or compressed format.
     pub proof: Option<Proof>,
 }
@@ -825,6 +829,44 @@ impl Scope {
         (floating, all_essential)
     }
 
+    /// Get mandatory hypothesis labels in declaration order for compressed proof decoding.
+    ///
+    /// Returns labels of mandatory hypotheses (filtered `$f` + all `$e`) interleaved in
+    /// declaration order as required by Metamath compressed proof format (Appendix B).
+    ///
+    /// # Arguments
+    ///
+    /// * `statement` - The statement symbols (for filtering `$f` hypotheses)
+    /// * `active_vars` - Set of active variable symbols
+    ///
+    /// # Returns
+    ///
+    /// Vector of hypothesis labels in declaration order (interleaved, not grouped).
+    pub fn mandatory_hypothesis_labels(
+        &self,
+        statement: &[Arc<str>],
+        active_vars: &HashSet<Arc<str>>,
+    ) -> Vec<Arc<str>> {
+        let (floating, essential) = self.collect_mandatory_hypotheses(statement, active_vars);
+
+        // Combine and sort by line number (declaration order)
+        let mut all_hyps: Vec<(usize, Arc<str>)> = Vec::new();
+
+        for f_hyp in floating {
+            all_hyps.push((f_hyp.line, Arc::from(f_hyp.label.as_ref())));
+        }
+
+        for e_hyp in essential {
+            all_hyps.push((e_hyp.line, Arc::from(e_hyp.label.as_ref())));
+        }
+
+        // Sort by line number to get declaration order
+        all_hyps.sort_by_key(|(line, _)| *line);
+
+        // Extract just the labels
+        all_hyps.into_iter().map(|(_, label)| label).collect()
+    }
+
     /// Collect all distinctness constraints from this scope and parent scopes.
     ///
     /// Returns a vector of `(variable1, variable2)` pairs.
@@ -901,6 +943,10 @@ pub struct MetamathDatabase {
     /// Syntax axioms indexed by result type for efficient pattern matching.
     /// Built during parsing when syntax axioms are added to the database.
     syntax_axioms_by_type: RwLock<HashMap<Arc<str>, Vec<SyntaxAxiomPattern>>>,
+    /// Boolean operator registry: maps node labels to `BooleanSimpleOp` for truth table generation.
+    /// This is database-specific (`set.mm` uses `wn`/`wi`/`wa`/`wo`/`wb`, other databases may differ).
+    /// Configured via `register_boolean_op()` or loaded from standard configurations.
+    boolean_op_registry: RwLock<HashMap<Arc<str>, BooleanSimpleOp>>,
 }
 
 impl MetamathDatabase {
@@ -920,6 +966,7 @@ impl MetamathDatabase {
             variable_to_type_index: RwLock::new(HashMap::new()),
             symbol_kinds: RwLock::new(HashMap::new()),
             syntax_axioms_by_type: RwLock::new(HashMap::new()),
+            boolean_op_registry: RwLock::new(HashMap::new()),
         }
     }
 
@@ -1623,6 +1670,58 @@ impl MetamathDatabase {
             .get(type_code)
             .cloned()
             .unwrap_or_default()
+    }
+
+    /// Register a Boolean operator mapping for truth table generation.
+    ///
+    /// Maps a node label (like `"wn"`, `"wi"`, `"wa"`) to a `BooleanSimpleOp` for use in
+    /// truth table generation and Boolean expression evaluation.
+    ///
+    /// # Arguments
+    ///
+    /// * `label` - The node label (constant symbol) to map
+    /// * `op` - The `BooleanSimpleOp` to associate with this label
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `RwLock` was poisoned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use symbolic_mgu::metamath::{MetamathDatabase, TypeMapping};
+    /// use symbolic_mgu::bool_eval::BooleanSimpleOp;
+    /// use std::sync::Arc;
+    ///
+    /// let db = MetamathDatabase::new(TypeMapping::set_mm());
+    ///
+    /// // Register set.mm Boolean operators
+    /// db.register_boolean_op(Arc::from("wn"), BooleanSimpleOp::NotA1);
+    /// db.register_boolean_op(Arc::from("wi"), BooleanSimpleOp::ImpliesAB2);
+    /// db.register_boolean_op(Arc::from("wa"), BooleanSimpleOp::AndAB2);
+    /// db.register_boolean_op(Arc::from("wo"), BooleanSimpleOp::OrAB2);
+    /// db.register_boolean_op(Arc::from("wb"), BooleanSimpleOp::BiimpAB2);
+    /// ```
+    pub fn register_boolean_op(&self, label: Arc<str>, op: BooleanSimpleOp) {
+        self.boolean_op_registry
+            .write()
+            .expect("RwLock poisoned")
+            .insert(label, op);
+    }
+
+    /// Look up the Boolean operator associated with a node label.
+    ///
+    /// Returns `None` if the label has no registered Boolean operator mapping.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `RwLock` was poisoned.
+    pub fn get_boolean_op(&self, label: &str) -> Option<BooleanSimpleOp> {
+        self.boolean_op_registry
+            .read()
+            .expect("RwLock poisoned")
+            .get(label)
+            .copied()
     }
 }
 

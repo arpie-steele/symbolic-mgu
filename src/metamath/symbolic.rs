@@ -664,10 +664,7 @@ impl Node for DbNode {
     }
 
     fn to_boolean_op(&self) -> Option<BooleanSimpleOp> {
-        // TODO: Implement configurable registry for mapping labels to Boolean operators
-        // when syntax axiom parsing is complete. The mapping is database-specific
-        // (`set.mm` uses `wn`/`wi`/`wa`/`wo`/`wb`, but other databases may differ).
-        None
+        self.database.get_boolean_op(self.label.as_ref())
     }
 }
 
