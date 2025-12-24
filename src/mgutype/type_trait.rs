@@ -76,7 +76,7 @@ mod tests {
         // This test documents that Type is NOT dyn-safe by design.
         // The following line would NOT compile (commented out to prevent error):
         //
-        // let _: &dyn Type = todo!();
+        // let _: &dyn Type = todo!(); // OK to ignore
         //
         // Error: Type is not dyn-safe because it requires Clone, Eq, Hash, PartialOrd, Ord
         // which use Self as a type parameter.

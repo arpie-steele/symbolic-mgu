@@ -206,7 +206,7 @@ mod tests {
         // This test documents that Node is NOT dyn-safe by design.
         // The following line would NOT compile (commented out to prevent error):
         //
-        // let _: &dyn Node = todo!();
+        // let _: &dyn Node = todo!(); // OK to ignore
         //
         // Error: Node is not dyn-safe because it requires Clone, Eq, Hash, PartialOrd, Ord
         // which use Self as a type parameter.

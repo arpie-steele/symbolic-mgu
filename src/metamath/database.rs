@@ -570,10 +570,15 @@ impl AssertionCore {
             hypothesis_terms.push(hyp_term);
         }
 
-        // Create the Statement using `new_db_backed()` to avoid calling `Type::try_boolean()`
-        // which is unimplemented for `DbType` (requires database context)
+        // Create the Statement using the database's type factory
         // Note: `FloatingHyp` are used implicitly during parsing for variable type lookup
-        Statement::new_db_backed(conclusion, hypothesis_terms, self.distinctness.clone())
+        let type_factory = DbTypeFactory::new(Arc::clone(db));
+        Statement::new(
+            &type_factory,
+            conclusion,
+            hypothesis_terms,
+            self.distinctness.clone(),
+        )
     }
 }
 

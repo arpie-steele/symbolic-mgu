@@ -249,7 +249,7 @@ mod tests {
         // This test documents that Term is NOT dyn-safe by design.
         // The following line would NOT compile (commented out to prevent error):
         //
-        // let _: &dyn Term = todo!();
+        // let _: &dyn Term = todo!(); // OK to ignore
         //
         // Error: Term is not dyn-safe because it requires Clone, Eq, Hash, PartialOrd, Ord
         // which use Self as a type parameter.

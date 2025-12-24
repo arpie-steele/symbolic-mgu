@@ -171,7 +171,7 @@ mod tests {
         // This test documents that Metavariable is NOT dyn-safe by design.
         // The following line would NOT compile (commented out to prevent error):
         //
-        // let _: &dyn Metavariable = todo!();
+        // let _: &dyn Metavariable = todo!(); // OK to ignore
         //
         // Error: Metavariable is not dyn-safe because it requires Clone, Eq, Hash, PartialOrd, Ord
         // which use Self as a type parameter.
