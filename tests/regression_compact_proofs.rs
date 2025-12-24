@@ -2,41 +2,108 @@
 //!
 //! These tests validate bug fixes discovered during rustmgu development.
 
-use symbolic_mgu::bool_eval::test_tautology;
-use symbolic_mgu::logic::create_dict;
+use symbolic_mgu::bool_eval::{test_validity, BooleanSimpleOp};
+use symbolic_mgu::logic::polish::PolishNotationEngine;
+use symbolic_mgu::logic::{build_boolean_statement_from_polish_with_engine, create_dict};
 use symbolic_mgu::{
-    EnumTermFactory, MetaByteFactory, MguError, NodeByte, SimpleTypeFactory, Statement, TermFactory,
+    EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, MetavariableFactory, MguError, NodeByte,
+    SimpleType, SimpleTypeFactory, Statement,
 };
 
-/// Helper to parse a compact proof and verify it produces a valid statement
-fn parse_compact_proof(proof: &str) -> Result<bool, MguError> {
-    let type_factory = SimpleTypeFactory;
-    let var_factory = MetaByteFactory::new(SimpleTypeFactory);
-    let term_factory = EnumTermFactory::new(SimpleTypeFactory);
+type TestType = SimpleType;
+type TestTypeFac = SimpleTypeFactory;
+type TestVar = MetaByte;
+type TestVarFac = MetaByteFactory<TestTypeFac>;
+type TestNode = NodeByte;
+type TestTerm = EnumTerm<TestType, TestVar, TestNode>;
+type TestTermFac = EnumTermFactory<TestType, TestVar, TestNode, TestTypeFac>;
+type TestStatement = Statement<TestType, TestVar, TestNode, TestTerm>;
 
-    let dict = create_dict(
-        &term_factory,
-        &var_factory,
-        NodeByte::Implies,
-        NodeByte::Not,
-    )?;
+/// Helper to parse a compact proof to Statement
+fn cd_proof_to_statement(
+    proof: &str,
+    var_factory: &TestVarFac,
+    term_factory: &TestTermFac,
+) -> Result<TestStatement, MguError> {
+    let dict = create_dict(term_factory, var_factory, NodeByte::Implies, NodeByte::Not)?;
 
-    let result = Statement::from_compact_proof(proof, &var_factory, &term_factory, &dict)?;
+    Statement::from_compact_proof(proof, var_factory, term_factory, &dict)
+}
 
-    // For theorems (no hypotheses), verify the assertion is a tautology
-    if result.get_n_hypotheses() == 0 {
-        test_tautology(&type_factory, result.get_assertion())
-    } else {
-        // For inferences with hypotheses, build H₁ → (H₂ → (... → A))
-        let mut implication = result.get_assertion().clone();
+/// Helper to parse Polish notation to Statement
+fn polish_to_statement(
+    polish: &str,
+    var_factory: &TestVarFac,
+    term_factory: &TestTermFac,
+) -> Result<TestStatement, MguError> {
+    let vars = var_factory
+        .list_metavariables_by_type(&TestType::Boolean)
+        .collect::<Vec<_>>();
+    let mut engine = PolishNotationEngine::new();
 
-        for hyp in result.get_hypotheses().iter().rev() {
-            implication =
-                term_factory.create_node(NodeByte::Implies, vec![hyp.clone(), implication])?;
-        }
+    // Since none of these uses uppercase letters, both lowercase and uppercase ASCII letters will be valid as variables.
+    engine.insert_operator('>', BooleanSimpleOp::ImpliesAB2)?;
+    engine.insert_operator('~', BooleanSimpleOp::NotA1)?;
 
-        test_tautology(&type_factory, &implication)
+    build_boolean_statement_from_polish_with_engine(
+        polish,
+        term_factory,
+        &vars,
+        &[TestNode::Implies, TestNode::Not],
+        &mut engine,
+    )
+}
+
+/// Helper for CD proofs with known Polish expressions.
+fn parse_cd_and_polish(proof: &str, polish: &str) {
+    let var_factory = TestVarFac::new(Default::default());
+    let term_factory = TestTermFac::new(Default::default());
+
+    let proof_statement = cd_proof_to_statement(proof, &var_factory, &term_factory);
+    assert!(proof_statement.is_ok(), "CD proof {} did not parse.", proof);
+    let proof_statement = proof_statement.unwrap();
+
+    let assertion_statement = polish_to_statement(polish, &var_factory, &term_factory);
+    if assertion_statement.is_err() {
+        eprintln!("{:?}", assertion_statement.unwrap_err());
+        panic!("Game Over!");
     }
+    assert!(
+        assertion_statement.is_ok(),
+        "Polish statement {} did not parse.",
+        polish
+    );
+    let assertion_statement = assertion_statement.unwrap();
+
+    assert_eq!(
+        proof_statement.get_n_hypotheses(),
+        0,
+        "CD proof {} resulted in unexpected hypotheses.",
+        proof
+    );
+
+    let validity = test_validity(&proof_statement, &term_factory, &Some(TestNode::Implies));
+    assert!(validity.is_ok(), "CD proof {} failed to validate.", proof);
+    assert!(
+        validity.unwrap(),
+        "CD proof {} resulted in invalid statement.",
+        proof
+    );
+
+    let are_the_same =
+        proof_statement.is_identical(&var_factory, &term_factory, &assertion_statement);
+    assert!(
+        are_the_same.is_ok(),
+        "CD proof {} could not be checked against expected {}.",
+        proof,
+        polish
+    );
+    assert!(
+        are_the_same.unwrap(),
+        "CD proof {} is not equivalent to expected {}.",
+        proof,
+        polish
+    );
 }
 
 /// Regression test for DDD111D23
@@ -46,23 +113,12 @@ fn parse_compact_proof(proof: &str) -> Result<bool, MguError> {
 ///
 /// Expected output (Polish notation): >P>>>~Q~RR>>~Q~RQ
 /// Where > is Implies, ~ is Not
-///
-/// TODO: Verify exact canonical form once statement equivalence is implemented.
 #[test]
 fn regression_ddd111d23_produces_tautology() {
     let proof = "DDD111D23";
+    let assertion = ">P>>>~Q~RR>>~Q~RQ";
 
-    match parse_compact_proof(proof) {
-        Ok(true) => {
-            // Success: parsed and verified as tautology
-        }
-        Ok(false) => {
-            panic!("Proof {} parsed but did NOT produce a tautology", proof);
-        }
-        Err(e) => {
-            panic!("Proof {} failed to parse: {}", proof, e);
-        }
-    }
+    parse_cd_and_polish(proof, assertion);
 }
 
 /// Regression test for DDD1D221D2D2D11
@@ -71,23 +127,12 @@ fn regression_ddd111d23_produces_tautology() {
 ///
 /// Expected output (Polish notation): >>>>>PQRQ>>PQR>>>>PQRQR
 /// Where > is Implies
-///
-/// TODO: Verify exact canonical form once statement equivalence is implemented.
 #[test]
 fn regression_ddd1d221d2d2d11_produces_tautology() {
     let proof = "DDD1D221D2D2D11";
+    let assertion = ">>>>>PQRQ>>PQR>>>>PQRQR";
 
-    match parse_compact_proof(proof) {
-        Ok(true) => {
-            // Success: parsed and verified as tautology
-        }
-        Ok(false) => {
-            panic!("Proof {} parsed but did NOT produce a tautology", proof);
-        }
-        Err(e) => {
-            panic!("Proof {} failed to parse: {}", proof, e);
-        }
-    }
+    parse_cd_and_polish(proof, assertion);
 }
 
 /// Test both proofs parse without errors (validates disjointness fix)

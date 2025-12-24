@@ -82,6 +82,8 @@ where
 /// This is the internal implementation that uses a [`PolishNotationEngine`] for parsing.
 /// For standard Łukasiewicz notation, use [`build_boolean_statement_from_polish`] instead.
 ///
+/// Lowercase letters are reserved for variables, but if no uppercase letter is mapped to a Boolean operation then uppercase variables are also valid as variables.
+///
 /// # Errors
 ///
 /// Returns an error if:

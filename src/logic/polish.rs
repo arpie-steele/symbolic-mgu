@@ -19,6 +19,7 @@ use std::marker::PhantomData;
 /// The Default implementation provides standard Łukasiewicz notation mappings.
 ///
 /// Lowercase ASCII letters ('a'-'z') are reserved for variables and cannot be mapped to operators.
+/// If no uppercase letter is mapped to a Boolean operation then uppercase variables are also valid as variables.
 /// Whitespace, control characters, and semicolons are reserved as separators and cannot be mapped.
 ///
 /// # Type Parameters
@@ -103,6 +104,8 @@ impl<V, N, T, TF, TyF> PolishNotationEngine<V, N, T, TF, TyF> {
     }
 
     /// Inserts a character-to-operator mapping.
+    ///
+    /// Lowercase letters are reserved for variables, but if no uppercase letter is mapped to a Boolean operation then uppercase variables are also valid as variables.
     ///
     /// # Errors
     ///
@@ -254,6 +257,8 @@ where
 
     /// Populate `var_map` prior to building terms or statements.
     ///
+    /// Lowercase letters are reserved for variables, but if no uppercase letter is mapped to a Boolean operation then uppercase variables are also valid as variables.
+    ///
     /// # Errors
     ///
     /// Returns an error if:
@@ -283,13 +288,22 @@ where
         }
         unique_vars.reverse();
 
+        let mut free_to_use_uppercase: Option<bool> = None;
+
         // First pass: identify all variables used in the notation
         for part in polish.split(is_separator).rev() {
             for ch in part.chars() {
                 if let Some(_op) = self.get_operator(ch) {
                     // Valid operator, continue
                     continue;
-                } else if ch.is_ascii_lowercase() {
+                } else if ch.is_ascii_lowercase()
+                    || ch.is_ascii_uppercase()
+                        && (free_to_use_uppercase == Some(true)
+                            || free_to_use_uppercase.is_none() && {
+                                free_to_use_uppercase = Some(self.safe_to_use_uc());
+                                free_to_use_uppercase == Some(true)
+                            })
+                {
                     // Variable character
                     let var_map = self.var_map_mut();
                     if let Entry::Vacant(e) = var_map.entry(ch) {
@@ -312,7 +326,14 @@ where
         Ok(())
     }
 
+    /// Test if any uppercase letters are mapped to operators and if none, we are free to interpret uppercase letters as variables.
+    fn safe_to_use_uc(&self) -> bool {
+        !self.operator_map.keys().any(|ch| ch.is_ascii_uppercase())
+    }
+
     /// Build a term from Polish notation after nodes and vars have been setup.
+    ///
+    /// Lowercase letters are reserved for variables, but if no uppercase letter is mapped to a Boolean operation then uppercase variables are also valid as variables.
     ///
     /// # Errors
     ///
@@ -321,6 +342,7 @@ where
     /// - Stack underflow/overflow occurs during parsing
     pub fn build_term(&mut self, single_part: &str, factory: &TF) -> Result<T, MguError> {
         self.stack_mut().clear();
+        let mut free_to_use_uppercase: Option<bool> = None;
 
         for ch in single_part.chars().rev() {
             if let Some(&op) = self.get_operator(ch) {
@@ -355,7 +377,14 @@ where
                     tree.push_str(t);
                 }
                 self.stack_mut().push((term, tree));
-            } else if ch.is_ascii_lowercase() {
+            } else if ch.is_ascii_lowercase()
+                || ch.is_ascii_uppercase()
+                    && (free_to_use_uppercase == Some(true)
+                        || free_to_use_uppercase.is_none() && {
+                            free_to_use_uppercase = Some(self.safe_to_use_uc());
+                            free_to_use_uppercase == Some(true)
+                        })
+            {
                 // Variable
                 let var = self
                     .var_map()
@@ -430,6 +459,8 @@ where
 
 impl<V, N, T, TF, TyF> Default for PolishNotationEngine<V, N, T, TF, TyF> {
     /// Creates a Polish notation engine with standard Łukasiewicz notation mappings as well as a few additional ones.
+    ///
+    /// Since this default uses uppercase letters, only lowercase letters will be valid as variables.
     ///
     /// This includes all operators documented in Prior's table (1955) plus
     /// additional operators for arity 0 and 3.
