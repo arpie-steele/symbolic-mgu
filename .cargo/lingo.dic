@@ -635,6 +635,7 @@ md
 Megill
 MembershipRelation
 memoization
+memoizing
 MetaByte
 metadata
 MetaLeaf
@@ -732,6 +733,7 @@ PairValidationFailure
 Pantone
 parameterization
 parameterized
+parsable
 PartialEq
 PartialMappingOp
 PartialOrd
@@ -1149,6 +1151,7 @@ check_clique
 check_decomposition
 checkable's
 checkable/MS
+children's
 CIE xyY
 CIE XYZ
 clang's

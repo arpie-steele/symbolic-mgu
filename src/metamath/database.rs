@@ -931,7 +931,6 @@ impl Default for Scope {
 ///
 /// Thread-safe: Implements `Send` and `Sync` to enable concurrent access from multiple threads.
 /// Uses `RwLock` for interior mutability, allowing multiple concurrent readers or a single writer.
-#[derive(Debug)]
 pub struct MetamathDatabase {
     /// Type mapping configuration (immutable).
     type_mapping: TypeMapping,
@@ -961,6 +960,59 @@ pub struct MetamathDatabase {
     /// This is database-specific (`set.mm` uses `wn`/`wi`/`wa`/`wo`/`wb`, other databases may differ).
     /// Configured via `register_boolean_op()` or loaded from standard configurations.
     boolean_op_registry: RwLock<HashMap<Arc<str>, BooleanSimpleOp>>,
+}
+
+impl std::fmt::Debug for MetamathDatabase {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Safe Debug implementation that avoids recursion by only showing counts and symbols
+        let constants = self.constants.read().unwrap();
+        let variables_by_type = self.variables_by_type.read().unwrap();
+        let axioms = self.axioms.read().unwrap();
+        let theorems = self.theorems.read().unwrap();
+        let scope_depth = self.scope_stack.read().unwrap().len();
+
+        write!(
+            f,
+            "MetamathDatabase {{ type_mapping: {:?}, ",
+            self.type_mapping
+        )?;
+
+        // Write constants as `"$c symbol1 symbol2 ... $."`
+        write!(f, "constants: $c ")?;
+        let mut constant_symbols: Vec<_> = constants.keys().collect();
+        constant_symbols.sort();
+        for symbol in constant_symbols {
+            write!(f, "{} ", symbol)?;
+        }
+        write!(f, "$., ")?;
+
+        // Write variables by type as `"$v symbol1 symbol2 ... $. (type: ...)"`
+        write!(f, "variables: [")?;
+        let mut type_codes: Vec<_> = variables_by_type.keys().collect();
+        type_codes.sort();
+        let mut first_type = true;
+        for type_code in type_codes {
+            if let Some(vars) = variables_by_type.get(type_code) {
+                if !vars.is_empty() {
+                    if !first_type {
+                        write!(f, "; ")?;
+                    }
+                    first_type = false;
+                    write!(f, "$v ")?;
+                    for var in vars {
+                        write!(f, "{} ", var)?;
+                    }
+                    write!(f, "$. (type: {})", type_code)?;
+                }
+            }
+        }
+        write!(f, "], ")?;
+
+        write!(f, "axiom_count: {}, ", axioms.len())?;
+        write!(f, "theorem_count: {}, ", theorems.len())?;
+        write!(f, "scope_depth: {} ", scope_depth)?;
+        write!(f, "}}")
+    }
 }
 
 impl MetamathDatabase {

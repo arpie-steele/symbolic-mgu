@@ -119,10 +119,8 @@ impl DbTerm {
 
                 for symbol in pattern {
                     // Check if this symbol is a variable
-                    if let Some(var_pos) = syntax_info
-                        .distinct_vars
-                        .iter()
-                        .position(|v| v == symbol)
+                    if let Some(var_pos) =
+                        syntax_info.distinct_vars.iter().position(|v| v == symbol)
                     {
                         // This is a variable - substitute with corresponding child
                         if child_index >= child_sequences.len() {

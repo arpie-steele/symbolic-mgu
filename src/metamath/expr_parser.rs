@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Cache for memoizing parse results.
-/// Key: (sequence, type_code), Value: parse result
+/// Key: `(sequence, type_code)`, Value: parse result
 type ParseCache = HashMap<(Vec<Arc<str>>, Arc<str>), Result<DbTerm, MguError>>;
 
 /// Parse a Metamath expression to `DbTerm`.
@@ -86,7 +86,7 @@ pub fn parse_sequence(
     parse_sequence_cached(sequence, type_code, db_arc, &mut cache)
 }
 
-/// Internal cached version of parse_sequence with memoization.
+/// Internal cached version of `parse_sequence` with memoization.
 fn parse_sequence_cached(
     sequence: &[Arc<str>],
     type_code: &Arc<str>,
@@ -108,7 +108,7 @@ fn parse_sequence_cached(
     result
 }
 
-/// Implementation of parse_sequence (separated for caching).
+/// Implementation of `parse_sequence` (separated for caching).
 fn parse_sequence_impl(
     sequence: &[Arc<str>],
     type_code: &Arc<str>,

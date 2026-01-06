@@ -115,7 +115,7 @@ impl SyntaxAxiomPattern {
                     pattern.push(PatternElement::Constant(symbol.clone()));
                     constants_in_order.push(symbol.clone());
 
-                    // first_constant is only set if the pattern STARTS with a constant
+                    // `first_constant` is only set if the pattern STARTS with a constant
                     if first_constant.is_none() && index == 0 {
                         first_constant = Some(symbol.clone());
                     }
