@@ -98,6 +98,17 @@ impl<U: Eq + Hash> SimpleGraph<U> {
 }
 
 impl<U: std::fmt::Debug + PartialOrd + Eq + Hash> SimpleGraph<U> {
+    /// Check if an edge (pair) exists in the graph.
+    ///
+    /// Returns `true` if the edge exists, `false` otherwise.
+    #[must_use]
+    pub fn has_pair(&self, a: U, b: U) -> bool {
+        Pair::new(a, b)
+            .ok()
+            .map(|pair| self.0.contains(&pair))
+            .unwrap_or(false)
+    }
+
     /// Add an edge (pair) to the graph.
     ///
     /// Returns `Ok(true)` if the edge was newly inserted.

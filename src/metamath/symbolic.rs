@@ -30,6 +30,129 @@ use std::sync::Arc;
 /// `DbMetavariable`, and `DbNode`, avoiding the need for a wrapper type.
 pub type DbTerm = EnumTerm<DbType, DbMetavariable, DbNode>;
 
+impl DbTerm {
+    /// Convert this term to a symbol sequence for comparison with Metamath statements.
+    ///
+    /// Recursively traverses the term tree and outputs the corresponding sequence of
+    /// Metamath symbols (constants and variables).
+    ///
+    /// # Algorithm
+    ///
+    /// - For a `Leaf(variable)`: Returns the variable's symbol
+    /// - For a `NodeOrLeaf(node, children)`:
+    ///   - Looks up the syntax axiom by node label
+    ///   - Gets the axiom's statement pattern (skipping type code)
+    ///   - Substitutes variables in pattern with children's symbol sequences
+    ///   - Returns the resulting symbol sequence
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - A syntax axiom is not found for a node
+    /// - A variable index is out of bounds
+    /// - Recursion fails on a child term
+    ///
+    /// # Example
+    ///
+    /// For the term representing `( t + 0 )` constructed from axiom `tpl` with type `term`:
+    /// ```text
+    /// NodeOrLeaf(tpl, [Leaf(t), Leaf(0)])
+    ///   -> ["term", "(", "t", "+", "0", ")"]
+    /// ```
+    pub fn to_symbol_sequence(&self) -> Result<Vec<Arc<str>>, MguError> {
+        match self {
+            EnumTerm::Leaf(var) => {
+                // Look up the variable's symbol from the database
+                let vars = var.database.variables_of_type(&var.type_code);
+                let symbol = vars.get(var.index).ok_or_else(|| {
+                    MguError::ArgumentError(format!(
+                        "Variable index {} out of bounds for type {} (has {} variables)",
+                        var.index,
+                        var.type_code,
+                        vars.len()
+                    ))
+                })?;
+                // Return with type code prefix
+                Ok(vec![Arc::clone(&var.type_code), Arc::clone(symbol)])
+            }
+            EnumTerm::NodeOrLeaf(node, children) => {
+                // Look up the syntax axiom
+                let axiom = node.database.get_axiom(node.label()).ok_or_else(|| {
+                    MguError::ArgumentError(format!(
+                        "Syntax axiom '{}' not found in database",
+                        node.label().as_ref()
+                    ))
+                })?;
+
+                // Get the axiom's statement (pattern)
+                let statement = &axiom.core.statement;
+
+                // The first symbol is the type code, skip it
+                if statement.is_empty() {
+                    return Err(MguError::ArgumentError(
+                        "Syntax axiom has empty statement".to_string(),
+                    ));
+                }
+
+                // Extract type code and pattern
+                let type_code = &statement[0];
+                let pattern = &statement[1..];
+
+                // Get syntax info to know which symbols are variables
+                let syntax_info = axiom.syntax_info.as_ref().ok_or_else(|| {
+                    MguError::ArgumentError(format!(
+                        "Axiom '{}' is not a syntax axiom",
+                        node.label().as_ref()
+                    ))
+                })?;
+
+                // Convert children to symbol sequences
+                let child_sequences: Vec<Vec<Arc<str>>> = children
+                    .iter()
+                    .map(|child| child.to_symbol_sequence())
+                    .collect::<Result<_, _>>()?;
+
+                // Build output by substituting variables with child sequences
+                // Start with type code prefix
+                let mut result = vec![Arc::clone(type_code)];
+                let mut child_index = 0;
+
+                for symbol in pattern {
+                    // Check if this symbol is a variable
+                    if let Some(var_pos) = syntax_info
+                        .distinct_vars
+                        .iter()
+                        .position(|v| v == symbol)
+                    {
+                        // This is a variable - substitute with corresponding child
+                        if child_index >= child_sequences.len() {
+                            return Err(MguError::ArgumentError(format!(
+                                "Not enough children for axiom '{}': expected {}, got {}",
+                                node.label().as_ref(),
+                                syntax_info.distinct_vars.len(),
+                                children.len()
+                            )));
+                        }
+                        // Skip the type prefix from child sequence (first element)
+                        let child_content = if child_sequences[var_pos].len() > 1 {
+                            &child_sequences[var_pos][1..]
+                        } else {
+                            &child_sequences[var_pos][..]
+                        };
+                        result.extend_from_slice(child_content);
+                        child_index += 1;
+                    } else {
+                        // This is a constant - output as-is
+                        result.push(Arc::clone(symbol));
+                    }
+                }
+
+                Ok(result)
+            }
+        }
+    }
+}
+
 /// Factory for constructing [`DbType`] instances from a Metamath database.
 ///
 /// Unlike [`SimpleTypeFactory`](crate::SimpleTypeFactory), `DbTypeFactory` requires

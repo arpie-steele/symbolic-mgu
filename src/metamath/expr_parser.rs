@@ -8,7 +8,12 @@ use crate::metamath::{
     SyntaxAxiomPattern,
 };
 use crate::{EnumTermFactory, MetavariableFactory, MguError, TermFactory};
+use std::collections::HashMap;
 use std::sync::Arc;
+
+/// Cache for memoizing parse results.
+/// Key: (sequence, type_code), Value: parse result
+type ParseCache = HashMap<(Vec<Arc<str>>, Arc<str>), Result<DbTerm, MguError>>;
 
 /// Parse a Metamath expression to `DbTerm`.
 ///
@@ -52,8 +57,11 @@ pub fn parse_expression(
     // Extract sequence (remaining symbols)
     let sequence = &symbols[1..];
 
-    // Parse the sequence
-    parse_sequence(sequence, type_code, db_arc)
+    // Create memoization cache for this parse
+    let mut cache = ParseCache::new();
+
+    // Parse the sequence with caching
+    parse_sequence_cached(sequence, type_code, db_arc, &mut cache)
 }
 
 /// Recursively parse a symbol sequence with a given expected type.
@@ -72,6 +80,40 @@ pub fn parse_sequence(
     sequence: &[Arc<str>],
     type_code: &Arc<str>,
     db_arc: &Arc<MetamathDatabase>,
+) -> Result<DbTerm, MguError> {
+    // Create a new cache for this parse (for public API compatibility)
+    let mut cache = ParseCache::new();
+    parse_sequence_cached(sequence, type_code, db_arc, &mut cache)
+}
+
+/// Internal cached version of parse_sequence with memoization.
+fn parse_sequence_cached(
+    sequence: &[Arc<str>],
+    type_code: &Arc<str>,
+    db_arc: &Arc<MetamathDatabase>,
+    cache: &mut ParseCache,
+) -> Result<DbTerm, MguError> {
+    // Check cache first
+    let cache_key = (sequence.to_vec(), Arc::clone(type_code));
+    if let Some(cached_result) = cache.get(&cache_key) {
+        return cached_result.clone();
+    }
+
+    // Compute result
+    let result = parse_sequence_impl(sequence, type_code, db_arc, cache);
+
+    // Store in cache
+    cache.insert(cache_key, result.clone());
+
+    result
+}
+
+/// Implementation of parse_sequence (separated for caching).
+fn parse_sequence_impl(
+    sequence: &[Arc<str>],
+    type_code: &Arc<str>,
+    db_arc: &Arc<MetamathDatabase>,
+    cache: &mut ParseCache,
 ) -> Result<DbTerm, MguError> {
     // Case 1: Single symbol - could be a variable
     if sequence.len() == 1 {
@@ -113,18 +155,38 @@ pub fn parse_sequence(
         });
     }
 
-    // Handle ambiguity per nuniq-gram.mm:
-    // Multiple matches are allowed as long as they derive the same syntax theorem.
-    // For our purposes (parsing expressions in context), we use the first match.
-    if matches.len() > 1 {
-        eprintln!(
-            "Warning: Ambiguous parse for type '{}', sequence {:?}. Using axiom '{}'.",
-            type_code, sequence, matches[0].label
-        );
+    // Try each candidate pattern until one succeeds
+    // Multiple patterns may pass the filter, but only one should actually match
+    let mut last_error = None;
+    for pattern in &matches {
+        match parse_with_pattern(sequence, pattern, db_arc, cache) {
+            Ok(term) => {
+                // Handle ambiguity per nuniq-gram.mm:
+                // Multiple successful matches are allowed as long as they derive
+                // the same syntax theorem. For our purposes, we use the first success.
+                if matches.len() > 1 {
+                    eprintln!(
+                        "Warning: Ambiguous parse for type '{}', sequence {:?}. Using axiom '{}'.",
+                        type_code, sequence, pattern.label
+                    );
+                }
+                return Ok(term);
+            }
+            Err(e) => {
+                last_error = Some(e);
+                // Try next pattern
+            }
+        }
     }
 
-    let pattern = &matches[0];
-    parse_with_pattern(sequence, pattern, db_arc)
+    // No pattern matched
+    Err(last_error.unwrap_or_else(|| MguError::ParseError {
+        location: "expression".to_string(),
+        message: format!(
+            "No syntax axiom of type '{}' successfully matched sequence: {:?}",
+            type_code, sequence
+        ),
+    }))
 }
 
 /// Filter patterns by structural hints (fast elimination).
@@ -201,14 +263,15 @@ fn parse_with_pattern(
     sequence: &[Arc<str>],
     pattern: &SyntaxAxiomPattern,
     db_arc: &Arc<MetamathDatabase>,
+    cache: &mut ParseCache,
 ) -> Result<DbTerm, MguError> {
     // Extract variable subsequences from sequence using pattern
-    let var_sequences = extract_variables(sequence, &pattern.pattern, db_arc)?;
+    let var_sequences = extract_variables(sequence, &pattern.pattern, db_arc, cache)?;
 
-    // Recursively parse each variable's sequence
+    // Recursively parse each variable's sequence (using cache)
     let mut children = Vec::new();
     for (var_type, var_seq) in var_sequences {
-        let child = parse_sequence(&var_seq, &var_type, db_arc)?;
+        let child = parse_sequence_cached(&var_seq, &var_type, db_arc, cache)?;
         children.push(child);
     }
 
@@ -252,9 +315,10 @@ fn extract_variables(
     sequence: &[Arc<str>],
     pattern: &[PatternElement],
     db_arc: &Arc<MetamathDatabase>,
+    cache: &mut ParseCache,
 ) -> Result<VarExtraction, MguError> {
     // Use backtracking algorithm
-    try_extract(sequence, pattern, 0, 0, Vec::new(), db_arc)
+    try_extract(sequence, pattern, 0, 0, Vec::new(), db_arc, cache)
 }
 
 /// Recursive helper for pattern matching with backtracking.
@@ -267,6 +331,7 @@ fn extract_variables(
 /// * `pat_idx` - Current position in pattern
 /// * `accumulated_vars` - Variables extracted so far
 /// * `db_arc` - Database for recursive parsing
+/// * `cache` - Memoization cache for parse results
 ///
 /// # Returns
 ///
@@ -278,6 +343,7 @@ fn try_extract(
     pat_idx: usize,
     accumulated_vars: VarExtraction,
     db_arc: &Arc<MetamathDatabase>,
+    cache: &mut ParseCache,
 ) -> Result<VarExtraction, MguError> {
     // Base case: finished the pattern
     if pat_idx == pattern.len() {
@@ -329,6 +395,7 @@ fn try_extract(
                 pat_idx + 1,
                 accumulated_vars,
                 db_arc,
+                cache,
             )
         }
 
@@ -350,8 +417,8 @@ fn try_extract(
             for length in 1..=remaining {
                 let candidate = &sequence[seq_idx..seq_idx + length];
 
-                // Try to parse this candidate as the required type
-                if let Ok(_term) = parse_sequence(candidate, type_code, db_arc) {
+                // Try to parse this candidate as the required type (using cache)
+                if let Ok(_term) = parse_sequence_cached(candidate, type_code, db_arc, cache) {
                     // This length parses successfully as the required type
                     // Try to match the rest of the pattern
                     let mut new_vars = accumulated_vars.clone();
@@ -364,6 +431,7 @@ fn try_extract(
                         pat_idx + 1,
                         new_vars,
                         db_arc,
+                        cache,
                     ) {
                         // Success! This is the correct parse
                         return Ok(result);

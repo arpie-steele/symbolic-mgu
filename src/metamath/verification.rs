@@ -17,10 +17,12 @@
 //! 3. Final stack should contain exactly one statement matching the theorem being proved
 
 use crate::metamath::{
-    DbMetavariable, EssentialHyp, FloatingHyp, Label, MetamathDatabase, Proof, Theorem,
+    parse_expression, DbMetavariable, DbNode, DbTerm, DbTypeFactory, EssentialHyp, FloatingHyp,
+    Label, MetamathDatabase, Proof, Theorem,
 };
-use crate::DistinctnessGraph;
-use std::collections::HashMap;
+use crate::term::factory::TermFactory;
+use crate::{apply_substitution, DistinctnessGraph, EnumTermFactory, Substitution, Term};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -94,6 +96,15 @@ pub enum VerificationError {
     /// Final statement doesn't match theorem.
     #[error(transparent)]
     FinalStatementMismatch(#[from] Box<FinalStatementMismatchDetails>),
+
+    /// Expression parsing error.
+    #[error("Failed to parse expression at step {step}: {error}")]
+    ParseError {
+        /// Step number
+        step: usize,
+        /// The underlying error
+        error: String,
+    },
 }
 
 /// Details of a distinctness constraint violation.
@@ -224,9 +235,6 @@ impl std::fmt::Display for FinalStatementMismatchDetails {
     }
 }
 
-/// A substitution mapping variable names to their replacement statements.
-type Substitution = HashMap<Arc<str>, Vec<Arc<str>>>;
-
 /// Verify a theorem's proof.
 ///
 /// # Arguments
@@ -245,6 +253,7 @@ pub fn verify_theorem(
     theorem: &Theorem,
     database: &Arc<MetamathDatabase>,
 ) -> Result<(), VerificationError> {
+
     // Check that proof exists
     let proof = theorem
         .proof
@@ -269,8 +278,8 @@ fn verify_with_steps(
     database: &Arc<MetamathDatabase>,
     steps: &[Arc<str>],
 ) -> Result<(), VerificationError> {
-    // Initialize verification stack
-    let mut stack: Vec<Vec<Arc<str>>> = Vec::new();
+    // Initialize verification stack (using DbTerm trees)
+    let mut stack: Vec<DbTerm> = Vec::new();
 
     // Process each proof step
     for (step_num, label_str) in steps.iter().enumerate() {
@@ -282,19 +291,62 @@ fn verify_with_steps(
 
         // Check if it's a hypothesis (from theorem's mandatory hypotheses)
         if let Some(statement) = find_hypothesis(&theorem.core.hypotheses, &label) {
-            stack.push(statement);
+            // Parse hypothesis statement into DbTerm
+            // For logical assertions (starting with "|-"), parse only the part after "|-" as Boolean type
+            let term = if statement.first().map(|s| s.as_ref()) == Some("|-") {
+                // Logical assertion: parse the part after "|-" as a Boolean expression
+                if statement.len() < 2 {
+                    return Err(VerificationError::ParseError {
+                        step: step_num,
+                        error: format!("hypothesis '{}': Logical assertion has no content after '|-'", label.as_ref()),
+                    });
+                }
+                // Get the Boolean type code from type mapping
+                let bool_type = database
+                    .type_mapping()
+                    .get_boolean_type()
+                    .clone()
+                    .ok_or_else(|| VerificationError::ParseError {
+                        step: step_num,
+                        error: format!("hypothesis '{}': Database does not have a Boolean type defined", label.as_ref()),
+                    })?;
+                // Create a Boolean expression from the content after "|-"
+                let bool_expr = [vec![bool_type], statement[1..].to_vec()].concat();
+                parse_expression(&bool_expr, database).map_err(|e| {
+                    VerificationError::ParseError {
+                        step: step_num,
+                        error: format!("hypothesis '{}': {}", label.as_ref(), e),
+                    }
+                })?
+            } else {
+                // Syntax axiom: parse normally
+                parse_expression(&statement, database).map_err(|e| {
+                    VerificationError::ParseError {
+                        step: step_num,
+                        error: format!("hypothesis '{}': {}", label.as_ref(), e),
+                    }
+                })?
+            };
+            stack.push(term);
             continue;
         }
 
-        // Check if it's a floating hypothesis from the database (may not be mandatory for this theorem)
+        // Check if it's a floating hypothesis from the database
         if let Some(float_hyp) = database.get_floating_hyp(&label) {
-            stack.push(vec![float_hyp.type_code, float_hyp.variable]);
+            let statement = vec![float_hyp.type_code, float_hyp.variable];
+            let term = parse_expression(&statement, database).map_err(|e| {
+                VerificationError::ParseError {
+                    step: step_num,
+                    error: format!("floating hypothesis '{}': {}", label.as_ref(), e),
+                }
+            })?;
+            stack.push(term);
             continue;
         }
 
         // Check if it's an axiom
         if let Some(axiom) = database.get_axiom(&label) {
-            apply_axiom_or_theorem(
+            apply_assertion(
                 &mut stack,
                 &axiom.core.hypotheses,
                 &axiom.core.statement,
@@ -309,7 +361,7 @@ fn verify_with_steps(
 
         // Check if it's a theorem
         if let Some(other_theorem) = database.get_theorem(&label) {
-            apply_axiom_or_theorem(
+            apply_assertion(
                 &mut stack,
                 &other_theorem.core.hypotheses,
                 &other_theorem.core.statement,
@@ -333,17 +385,611 @@ fn verify_with_steps(
         return Err(VerificationError::FinalStackSize { count: stack.len() });
     }
 
-    let final_statement = &stack[0];
-    if final_statement != &theorem.core.statement {
+    // Convert final DbTerm to symbol sequence for comparison
+    let final_term = &stack[0];
+    let mut final_symbols = final_term.to_symbol_sequence().map_err(|e| {
+        VerificationError::ParseError {
+            step: steps.len(),
+            error: format!("converting final term to symbols: {}", e),
+        }
+    })?;
+
+    // If theorem statement starts with "|-", the final term is a Boolean expression
+    // Replace Boolean type prefix with "|-" for comparison
+    if theorem.core.statement.first().map(|s| s.as_ref()) == Some("|-") {
+        if let Some(bool_type) = database.type_mapping().get_boolean_type() {
+            if final_symbols.first().map(|s| s.as_ref()) == Some(bool_type.as_ref()) {
+                final_symbols[0] = Arc::from("|-");
+            }
+        }
+    }
+
+    if final_symbols != theorem.core.statement {
         return Err(VerificationError::FinalStatementMismatch(Box::new(
             FinalStatementMismatchDetails {
                 expected: format_statement(&theorem.core.statement, 200),
-                got: format_statement(final_statement, 200),
+                got: format_statement(&final_symbols, 200),
             },
         )));
     }
 
     Ok(())
+}
+
+/// Format stack contents for error messages (tree-based).
+fn format_stack_tree_contents(stack: &[DbTerm]) -> String {
+    if stack.is_empty() {
+        return "(empty)".to_string();
+    }
+
+    let symbols: Vec<String> = stack
+        .iter()
+        .map(|term| {
+            term.to_symbol_sequence()
+                .map(|syms| format_statement(&syms, 50))
+                .unwrap_or_else(|_| "(parse error)".to_string())
+        })
+        .collect();
+
+    symbols.join("; ")
+}
+
+/// Check distinctness constraints using tree-based substitution.
+fn check_distinctness_tree_based(
+    assertion_distinctness: &DistinctnessGraph<DbMetavariable>,
+    proof_distinctness: &DistinctnessGraph<DbMetavariable>,
+    substitution: &HashMap<DbMetavariable, DbTerm>,
+    step_num: usize,
+    assertion_label: &str,
+) -> Result<(), VerificationError> {
+    // For each distinctness constraint in the assertion (e.g., $d x y in ax-1)
+    for (var1, var2) in assertion_distinctness.edges_iter() {
+        // Get the substituted terms
+        let term1 = substitution.get(&var1);
+        let term2 = substitution.get(&var2);
+
+        // If either variable isn't in the substitution, no violation possible
+        if term1.is_none() || term2.is_none() {
+            continue;
+        }
+
+        let term1 = term1.unwrap();
+        let term2 = term2.unwrap();
+
+        // Simplified check for the common case: both terms are simple leaves
+        if let (Some(var1_from_term), Some(var2_from_term)) =
+            (term1.get_metavariable(), term2.get_metavariable())
+        {
+            // Both are simple variables - check directly
+            if var1_from_term == var2_from_term {
+                // Same variable used for both parameters - that's a violation
+                let var1_symbols = term1.to_symbol_sequence().unwrap_or_default();
+                let var2_symbols = term2.to_symbol_sequence().unwrap_or_default();
+
+                return Err(VerificationError::DistinctnessViolation(Box::new(
+                    DistinctnessViolationDetails {
+                        step: step_num,
+                        step_display: step_num + 1,
+                        assertion_label: assertion_label.to_string(),
+                        var1_name: var1.to_string(),
+                        var2_name: var2.to_string(),
+                        var1_subst: format_statement(&var1_symbols, 50),
+                        var2_subst: format_statement(&var2_symbols, 50),
+                        conflict_explanation: format!(
+                            "Variable {} appears in both substitutions (same variable used for distinct parameters)",
+                            var1_from_term.to_string()
+                        ),
+                    },
+                )));
+            }
+
+            // Different variables - check if proof declares them as distinct
+            if !proof_distinctness.has_edge(&var1_from_term, &var2_from_term) {
+                let var1_symbols = term1.to_symbol_sequence().unwrap_or_default();
+                let var2_symbols = term2.to_symbol_sequence().unwrap_or_default();
+
+                return Err(VerificationError::DistinctnessViolation(Box::new(
+                    DistinctnessViolationDetails {
+                        step: step_num,
+                        step_display: step_num + 1,
+                        assertion_label: assertion_label.to_string(),
+                        var1_name: var1.to_string(),
+                        var2_name: var2.to_string(),
+                        var1_subst: format_statement(&var1_symbols, 50),
+                        var2_subst: format_statement(&var2_symbols, 50),
+                        conflict_explanation: format!(
+                            "Proof does not declare distinctness constraint for variables {} and {} (required by assertion)",
+                            var1_from_term.to_string(), var2_from_term.to_string()
+                        ),
+                    },
+                )));
+            }
+            continue;
+        }
+
+        // At least one term is not a simple leaf - use full collection
+        let mut vars1 = HashSet::new();
+        term1.collect_metavariables(&mut vars1).map_err(|e| {
+            VerificationError::ParseError {
+                step: step_num,
+                error: format!("collecting variables from term1: {}", e),
+            }
+        })?;
+
+        let mut vars2 = HashSet::new();
+        term2.collect_metavariables(&mut vars2).map_err(|e| {
+            VerificationError::ParseError {
+                step: step_num,
+                error: format!("collecting variables from term2: {}", e),
+            }
+        })?;
+
+        // For each pair of variables from the two terms, check if they're declared distinct in the proof
+        for v1 in &vars1 {
+            for v2 in &vars2 {
+                // If it's the same variable appearing in both terms, that's a violation
+                if v1 == v2 {
+                    let var1_symbols = term1.to_symbol_sequence().unwrap_or_default();
+                    let var2_symbols = term2.to_symbol_sequence().unwrap_or_default();
+
+                    return Err(VerificationError::DistinctnessViolation(Box::new(
+                        DistinctnessViolationDetails {
+                            step: step_num,
+                            step_display: step_num + 1,
+                            assertion_label: assertion_label.to_string(),
+                            var1_name: var1.to_string(),
+                            var2_name: var2.to_string(),
+                            var1_subst: format_statement(&var1_symbols, 50),
+                            var2_subst: format_statement(&var2_symbols, 50),
+                            conflict_explanation: format!(
+                                "Variable {:?} appears in both substitutions (same variable used for distinct parameters)",
+                                v1
+                            ),
+                        },
+                    )));
+                }
+
+                // If they're different variables, check if proof declares them as distinct
+                if !proof_distinctness.has_edge(v1, v2) {
+                    let var1_symbols = term1.to_symbol_sequence().unwrap_or_default();
+                    let var2_symbols = term2.to_symbol_sequence().unwrap_or_default();
+
+                    return Err(VerificationError::DistinctnessViolation(Box::new(
+                        DistinctnessViolationDetails {
+                            step: step_num,
+                            step_display: step_num + 1,
+                            assertion_label: assertion_label.to_string(),
+                            var1_name: var1.to_string(),
+                            var2_name: var2.to_string(),
+                            var1_subst: format_statement(&var1_symbols, 50),
+                            var2_subst: format_statement(&var2_symbols, 50),
+                            conflict_explanation: format!(
+                                "Proof does not declare distinctness constraint for variables {:?} and {:?} (required by assertion)",
+                                v1, v2
+                            ),
+                        },
+                    )));
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Apply an assertion (axiom or theorem) using tree-based substitution.
+///
+/// Pops hypotheses from stack, builds substitution map, verifies essential hypotheses,
+/// checks distinctness constraints, and pushes the substituted conclusion.
+///
+/// If parsing fails (e.g., in minimal databases without full syntax definitions),
+/// falls back to symbol-sequence based verification.
+fn apply_assertion(
+    stack: &mut Vec<DbTerm>,
+    hypotheses: &(Vec<FloatingHyp>, Vec<EssentialHyp>),
+    conclusion: &[Arc<str>],
+    assertion_distinctness: &DistinctnessGraph<DbMetavariable>,
+    proof_distinctness: &DistinctnessGraph<DbMetavariable>,
+    database: &Arc<MetamathDatabase>,
+    step_num: usize,
+    assertion_label: &str,
+) -> Result<(), VerificationError> {
+
+    // Try tree-based verification first
+    match apply_assertion_tree_based(
+        stack,
+        hypotheses,
+        conclusion,
+        assertion_distinctness,
+        proof_distinctness,
+        database,
+        step_num,
+        assertion_label,
+    ) {
+        Ok(()) => {
+            Ok(())
+        }
+        Err(VerificationError::ParseError { .. }) => {
+            // Parsing failed - fall back to symbol-sequence verification
+            apply_assertion_symbol_based(
+                stack,
+                hypotheses,
+                conclusion,
+                assertion_distinctness,
+                proof_distinctness,
+                database,
+                step_num,
+                assertion_label,
+            )
+        }
+        Err(e) => Err(e), // Other errors propagate
+    }
+}
+
+/// Tree-based assertion application (the original implementation).
+fn apply_assertion_tree_based(
+    stack: &mut Vec<DbTerm>,
+    hypotheses: &(Vec<FloatingHyp>, Vec<EssentialHyp>),
+    conclusion: &[Arc<str>],
+    assertion_distinctness: &DistinctnessGraph<DbMetavariable>,
+    proof_distinctness: &DistinctnessGraph<DbMetavariable>,
+    database: &Arc<MetamathDatabase>,
+    step_num: usize,
+    assertion_label: &str,
+) -> Result<(), VerificationError> {
+    let (floating_hyps, essential_hyps) = hypotheses;
+
+    // Create term factory for substitution operations
+    let factory = EnumTermFactory::new(DbTypeFactory::new(Arc::clone(database)));
+
+    // Check stack has enough entries
+    let required = floating_hyps.len() + essential_hyps.len();
+    if stack.len() < required {
+        return Err(VerificationError::StackUnderflow(Box::new(
+            StackUnderflowDetails {
+                step: step_num,
+                step_display: step_num + 1,
+                label: Some(assertion_label.to_string()),
+                required,
+                available: stack.len(),
+                stack_contents: format_stack_tree_contents(stack),
+            },
+        )));
+    }
+
+    // Pop required number of terms from stack
+    let stack_items: Vec<DbTerm> = stack.drain(stack.len() - required..).collect();
+
+    // Build substitution map from floating hypotheses
+    let mut substitution_map: HashMap<DbMetavariable, DbTerm> = HashMap::new();
+
+    for (i, float_hyp) in floating_hyps.iter().enumerate() {
+        let stack_term = &stack_items[i];
+
+        // Get the metavariable for this floating hypothesis
+        let var_symbols = database.variables_of_type(&float_hyp.type_code);
+        let var_index = var_symbols
+            .iter()
+            .position(|v| v.as_ref() == float_hyp.variable.as_ref())
+            .ok_or_else(|| VerificationError::ParseError {
+                step: step_num,
+                error: format!(
+                    "Variable '{}' not found in type '{}'",
+                    float_hyp.variable, float_hyp.type_code
+                ),
+            })?;
+
+        let metavar = DbMetavariable::new(
+            Arc::clone(&float_hyp.type_code),
+            var_index,
+            Arc::clone(database),
+        );
+
+        substitution_map.insert(metavar, stack_term.clone());
+    }
+
+    // Convert HashMap to Substitution for use with apply_substitution
+    let substitution: Substitution<DbMetavariable, DbTerm> = substitution_map.clone().into();
+
+    // Verify essential hypotheses match (tree identity with substitution)
+    for (i, ess_hyp) in essential_hyps.iter().enumerate() {
+        let stack_term = &stack_items[floating_hyps.len() + i];
+
+        // Parse essential hypothesis statement
+        // For logical assertions (starting with "|-"), parse only the part after "|-" as Boolean type
+        let expected_term = if ess_hyp.statement.first().map(|s| s.as_ref()) == Some("|-") {
+            // Logical assertion: parse the part after "|-" as a Boolean expression
+            if ess_hyp.statement.len() < 2 {
+                return Err(VerificationError::ParseError {
+                    step: step_num,
+                    error: "Logical essential hypothesis has no content after '|-'".to_string(),
+                });
+            }
+            // Get the Boolean type code from type mapping
+            let bool_type = database
+                .type_mapping()
+                .get_boolean_type()
+                .clone()
+                .ok_or_else(|| VerificationError::ParseError {
+                    step: step_num,
+                    error: "Database does not have a Boolean type defined".to_string(),
+                })?;
+            // Create a Boolean expression from the content after "|-"
+            let bool_expr = [vec![bool_type], ess_hyp.statement[1..].to_vec()].concat();
+            parse_expression(&bool_expr, database).map_err(|e| {
+                VerificationError::ParseError {
+                    step: step_num,
+                    error: format!("parsing essential hypothesis content: {}", e),
+                }
+            })?
+        } else {
+            // Syntax axiom: parse normally
+            parse_expression(&ess_hyp.statement, database).map_err(|e| {
+                VerificationError::ParseError {
+                    step: step_num,
+                    error: format!("parsing essential hypothesis: {}", e),
+                }
+            })?
+        };
+
+        // Apply substitution to expected term
+        let substituted = apply_substitution(&factory, &substitution, &expected_term).map_err(
+            |e| VerificationError::ParseError {
+                step: step_num,
+                error: format!("applying substitution: {}", e),
+            },
+        )?;
+
+        // Check tree identity
+        if stack_term != &substituted {
+            // Convert to symbols for error message
+            let expected_symbols = substituted.to_symbol_sequence().unwrap_or_default();
+            let got_symbols = stack_term.to_symbol_sequence().unwrap_or_default();
+
+            return Err(VerificationError::EssentialMismatch(Box::new(
+                EssentialMismatchDetails {
+                    step: step_num,
+                    step_display: step_num + 1,
+                    expected: format_statement(&expected_symbols, 200),
+                    got: format_statement(&got_symbols, 200),
+                },
+            )));
+        }
+    }
+
+    // Check distinctness constraints
+    check_distinctness_tree_based(
+        assertion_distinctness,
+        proof_distinctness,
+        &substitution_map,
+        step_num,
+        assertion_label,
+    )?;
+
+    // Apply substitution to conclusion
+    // For logical assertions (starting with "|-"), parse only the part after "|-" as Boolean type
+    let conclusion_term = if conclusion.first().map(|s| s.as_ref()) == Some("|-") {
+        // Logical assertion: parse the part after "|-" as a Boolean expression
+        if conclusion.len() < 2 {
+            return Err(VerificationError::ParseError {
+                step: step_num,
+                error: "Logical assertion has no content after '|-'".to_string(),
+            });
+        }
+        // Get the Boolean type code from type mapping
+        let bool_type = database
+            .type_mapping()
+            .get_boolean_type()
+            .clone()
+            .ok_or_else(|| VerificationError::ParseError {
+                step: step_num,
+                error: "Database does not have a Boolean type defined".to_string(),
+            })?;
+        // Create a Boolean expression from the content after "|-"
+        let bool_expr = [vec![bool_type], conclusion[1..].to_vec()].concat();
+        parse_expression(&bool_expr, database).map_err(|e| {
+            VerificationError::ParseError {
+                step: step_num,
+                error: format!("parsing logical assertion content: {}", e),
+            }
+        })?
+    } else {
+        // Syntax axiom: parse normally
+        parse_expression(conclusion, database).map_err(|e| {
+            VerificationError::ParseError {
+                step: step_num,
+                error: format!("parsing conclusion: {}", e),
+            }
+        })?
+    };
+
+    let result = apply_substitution(&factory, &substitution, &conclusion_term).map_err(|e| {
+        VerificationError::ParseError {
+            step: step_num,
+            error: format!("substituting into conclusion: {}", e),
+        }
+    })?;
+
+    // Push result onto stack
+    stack.push(result);
+    Ok(())
+}
+
+/// Symbol-sequence based assertion application for databases without full syntax definitions.
+/// This is used as a fallback when tree-based parsing fails.
+///
+/// Instead of parsing statements into trees, this works directly with symbol sequences,
+/// applying variable substitutions at the symbol level.
+fn apply_assertion_symbol_based(
+    stack: &mut Vec<DbTerm>,
+    hypotheses: &(Vec<FloatingHyp>, Vec<EssentialHyp>),
+    conclusion: &[Arc<str>],
+    assertion_distinctness: &DistinctnessGraph<DbMetavariable>,
+    proof_distinctness: &DistinctnessGraph<DbMetavariable>,
+    database: &Arc<MetamathDatabase>,
+    step_num: usize,
+    assertion_label: &str,
+) -> Result<(), VerificationError> {
+    let (floating_hyps, essential_hyps) = hypotheses;
+
+    // Check stack has enough entries
+    let required = floating_hyps.len() + essential_hyps.len();
+    if stack.len() < required {
+        return Err(VerificationError::StackUnderflow(Box::new(
+            StackUnderflowDetails {
+                step: step_num,
+                step_display: step_num + 1,
+                label: Some(assertion_label.to_string()),
+                required,
+                available: stack.len(),
+                stack_contents: format_stack_tree_contents(stack),
+            },
+        )));
+    }
+
+    // Pop required number of terms from stack
+    let stack_items: Vec<DbTerm> = stack.drain(stack.len() - required..).collect();
+
+    // Build symbol-level substitution map: variable symbol -> symbol sequence
+    let mut symbol_substitution: HashMap<Arc<str>, Vec<Arc<str>>> = HashMap::new();
+
+    // Also build DbMetavariable substitution for distinctness checking
+    let mut metavar_substitution: HashMap<DbMetavariable, DbTerm> = HashMap::new();
+
+    for (i, float_hyp) in floating_hyps.iter().enumerate() {
+        let stack_term = &stack_items[i];
+
+        // Get symbol sequence from stack term
+        let symbols = stack_term.to_symbol_sequence().map_err(|e| {
+            VerificationError::ParseError {
+                step: step_num,
+                error: format!("converting stack term to symbols: {}", e),
+            }
+        })?;
+
+        // Strip type prefix (first element) to get just the content
+        // Symbol sequences from to_symbol_sequence() are [type_code, ...content]
+        // But in statement patterns, variables appear without the type prefix
+        let content = if symbols.len() > 1 {
+            symbols[1..].to_vec()
+        } else {
+            symbols.clone()
+        };
+
+        // Store mapping from variable name to its content (without type prefix)
+        symbol_substitution.insert(Arc::clone(&float_hyp.variable), content);
+
+        // Also create metavar for distinctness checking
+        let var_symbols = database.variables_of_type(&float_hyp.type_code);
+        let var_index = var_symbols
+            .iter()
+            .position(|v| v.as_ref() == float_hyp.variable.as_ref())
+            .ok_or_else(|| VerificationError::ParseError {
+                step: step_num,
+                error: format!(
+                    "Variable '{}' not found in type '{}'",
+                    float_hyp.variable, float_hyp.type_code
+                ),
+            })?;
+
+        let metavar = DbMetavariable::new(
+            Arc::clone(&float_hyp.type_code),
+            var_index,
+            Arc::clone(database),
+        );
+
+        metavar_substitution.insert(metavar, stack_term.clone());
+    }
+
+    // Verify essential hypotheses match (symbol sequence equality with substitution)
+    for (i, ess_hyp) in essential_hyps.iter().enumerate() {
+        let stack_term = &stack_items[floating_hyps.len() + i];
+
+        // Apply symbol substitution to essential hypothesis
+        let expected_symbols = apply_symbol_substitution(&ess_hyp.statement, &symbol_substitution);
+
+        // Get actual symbols from stack term
+        let actual_symbols = stack_term.to_symbol_sequence().map_err(|e| {
+            VerificationError::ParseError {
+                step: step_num,
+                error: format!("converting stack term to symbols: {}", e),
+            }
+        })?;
+
+        // Check symbol sequence equality
+        if expected_symbols != actual_symbols {
+            return Err(VerificationError::EssentialMismatch(Box::new(
+                EssentialMismatchDetails {
+                    step: step_num,
+                    step_display: step_num + 1,
+                    expected: format_statement(&expected_symbols, 200),
+                    got: format_statement(&actual_symbols, 200),
+                },
+            )));
+        }
+    }
+
+    // Check distinctness constraints using metavar substitution
+    check_distinctness_tree_based(
+        assertion_distinctness,
+        proof_distinctness,
+        &metavar_substitution,
+        step_num,
+        assertion_label,
+    )?;
+
+    // Apply symbol substitution to conclusion to get result symbols
+    let result_symbols = apply_symbol_substitution(conclusion, &symbol_substitution);
+
+    // Try to parse the result - it might be parsable even if the original conclusion wasn't
+    let result_term = match parse_expression(&result_symbols, database) {
+        Ok(term) => term,
+        Err(_) => {
+            // Can't parse - this happens in minimal databases where logical axioms
+            // define valid statements without defining their syntax.
+            // Construct a term using the assertion itself as the constructor.
+            // The children are the terms from the stack (in order).
+            let label = Label::new(assertion_label).map_err(|e| {
+                VerificationError::ParseError {
+                    step: step_num,
+                    error: format!("Invalid assertion label '{}': {}", assertion_label, e),
+                }
+            })?;
+            let node = DbNode::new(label, Arc::clone(database));
+            let factory = EnumTermFactory::new(DbTypeFactory::new(Arc::clone(database)));
+            let children: Vec<DbTerm> = stack_items.iter().cloned().collect();
+            factory
+                .create_node(node, children)
+                .map_err(|e| VerificationError::ParseError {
+                    step: step_num,
+                    error: format!(
+                        "Failed to construct term from assertion '{}': {}",
+                        assertion_label, e
+                    ),
+                })?
+        }
+    };
+
+    // Push result onto stack
+    stack.push(result_term);
+    Ok(())
+}
+
+/// Apply symbol-level substitution to a statement.
+/// Replaces each occurrence of a variable with its substitution.
+fn apply_symbol_substitution(
+    statement: &[Arc<str>],
+    substitution: &HashMap<Arc<str>, Vec<Arc<str>>>,
+) -> Vec<Arc<str>> {
+    let mut result = Vec::new();
+    for symbol in statement {
+        if let Some(replacement) = substitution.get(symbol) {
+            result.extend_from_slice(replacement);
+        } else {
+            result.push(Arc::clone(symbol));
+        }
+    }
+    result
 }
 
 /// Verify a theorem using a compressed proof with 'Z' stack support.
@@ -353,18 +999,12 @@ fn verify_compressed(
     labels: &[Arc<str>],
     proof_string: &str,
 ) -> Result<(), VerificationError> {
-    // Build mandatory hypothesis label list
-    let mut mandatory_hyps = Vec::new();
-    for hyp in &theorem.core.hypotheses.0 {
-        mandatory_hyps.push(Arc::from(hyp.label.encoded()));
-    }
-    for hyp in &theorem.core.hypotheses.1 {
-        mandatory_hyps.push(Arc::from(hyp.label.encoded()));
-    }
+    // Use precomputed mandatory hypothesis labels from theorem
+    let mandatory_hyps = &theorem.mandatory_hyp_labels;
 
-    // Initialize verification stack and proof stack (for 'Z' operations)
-    let mut stack: Vec<Vec<Arc<str>>> = Vec::new();
-    let mut proof_stack: Vec<Vec<Arc<str>>> = Vec::new();
+    // Initialize verification stack and saved steps (for 'Z' operations)
+    let mut stack: Vec<DbTerm> = Vec::new();
+    let mut saved_steps: Vec<DbTerm> = Vec::new();
 
     // Process compressed proof string
     let bytes = proof_string.as_bytes();
@@ -413,7 +1053,7 @@ fn verify_compressed(
                 place_value = place_value.saturating_mul(5);
             }
 
-            // Look up label: `mandatory_hyps` -> labels -> `proof_stack`
+            // Look up label: `mandatory_hyps` -> labels -> `saved_steps`
             let label_str = if number < mandatory_hyps.len() {
                 &mandatory_hyps[number]
             } else {
@@ -421,15 +1061,15 @@ fn verify_compressed(
                 if label_index < labels.len() {
                     &labels[label_index]
                 } else {
-                    let proof_stack_index = label_index - labels.len();
-                    if proof_stack_index >= proof_stack.len() {
+                    let saved_index = label_index - labels.len();
+                    if saved_index >= saved_steps.len() {
                         return Err(VerificationError::HypothesisNotFound {
-                            label: format!("<proof-stack[{}]>", proof_stack_index),
+                            label: format!("<saved-step[{}]>", saved_index),
                             step: step_num,
                         });
                     }
-                    // Push saved statement from proof stack
-                    stack.push(proof_stack[proof_stack_index].clone());
+                    // Push saved statement from saved_steps
+                    stack.push(saved_steps[saved_index].clone());
                     step_num += 1;
                     continue;
                 }
@@ -443,30 +1083,102 @@ fn verify_compressed(
                 }
             })?;
 
-            // Check if it's a hypothesis (first check mandatory, then all)
+            // Check if it's a hypothesis in theorem.core.hypotheses
             if let Some(statement) = find_hypothesis(&theorem.core.hypotheses, &label) {
-                stack.push(statement);
+                // For logical assertions (starting with "|-"), parse only the part after "|-" as Boolean type
+                let term = if statement.first().map(|s| s.as_ref()) == Some("|-") {
+                    if statement.len() < 2 {
+                        return Err(VerificationError::ParseError {
+                            step: step_num,
+                            error: format!("parsing hypothesis '{}': Logical assertion has no content after '|-'", label.as_str()),
+                        });
+                    }
+                    let bool_type = database
+                        .type_mapping()
+                        .get_boolean_type()
+                        .clone()
+                        .ok_or_else(|| VerificationError::ParseError {
+                            step: step_num,
+                            error: format!("parsing hypothesis '{}': Database does not have a Boolean type defined", label.as_str()),
+                        })?;
+                    let bool_expr = [vec![bool_type], statement[1..].to_vec()].concat();
+                    parse_expression(&bool_expr, database).map_err(|e| {
+                        VerificationError::ParseError {
+                            step: step_num,
+                            error: format!("parsing hypothesis '{}': {}", label.as_str(), e),
+                        }
+                    })?
+                } else {
+                    parse_expression(&statement, database).map_err(|e| {
+                        VerificationError::ParseError {
+                            step: step_num,
+                            error: format!("parsing hypothesis '{}': {}", label.as_str(), e),
+                        }
+                    })?
+                };
+                stack.push(term);
                 step_num += 1;
                 continue;
             }
 
-            // Check in all hypotheses that were in scope (for non-mandatory hypotheses in proof)
+            // Check in all hypotheses that were in scope (for non-mandatory hypotheses)
             if let Some(statement) = find_hypothesis(&theorem.all_hypotheses, &label) {
-                stack.push(statement);
+                // For logical assertions (starting with "|-"), parse only the part after "|-" as Boolean type
+                let term = if statement.first().map(|s| s.as_ref()) == Some("|-") {
+                    if statement.len() < 2 {
+                        return Err(VerificationError::ParseError {
+                            step: step_num,
+                            error: format!("parsing hypothesis '{}': Logical assertion has no content after '|-'", label.as_str()),
+                        });
+                    }
+                    let bool_type = database
+                        .type_mapping()
+                        .get_boolean_type()
+                        .clone()
+                        .ok_or_else(|| VerificationError::ParseError {
+                            step: step_num,
+                            error: format!("parsing hypothesis '{}': Database does not have a Boolean type defined", label.as_str()),
+                        })?;
+                    let bool_expr = [vec![bool_type], statement[1..].to_vec()].concat();
+                    parse_expression(&bool_expr, database).map_err(|e| {
+                        VerificationError::ParseError {
+                            step: step_num,
+                            error: format!("parsing hypothesis '{}': {}", label.as_str(), e),
+                        }
+                    })?
+                } else {
+                    parse_expression(&statement, database).map_err(|e| {
+                        VerificationError::ParseError {
+                            step: step_num,
+                            error: format!("parsing hypothesis '{}': {}", label.as_str(), e),
+                        }
+                    })?
+                };
+                stack.push(term);
                 step_num += 1;
                 continue;
             }
 
             // Check if it's a floating hypothesis in the database
             if let Some(float_hyp) = database.get_floating_hyp(&label) {
-                stack.push(vec![float_hyp.type_code, float_hyp.variable]);
+                let statement = vec![
+                    Arc::clone(&float_hyp.type_code),
+                    Arc::clone(&float_hyp.variable),
+                ];
+                let term = parse_expression(&statement, database).map_err(|e| {
+                    VerificationError::ParseError {
+                        step: step_num,
+                        error: format!("parsing floating hypothesis '{}': {}", label.as_str(), e),
+                    }
+                })?;
+                stack.push(term);
                 step_num += 1;
                 continue;
             }
 
             // Check if it's an axiom
             if let Some(axiom) = database.get_axiom(&label) {
-                apply_axiom_or_theorem(
+                apply_assertion(
                     &mut stack,
                     &axiom.core.hypotheses,
                     &axiom.core.statement,
@@ -482,7 +1194,7 @@ fn verify_compressed(
 
             // Check if it's a theorem
             if let Some(other_theorem) = database.get_theorem(&label) {
-                apply_axiom_or_theorem(
+                apply_assertion(
                     &mut stack,
                     &other_theorem.core.hypotheses,
                     &other_theorem.core.statement,
@@ -501,7 +1213,7 @@ fn verify_compressed(
                 step: step_num,
             });
         } else if ch == 'Z' {
-            // 'Z' operation: save current stack top to proof stack
+            // 'Z' operation: save current stack top to saved_steps
             if stack.is_empty() {
                 return Err(VerificationError::StackUnderflow(Box::new(
                     StackUnderflowDetails {
@@ -514,22 +1226,39 @@ fn verify_compressed(
                     },
                 )));
             }
-            proof_stack.push(stack[stack.len() - 1].clone());
+            saved_steps.push(stack[stack.len() - 1].clone());
         }
         // Ignore other characters
     }
 
-    // Verify final stack
+    // Verify final stack: must have exactly one item
     if stack.len() != 1 {
         return Err(VerificationError::FinalStackSize { count: stack.len() });
     }
 
-    let final_statement = &stack[0];
-    if final_statement != &theorem.core.statement {
+    // Convert final DbTerm to symbols for comparison with theorem statement
+    let mut final_symbols = stack[0].to_symbol_sequence().map_err(|e| {
+        VerificationError::ParseError {
+            step: step_num,
+            error: format!("converting final term to symbols: {}", e),
+        }
+    })?;
+
+    // If theorem statement starts with "|-", the final term is a Boolean expression
+    // Replace Boolean type prefix with "|-" for comparison
+    if theorem.core.statement.first().map(|s| s.as_ref()) == Some("|-") {
+        if let Some(bool_type) = database.type_mapping().get_boolean_type() {
+            if final_symbols.first().map(|s| s.as_ref()) == Some(bool_type.as_ref()) {
+                final_symbols[0] = Arc::from("|-");
+            }
+        }
+    }
+
+    if final_symbols != theorem.core.statement {
         return Err(VerificationError::FinalStatementMismatch(Box::new(
             FinalStatementMismatchDetails {
                 expected: format_statement(&theorem.core.statement, 200),
-                got: format_statement(final_statement, 200),
+                got: format_statement(&final_symbols, 200),
             },
         )));
     }
@@ -559,161 +1288,6 @@ fn find_hypothesis(
     None
 }
 
-/// Apply an axiom or theorem to the stack.
-#[allow(clippy::too_many_arguments)]
-fn apply_axiom_or_theorem(
-    stack: &mut Vec<Vec<Arc<str>>>,
-    hypotheses: &(Vec<FloatingHyp>, Vec<EssentialHyp>),
-    conclusion: &[Arc<str>],
-    distinctness: &DistinctnessGraph<DbMetavariable>,
-    calling_distinctness: &DistinctnessGraph<DbMetavariable>,
-    database: &Arc<MetamathDatabase>,
-    step_num: usize,
-    assertion_label: &str,
-) -> Result<(), VerificationError> {
-    let (floating_hyps, essential_hyps) = hypotheses;
-
-    // Check stack has enough entries
-    let required = floating_hyps.len() + essential_hyps.len();
-    if stack.len() < required {
-        return Err(VerificationError::StackUnderflow(Box::new(
-            StackUnderflowDetails {
-                step: step_num,
-                step_display: step_num + 1,
-                label: Some(assertion_label.to_string()),
-                required,
-                available: stack.len(),
-                stack_contents: format_stack_contents(stack),
-            },
-        )));
-    }
-
-    // Pop required number of statements from stack
-    let stack_items: Vec<Vec<Arc<str>>> = stack.drain(stack.len() - required..).collect();
-
-    // Build substitution from floating hypotheses
-    let mut substitution = Substitution::new();
-    for (i, float_hyp) in floating_hyps.iter().enumerate() {
-        let stack_statement = &stack_items[i];
-
-        // Verify type code matches
-        if !stack_statement.is_empty() && stack_statement[0] != float_hyp.type_code {
-            return Err(VerificationError::SubstitutionMismatch {
-                step: step_num,
-                variable: float_hyp.variable.to_string(),
-            });
-        }
-
-        // Extract the substituted value (skip type code)
-        let substituted_value = if stack_statement.len() > 1 {
-            stack_statement[1..].to_vec()
-        } else {
-            vec![]
-        };
-
-        substitution.insert(float_hyp.variable.clone(), substituted_value);
-    }
-
-    // Verify essential hypotheses match
-    for (i, ess_hyp) in essential_hyps.iter().enumerate() {
-        let stack_statement = &stack_items[floating_hyps.len() + i];
-        let expected = apply_substitution(&ess_hyp.statement, &substitution);
-
-        if stack_statement != &expected {
-            return Err(VerificationError::EssentialMismatch(Box::new(
-                EssentialMismatchDetails {
-                    step: step_num,
-                    step_display: step_num + 1,
-                    expected: format_statement(&expected, 200),
-                    got: format_statement(stack_statement, 200),
-                },
-            )));
-        }
-    }
-
-    // Check distinctness constraints from the axiom/theorem being applied
-    for (var1, var2) in distinctness.edges_iter() {
-        // Collect all variables in the substituted values for both metavariables
-        let vars1 = collect_variables(&substitution, &var1);
-        let vars2 = collect_variables(&substitution, &var2);
-
-        // Get substitution values for error reporting
-        let var1_name = var1.to_string();
-        let var2_name = var2.to_string();
-        let var1_subst_value = substitution
-            .get(var1_name.as_str())
-            .cloned()
-            .unwrap_or_default();
-        let var2_subst_value = substitution
-            .get(var2_name.as_str())
-            .cloned()
-            .unwrap_or_default();
-
-        // For each pair of variables, check if they violate the distinctness requirement
-        for v1 in &vars1 {
-            for v2 in &vars2 {
-                // If the same variable appears in both substitutions, that's a violation
-                if v1 == v2 {
-                    return Err(VerificationError::DistinctnessViolation(Box::new(
-                        DistinctnessViolationDetails {
-                            step: step_num,
-                            step_display: step_num + 1,
-                            assertion_label: assertion_label.to_string(),
-                            var1_name: var1_name.clone(),
-                            var2_name: var2_name.clone(),
-                            var1_subst: format_substitution(&var1_subst_value),
-                            var2_subst: format_substitution(&var2_subst_value),
-                            conflict_explanation: format!(
-                                "These substitutions have variable \"{}\" in common.",
-                                v1
-                            ),
-                        },
-                    )));
-                }
-
-                // If they're different variables, we need to verify they have a
-                // distinctness constraint in the calling theorem's scope
-                if !variables_are_distinct(v1, v2, calling_distinctness, database) {
-                    return Err(VerificationError::DistinctnessViolation(Box::new(
-                        DistinctnessViolationDetails {
-                            step: step_num,
-                            step_display: step_num + 1,
-                            assertion_label: assertion_label.to_string(),
-                            var1_name: var1_name.clone(),
-                            var2_name: var2_name.clone(),
-                            var1_subst: format_substitution(&var1_subst_value),
-                            var2_subst: format_substitution(&var2_subst_value),
-                            conflict_explanation: format!(
-                                "These substitutions require variables \"{}\" and \"{}\" to be disjoint, but no $d constraint exists.",
-                                v1, v2
-                            ),
-                        },
-                    )));
-                }
-            }
-        }
-    }
-
-    // Push substituted conclusion
-    let substituted_conclusion = apply_substitution(conclusion, &substitution);
-    stack.push(substituted_conclusion);
-
-    Ok(())
-}
-
-/// Apply a substitution to a statement.
-fn apply_substitution(statement: &[Arc<str>], substitution: &Substitution) -> Vec<Arc<str>> {
-    let mut result = Vec::new();
-    for symbol in statement {
-        if let Some(replacement) = substitution.get(symbol) {
-            result.extend(replacement.iter().cloned());
-        } else {
-            result.push(symbol.clone());
-        }
-    }
-    result
-}
-
 /// Format a substitution value as a string for error messages.
 fn format_substitution(subst: &[Arc<str>]) -> String {
     subst
@@ -721,28 +1295,6 @@ fn format_substitution(subst: &[Arc<str>]) -> String {
         .map(|s| s.as_ref())
         .collect::<Vec<_>>()
         .join(" ")
-}
-
-/// Format stack contents for error messages.
-/// Shows the top entries (most recent first) for better debugging.
-fn format_stack_contents(stack: &[Vec<Arc<str>>]) -> String {
-    if stack.is_empty() {
-        return String::new();
-    }
-
-    // Show top 3 entries (most recent first)
-    let entries_to_show = stack.len().min(3);
-    let entries: Vec<String> = stack[stack.len() - entries_to_show..]
-        .iter()
-        .rev()
-        .map(|entry| format!("\"{}\"", format_substitution(entry)))
-        .collect();
-
-    if stack.len() > 3 {
-        format!("{} (and {} more)", entries.join(", "), stack.len() - 3)
-    } else {
-        entries.join(", ")
-    }
 }
 
 /// Format a statement for error messages, with truncation for very long statements.
@@ -760,73 +1312,6 @@ fn format_statement(statement: &[Arc<str>], max_len: usize) -> String {
             format!("{}...", truncated)
         }
     }
-}
-
-/// Collect all variables appearing in the substitution for a given metavariable.
-///
-/// This is used for distinctness checking: we need to find all variables that
-/// appear in the substituted value for a metavariable.
-fn collect_variables(
-    substitution: &Substitution,
-    metavar: &DbMetavariable,
-) -> std::collections::HashSet<Arc<str>> {
-    let mut vars = std::collections::HashSet::new();
-
-    // Get the variable name for this metavariable
-    if let Some(var_name) = metavar
-        .database()
-        .variables_of_type(metavar.type_code())
-        .get(metavar.index())
-    {
-        // Look up the substituted value for this variable
-        if let Some(substituted_value) = substitution.get(var_name) {
-            // Collect all variables in the substituted value
-            // Variables are symbols that appear in the database's variable list
-            for symbol in substituted_value {
-                if metavar.database().is_variable(symbol) {
-                    vars.insert(symbol.clone());
-                }
-            }
-        }
-    }
-
-    vars
-}
-
-/// Check if two variables have a distinctness constraint in the given distinctness graph.
-///
-/// Returns `true` if the variables are guaranteed to be distinct (i.e., they have a
-/// distinctness edge in the graph), `false` otherwise.
-fn variables_are_distinct(
-    var1: &Arc<str>,
-    var2: &Arc<str>,
-    distinctness: &DistinctnessGraph<DbMetavariable>,
-    database: &Arc<MetamathDatabase>,
-) -> bool {
-    // Get type and index for each variable
-    let (type1, index1) = match database.variable_type_and_index(var1) {
-        Some(ti) => ti,
-        None => return false, // Variable not found - can't verify distinctness
-    };
-
-    let (type2, index2) = match database.variable_type_and_index(var2) {
-        Some(ti) => ti,
-        None => return false, // Variable not found - can't verify distinctness
-    };
-
-    // Create `DbMetavariable` instances
-    let metavar1 = DbMetavariable::new(type1, index1, database.clone());
-    let metavar2 = DbMetavariable::new(type2, index2, database.clone());
-
-    // Check if there's a distinctness edge between these metavariables
-    // DistinctnessGraph stores edges in both directions, so we only need to check one
-    for (v1, v2) in distinctness.edges_iter() {
-        if (v1 == metavar1 && v2 == metavar2) || (v1 == metavar2 && v2 == metavar1) {
-            return true;
-        }
-    }
-
-    false
 }
 
 #[cfg(test)]
@@ -852,6 +1337,50 @@ mod tests {
 
         // Verify the proof
         let result = verify_theorem(&th1, &db);
+        if let Err(ref e) = result {
+            eprintln!("\n=== Verification Error ===");
+            eprintln!("{}", e);
+            if let VerificationError::ParseError { step, error } = e {
+                eprintln!("\nFailed at step: {}", step);
+                eprintln!("Error: {}", error);
+
+                // Try to identify which proof step this is
+                if let Some(Proof::Expanded(steps)) = &th1.proof {
+                    if *step < steps.len() {
+                        let label_str = &steps[*step];
+                        eprintln!("Proof step label: {}", label_str.as_ref());
+
+                        // Show what axiom/theorem this is
+                        let label = Label::from_encoded(label_str).ok();
+                        if let Some(lbl) = label {
+                            if let Some(axiom) = db.get_axiom(&lbl) {
+                                eprintln!("Axiom statement: {:?}",
+                                    axiom.core.statement.iter().map(|s| s.as_ref()).collect::<Vec<_>>());
+                                eprintln!("Type code: {}", axiom.type_code.as_ref());
+                                if let Some(syn) = &axiom.syntax_info {
+                                    eprintln!("Is syntax axiom with vars: {:?}",
+                                        syn.distinct_vars.iter().map(|v| v.as_ref()).collect::<Vec<_>>());
+                                } else {
+                                    eprintln!("Is logical axiom (no syntax_info)");
+                                }
+                            }
+                        }
+
+                        // Check if term variables are in database
+                        eprintln!("\n=== Checking term floating hypotheses ===");
+                        let term_type = Arc::from("term");
+                        for var_name in &["t", "r", "s"] {
+                            let var_symbol = Arc::from(*var_name);
+                            if let Some(hyp) = db.lookup_floating_hyp(&term_type, &var_symbol) {
+                                eprintln!("Found: {} $f term {} $.", hyp.label.as_ref(), var_name);
+                            } else {
+                                eprintln!("NOT FOUND: $f term {} $.", var_name);
+                            }
+                        }
+                    }
+                }
+            }
+        }
         assert!(
             result.is_ok(),
             "Proof verification failed: {:?}",
@@ -871,6 +1400,33 @@ mod tests {
         // Verify all theorems in `demo0.mm`
         let all_theorems = db.theorems();
         assert!(!all_theorems.is_empty(), "No theorems found in demo0.mm");
+
+        for (label, theorem) in all_theorems {
+            let result = verify_theorem(&theorem, &db);
+            assert!(
+                result.is_ok(),
+                "Verification failed for theorem '{}': {:?}",
+                label,
+                result.err()
+            );
+        }
+    }
+
+    #[test]
+    fn verify_big_unifier() {
+        // Parse `big-unifier.mm` which contains compressed proofs
+        let fs = StdFilesystem::new();
+        let db = MetamathDatabase::new(TypeMapping::set_mm());
+        let parser = Parser::new(fs, "tests/metamath-exe/big-unifier.mm", db)
+            .expect("Failed to create parser");
+        let db = parser.parse().expect("Failed to parse big-unifier.mm");
+
+        // Verify all theorems (both compressed and expanded proofs)
+        let all_theorems = db.theorems();
+        assert!(
+            !all_theorems.is_empty(),
+            "No theorems found in big-unifier.mm"
+        );
 
         for (label, theorem) in all_theorems {
             let result = verify_theorem(&theorem, &db);
@@ -959,7 +1515,7 @@ mod tests {
     fn distinctness_violation_same_variable() {
         // `disjoint1.mm`: theorem 'bad' uses same variable twice, violating `$d` constraint
         let fs = StdFilesystem::new();
-        let db = MetamathDatabase::new(TypeMapping::set_mm());
+        let db = MetamathDatabase::new(TypeMapping::formula_mm());
         let parser = Parser::new(fs, "tests/metamath-exe/disjoint1.mm", db)
             .expect("Failed to create parser");
         let db = parser.parse().expect("Failed to parse disjoint1.mm");
@@ -979,7 +1535,7 @@ mod tests {
     fn distinctness_violation_missing_constraint() {
         // `disjoint3.mm`: theorem 'bad' uses different variables without required `$d` constraint
         let fs = StdFilesystem::new();
-        let db = MetamathDatabase::new(TypeMapping::set_mm());
+        let db = MetamathDatabase::new(TypeMapping::formula_mm());
         let parser = Parser::new(fs, "tests/metamath-exe/disjoint3.mm", db)
             .expect("Failed to create parser");
         let db = parser.parse().expect("Failed to parse disjoint3.mm");
@@ -999,7 +1555,7 @@ mod tests {
     fn distinctness_with_proper_constraints() {
         // `disjoint2.mm`: theorems `'good'` and `'stillgood'` have proper `$d` constraints
         let fs = StdFilesystem::new();
-        let db = MetamathDatabase::new(TypeMapping::set_mm());
+        let db = MetamathDatabase::new(TypeMapping::formula_mm());
         let parser = Parser::new(fs, "tests/metamath-exe/disjoint2.mm", db)
             .expect("Failed to create parser");
         let db = parser.parse().expect("Failed to parse disjoint2.mm");

@@ -109,13 +109,14 @@ impl SyntaxAxiomPattern {
         let mut last_constant = None;
         let mut prev_was_constant: Option<Arc<str>> = None;
 
-        for symbol in sequence {
+        for (index, symbol) in sequence.iter().enumerate() {
             match db.symbol_kind(symbol) {
                 Some(SymbolKind::Constant) => {
                     pattern.push(PatternElement::Constant(symbol.clone()));
                     constants_in_order.push(symbol.clone());
 
-                    if first_constant.is_none() {
+                    // first_constant is only set if the pattern STARTS with a constant
+                    if first_constant.is_none() && index == 0 {
                         first_constant = Some(symbol.clone());
                     }
                     last_constant = Some(symbol.clone());

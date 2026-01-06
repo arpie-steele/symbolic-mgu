@@ -62,6 +62,19 @@ impl<V: Metavariable> DistinctnessGraph<V> {
         })
     }
 
+    /// Check if two metavariables have a distinctness edge.
+    #[must_use]
+    pub fn has_edge(&self, vertex1: &V, vertex2: &V) -> bool {
+        let idx1 = self.vertices.get(vertex1);
+        let idx2 = self.vertices.get(vertex2);
+
+        if let (Some(&id1), Some(&id2)) = (idx1, idx2) {
+            self.edges.has_pair(id1, id2)
+        } else {
+            false
+        }
+    }
+
     /// Add an edge between two metavariables.
     ///
     /// # Errors

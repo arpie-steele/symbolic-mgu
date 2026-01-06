@@ -236,6 +236,20 @@ impl TypeMapping {
         }
     }
 
+    /// Custom mapping for test files using "formula" as the Boolean type.
+    ///
+    /// Maps:
+    /// - `formula` → Boolean
+    /// - `|-` → logical assertion
+    pub fn formula_mm() -> Self {
+        Self {
+            boolean_type: Some(Arc::from("formula")),
+            setvar_type: None,
+            class_type: None,
+            assertion_type: Some(Arc::from("|-")),
+        }
+    }
+
     /// Check if a type code represents a Boolean/wff type.
     pub fn is_boolean(&self, type_code: &str) -> bool {
         if let Some(saved_code) = &self.boolean_type {
