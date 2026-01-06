@@ -13,7 +13,10 @@ use std::sync::Arc;
 
 /// Cache for memoizing parse results.
 /// Key: `(sequence, type_code)`, Value: parse result
-type ParseCache = HashMap<(Vec<Arc<str>>, Arc<str>), Result<DbTerm, MguError>>;
+///
+/// Reusing a cache across multiple `parse_expression_with_cache` calls can significantly
+/// improve performance when verifying theorems with many proof steps.
+pub type ParseCache = HashMap<(Vec<Arc<str>>, Arc<str>), Result<DbTerm, MguError>>;
 
 /// Parse a Metamath expression to `DbTerm`.
 ///
@@ -44,6 +47,34 @@ pub fn parse_expression(
     symbols: &[Arc<str>],
     db_arc: &Arc<MetamathDatabase>,
 ) -> Result<DbTerm, MguError> {
+    parse_expression_with_cache(symbols, db_arc, None)
+}
+
+/// Parse a Metamath expression with an explicit cache.
+///
+/// This version allows passing a mutable cache for reuse across multiple parses,
+/// which significantly improves performance when verifying theorems with many steps.
+///
+/// # Arguments
+///
+/// * `symbols` - The symbol sequence from Metamath
+/// * `db_arc` - Database reference for variable/constant lookups
+/// * `cache` - Optional mutable reference to a parse cache for memoization
+///
+/// # Returns
+///
+/// A `DbTerm` representing the expression.
+///
+/// # Errors
+///
+/// Returns `MguError` if:
+/// - `symbols` is empty.
+/// - various parsing issues.
+pub fn parse_expression_with_cache(
+    symbols: &[Arc<str>],
+    db_arc: &Arc<MetamathDatabase>,
+    cache: Option<&mut ParseCache>,
+) -> Result<DbTerm, MguError> {
     if symbols.is_empty() {
         return Err(MguError::ParseError {
             location: "expression".to_string(),
@@ -57,11 +88,14 @@ pub fn parse_expression(
     // Extract sequence (remaining symbols)
     let sequence = &symbols[1..];
 
-    // Create memoization cache for this parse
-    let mut cache = ParseCache::new();
-
-    // Parse the sequence with caching
-    parse_sequence_cached(sequence, type_code, db_arc, &mut cache)
+    // Use provided cache or create a temporary one
+    match cache {
+        Some(c) => parse_sequence_cached(sequence, type_code, db_arc, c),
+        None => {
+            let mut temp_cache = ParseCache::new();
+            parse_sequence_cached(sequence, type_code, db_arc, &mut temp_cache)
+        }
+    }
 }
 
 /// Recursively parse a symbol sequence with a given expected type.
@@ -161,15 +195,6 @@ fn parse_sequence_impl(
     for pattern in &matches {
         match parse_with_pattern(sequence, pattern, db_arc, cache) {
             Ok(term) => {
-                // Handle ambiguity per nuniq-gram.mm:
-                // Multiple successful matches are allowed as long as they derive
-                // the same syntax theorem. For our purposes, we use the first success.
-                if matches.len() > 1 {
-                    eprintln!(
-                        "Warning: Ambiguous parse for type '{}', sequence {:?}. Using axiom '{}'.",
-                        type_code, sequence, pattern.label
-                    );
-                }
                 return Ok(term);
             }
             Err(e) => {

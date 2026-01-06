@@ -17,8 +17,8 @@
 //! 3. Final stack should contain exactly one statement matching the theorem being proved
 
 use crate::metamath::{
-    parse_expression, DbMetavariable, DbNode, DbTerm, DbTypeFactory, EssentialHyp, FloatingHyp,
-    Label, MetamathDatabase, Proof, Theorem,
+    parse_expression, parse_expression_with_cache, DbMetavariable, DbNode, DbTerm, DbTypeFactory,
+    EssentialHyp, FloatingHyp, Label, MetamathDatabase, ParseCache, Proof, Theorem,
 };
 use crate::term::factory::TermFactory;
 use crate::{apply_substitution, DistinctnessGraph, EnumTermFactory, Substitution, Term};
@@ -277,6 +277,9 @@ fn verify_with_steps(
     database: &Arc<MetamathDatabase>,
     steps: &[Arc<str>],
 ) -> Result<(), VerificationError> {
+    // Create parse cache for reuse across all parse operations in this theorem
+    let mut parse_cache = ParseCache::new();
+
     // Initialize verification stack (using DbTerm trees)
     let mut stack: Vec<DbTerm> = Vec::new();
 
@@ -292,46 +295,45 @@ fn verify_with_steps(
         if let Some(statement) = find_hypothesis(&theorem.core.hypotheses, &label) {
             // Parse hypothesis statement into DbTerm
             // For logical assertions (starting with "|-"), parse only the part after "|-" as Boolean type
-            let term = if statement.first().map(|s| s.as_ref()) == Some("|-") {
-                // Logical assertion: parse the part after "|-" as a Boolean expression
-                if statement.len() < 2 {
-                    return Err(VerificationError::ParseError {
-                        step: step_num,
-                        error: format!(
-                            "hypothesis '{}': Logical assertion has no content after '|-'",
-                            label.as_ref()
-                        ),
-                    });
-                }
-                // Get the Boolean type code from type mapping
-                let bool_type = database
-                    .type_mapping()
-                    .get_boolean_type()
-                    .clone()
-                    .ok_or_else(|| VerificationError::ParseError {
-                        step: step_num,
-                        error: format!(
-                            "hypothesis '{}': Database does not have a Boolean type defined",
-                            label.as_ref()
-                        ),
-                    })?;
-                // Create a Boolean expression from the content after "|-"
-                let bool_expr = [vec![bool_type], statement[1..].to_vec()].concat();
-                parse_expression(&bool_expr, database).map_err(|e| {
-                    VerificationError::ParseError {
-                        step: step_num,
-                        error: format!("hypothesis '{}': {}", label.as_ref(), e),
+            let term =
+                if statement.first().map(|s| s.as_ref()) == Some("|-") {
+                    // Logical assertion: parse the part after "|-" as a Boolean expression
+                    if statement.len() < 2 {
+                        return Err(VerificationError::ParseError {
+                            step: step_num,
+                            error: format!(
+                                "hypothesis '{}': Logical assertion has no content after '|-'",
+                                label.as_ref()
+                            ),
+                        });
                     }
-                })?
-            } else {
-                // Syntax axiom: parse normally
-                parse_expression(&statement, database).map_err(|e| {
-                    VerificationError::ParseError {
-                        step: step_num,
-                        error: format!("hypothesis '{}': {}", label.as_ref(), e),
-                    }
-                })?
-            };
+                    // Get the Boolean type code from type mapping
+                    let bool_type = database
+                        .type_mapping()
+                        .get_boolean_type()
+                        .clone()
+                        .ok_or_else(|| VerificationError::ParseError {
+                            step: step_num,
+                            error: format!(
+                                "hypothesis '{}': Database does not have a Boolean type defined",
+                                label.as_ref()
+                            ),
+                        })?;
+                    // Create a Boolean expression from the content after "|-"
+                    let bool_expr = [vec![bool_type], statement[1..].to_vec()].concat();
+                    parse_expression_with_cache(&bool_expr, database, Some(&mut parse_cache))
+                        .map_err(|e| VerificationError::ParseError {
+                            step: step_num,
+                            error: format!("hypothesis '{}': {}", label.as_ref(), e),
+                        })?
+                } else {
+                    // Syntax axiom: parse normally
+                    parse_expression_with_cache(&statement, database, Some(&mut parse_cache))
+                        .map_err(|e| VerificationError::ParseError {
+                            step: step_num,
+                            error: format!("hypothesis '{}': {}", label.as_ref(), e),
+                        })?
+                };
             stack.push(term);
             continue;
         }
@@ -339,12 +341,11 @@ fn verify_with_steps(
         // Check if it's a floating hypothesis from the database
         if let Some(float_hyp) = database.get_floating_hyp(&label) {
             let statement = vec![float_hyp.type_code, float_hyp.variable];
-            let term = parse_expression(&statement, database).map_err(|e| {
-                VerificationError::ParseError {
+            let term = parse_expression_with_cache(&statement, database, Some(&mut parse_cache))
+                .map_err(|e| VerificationError::ParseError {
                     step: step_num,
                     error: format!("floating hypothesis '{}': {}", label.as_ref(), e),
-                }
-            })?;
+                })?;
             stack.push(term);
             continue;
         }
@@ -360,6 +361,7 @@ fn verify_with_steps(
                 database,
                 step_num,
                 label.as_str(),
+                &mut parse_cache,
             )?;
             continue;
         }
@@ -375,6 +377,7 @@ fn verify_with_steps(
                 database,
                 step_num,
                 label.as_str(),
+                &mut parse_cache,
             )?;
             continue;
         }
@@ -600,6 +603,7 @@ fn apply_assertion(
     database: &Arc<MetamathDatabase>,
     step_num: usize,
     assertion_label: &str,
+    parse_cache: &mut ParseCache,
 ) -> Result<(), VerificationError> {
     // Try tree-based verification first
     match apply_assertion_tree_based(
@@ -611,6 +615,7 @@ fn apply_assertion(
         database,
         step_num,
         assertion_label,
+        parse_cache,
     ) {
         Ok(()) => Ok(()),
         Err(VerificationError::ParseError { .. }) => {
@@ -624,6 +629,7 @@ fn apply_assertion(
                 database,
                 step_num,
                 assertion_label,
+                parse_cache,
             )
         }
         Err(e) => Err(e), // Other errors propagate
@@ -641,6 +647,7 @@ fn apply_assertion_tree_based(
     database: &Arc<MetamathDatabase>,
     step_num: usize,
     assertion_label: &str,
+    parse_cache: &mut ParseCache,
 ) -> Result<(), VerificationError> {
     let (floating_hyps, essential_hyps) = hypotheses;
 
@@ -721,18 +728,20 @@ fn apply_assertion_tree_based(
                 })?;
             // Create a Boolean expression from the content after "|-"
             let bool_expr = [vec![bool_type], ess_hyp.statement[1..].to_vec()].concat();
-            parse_expression(&bool_expr, database).map_err(|e| VerificationError::ParseError {
-                step: step_num,
-                error: format!("parsing essential hypothesis content: {}", e),
+            parse_expression_with_cache(&bool_expr, database, Some(parse_cache)).map_err(|e| {
+                VerificationError::ParseError {
+                    step: step_num,
+                    error: format!("parsing essential hypothesis content: {}", e),
+                }
             })?
         } else {
             // Syntax axiom: parse normally
-            parse_expression(&ess_hyp.statement, database).map_err(|e| {
-                VerificationError::ParseError {
+            parse_expression_with_cache(&ess_hyp.statement, database, Some(parse_cache)).map_err(
+                |e| VerificationError::ParseError {
                     step: step_num,
                     error: format!("parsing essential hypothesis: {}", e),
-                }
-            })?
+                },
+            )?
         };
 
         // Apply substitution to expected term
@@ -791,15 +800,19 @@ fn apply_assertion_tree_based(
             })?;
         // Create a Boolean expression from the content after "|-"
         let bool_expr = [vec![bool_type], conclusion[1..].to_vec()].concat();
-        parse_expression(&bool_expr, database).map_err(|e| VerificationError::ParseError {
-            step: step_num,
-            error: format!("parsing logical assertion content: {}", e),
+        parse_expression_with_cache(&bool_expr, database, Some(parse_cache)).map_err(|e| {
+            VerificationError::ParseError {
+                step: step_num,
+                error: format!("parsing logical assertion content: {}", e),
+            }
         })?
     } else {
         // Syntax axiom: parse normally
-        parse_expression(conclusion, database).map_err(|e| VerificationError::ParseError {
-            step: step_num,
-            error: format!("parsing conclusion: {}", e),
+        parse_expression_with_cache(conclusion, database, Some(parse_cache)).map_err(|e| {
+            VerificationError::ParseError {
+                step: step_num,
+                error: format!("parsing conclusion: {}", e),
+            }
         })?
     };
 
@@ -830,6 +843,7 @@ fn apply_assertion_symbol_based(
     database: &Arc<MetamathDatabase>,
     step_num: usize,
     assertion_label: &str,
+    _parse_cache: &mut ParseCache,
 ) -> Result<(), VerificationError> {
     let (floating_hyps, essential_hyps) = hypotheses;
 
@@ -1002,6 +1016,9 @@ fn verify_compressed(
 ) -> Result<(), VerificationError> {
     // Use pre-computed mandatory hypothesis labels from theorem
     let mandatory_hyps = &theorem.mandatory_hyp_labels;
+
+    // Create parse cache for reuse across all parse operations in this theorem
+    let mut parse_cache = ParseCache::new();
 
     // Initialize verification stack and saved steps (for 'Z' operations)
     let mut stack: Vec<DbTerm> = Vec::new();
@@ -1188,6 +1205,7 @@ fn verify_compressed(
                     database,
                     step_num,
                     label.as_str(),
+                    &mut parse_cache,
                 )?;
                 step_num += 1;
                 continue;
@@ -1204,6 +1222,7 @@ fn verify_compressed(
                     database,
                     step_num,
                     label.as_str(),
+                    &mut parse_cache,
                 )?;
                 step_num += 1;
                 continue;
@@ -1339,62 +1358,6 @@ mod tests {
 
         // Verify the proof
         let result = verify_theorem(&th1, &db);
-        if let Err(ref e) = result {
-            eprintln!("\n=== Verification Error ===");
-            eprintln!("{}", e);
-            if let VerificationError::ParseError { step, error } = e {
-                eprintln!("\nFailed at step: {}", step);
-                eprintln!("Error: {}", error);
-
-                // Try to identify which proof step this is
-                if let Some(Proof::Expanded(steps)) = &th1.proof {
-                    if *step < steps.len() {
-                        let label_str = &steps[*step];
-                        eprintln!("Proof step label: {}", label_str.as_ref());
-
-                        // Show what axiom/theorem this is
-                        let label = Label::from_encoded(label_str).ok();
-                        if let Some(lbl) = label {
-                            if let Some(axiom) = db.get_axiom(&lbl) {
-                                eprintln!(
-                                    "Axiom statement: {:?}",
-                                    axiom
-                                        .core
-                                        .statement
-                                        .iter()
-                                        .map(|s| s.as_ref())
-                                        .collect::<Vec<_>>()
-                                );
-                                eprintln!("Type code: {}", axiom.type_code.as_ref());
-                                if let Some(syn) = &axiom.syntax_info {
-                                    eprintln!(
-                                        "Is syntax axiom with vars: {:?}",
-                                        syn.distinct_vars
-                                            .iter()
-                                            .map(|v| v.as_ref())
-                                            .collect::<Vec<_>>()
-                                    );
-                                } else {
-                                    eprintln!("Is logical axiom (no syntax_info)");
-                                }
-                            }
-                        }
-
-                        // Check if term variables are in database
-                        eprintln!("\n=== Checking term floating hypotheses ===");
-                        let term_type = Arc::from("term");
-                        for var_name in &["t", "r", "s"] {
-                            let var_symbol = Arc::from(*var_name);
-                            if let Some(hyp) = db.lookup_floating_hyp(&term_type, &var_symbol) {
-                                eprintln!("Found: {} $f term {} $.", hyp.label.as_ref(), var_name);
-                            } else {
-                                eprintln!("NOT FOUND: $f term {} $.", var_name);
-                            }
-                        }
-                    }
-                }
-            }
-        }
         assert!(
             result.is_ok(),
             "Proof verification failed: {:?}",
