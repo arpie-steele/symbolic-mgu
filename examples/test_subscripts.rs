@@ -1,8 +1,9 @@
 use symbolic_mgu::{get_formatter, Metavariable, SimpleType, WideMetavariable};
+use SimpleType::*;
 
 fn main() {
     // Create a wide variable with subscript: φ₁ (index 13 = second cycle of Boolean vars)
-    let var = WideMetavariable::try_from_type_and_index(SimpleType::Boolean, 13).unwrap();
+    let var = WideMetavariable::try_from_type_and_index(Boolean, 13).unwrap();
 
     println!("Testing subscripted variable: φ₁₃\n");
 

@@ -159,8 +159,8 @@ macro_rules! enforce_bigger_than_byte {
 ///
 /// - [`byte_try_from_unsigned!`] for conversions from unsigned types.
 ///
-/// [`byte_try_from_unsigned!`]: crate::byte_try_from_unsigned
-/// [`MguError::SignedValueOutOfRange`]: crate::MguError::SignedValueOutOfRange
+/// [`byte_try_from_unsigned!`]: `crate::byte_try_from_unsigned`
+/// [`MguError::SignedValueOutOfRange`]: `crate::MguError::SignedValueOutOfRange`
 #[macro_export]
 macro_rules! byte_try_from_signed {
     ($destination:ident: $($source:ident),* $(,)?) => {
@@ -263,8 +263,8 @@ macro_rules! byte_try_from_signed {
 ///
 /// - [`byte_try_from_signed!`] for conversions from signed types.
 ///
-/// [`byte_try_from_signed!`]: crate::byte_try_from_signed
-/// [`MguError::UnsignedValueOutOfRange`]: crate::MguError::UnsignedValueOutOfRange
+/// [`byte_try_from_signed!`]: `crate::byte_try_from_signed`
+/// [`MguError::UnsignedValueOutOfRange`]: `crate::MguError::UnsignedValueOutOfRange`
 #[macro_export]
 macro_rules! byte_try_from_unsigned {
     ($destination:ident: $($source:ident),* $(,)?) => {
@@ -442,7 +442,7 @@ macro_rules! dlgt0 {
 /// }
 /// ```
 ///
-/// [`NodeByte`]: crate::NodeByte
+/// [`NodeByte`]: `crate::NodeByte`
 #[macro_export]
 macro_rules! enum0 {
     (

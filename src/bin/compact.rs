@@ -20,8 +20,9 @@ use symbolic_mgu::bool_eval::{test_tautology, test_validity};
 use symbolic_mgu::logic::create_dict;
 use symbolic_mgu::{
     get_formatter, EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory, Metavariable,
-    MetavariableFactory, MguError, MguErrorType, NodeByte, NodeByteFactory, SimpleType, Statement,
-    Term, TermFactory, WideMetavariable, WideMetavariableFactory,
+    MetavariableFactory, MguError, MguErrorType, NodeByte, NodeByteFactory, OutputFormatter,
+    SimpleType, SimpleTypeFactory, Statement, Term, TermFactory, WideMetavariable,
+    WideMetavariableFactory,
 };
 
 /// Metavariable implementation mode
@@ -129,12 +130,17 @@ fn run() -> Result<(), MguError> {
     // Dispatch based on mode
     match mode {
         MetavariableMode::Byte => {
-            let var_factory = MetaByteFactory();
-            run_by_factory::<MetaByte, MetaByteFactory>(&var_factory, &proofs, verify, format)?;
+            let var_factory = MetaByteFactory::new(SimpleTypeFactory);
+            run_by_factory::<MetaByte, MetaByteFactory<SimpleTypeFactory>>(
+                &var_factory,
+                &proofs,
+                verify,
+                format,
+            )?;
         }
         MetavariableMode::Wide => {
-            let var_factory = WideMetavariableFactory();
-            run_by_factory::<WideMetavariable, WideMetavariableFactory>(
+            let var_factory = WideMetavariableFactory::new(SimpleTypeFactory);
+            run_by_factory::<WideMetavariable, WideMetavariableFactory<SimpleTypeFactory>>(
                 &var_factory,
                 &proofs,
                 verify,
@@ -151,9 +157,13 @@ fn run() -> Result<(), MguError> {
 
 /// Run in "both" mode: parse with WideMetavariable, convert to MetaByte when possible
 fn run_both_mode(proofs: &[&str], verify: bool, format: &str) -> Result<(), MguError> {
-    let wide_var_factory = WideMetavariableFactory();
-    let wide_term_factory: EnumTermFactory<SimpleType, WideMetavariable, NodeByte> =
-        EnumTermFactory::new();
+    let wide_var_factory = WideMetavariableFactory::new(SimpleTypeFactory);
+    let wide_term_factory: EnumTermFactory<
+        SimpleType,
+        WideMetavariable,
+        NodeByte,
+        SimpleTypeFactory,
+    > = EnumTermFactory::new(SimpleTypeFactory);
 
     // Create standard dictionary with WideMetavariable
     let dict = create_dict(
@@ -195,16 +205,21 @@ fn run_both_mode(proofs: &[&str], verify: bool, format: &str) -> Result<(), MguE
                     wide_result.canonicalize(&wide_var_factory, &wide_term_factory)?;
 
                 // Try to convert to MetaByte
-                let byte_var_factory = MetaByteFactory();
+                let byte_var_factory = MetaByteFactory::new(SimpleTypeFactory);
                 let node_factory: NodeByteFactory<SimpleType> = NodeByteFactory::new();
-                let byte_term_factory: EnumTermFactory<SimpleType, MetaByte, NodeByte> =
-                    EnumTermFactory::new();
+                let byte_term_factory: EnumTermFactory<
+                    SimpleType,
+                    MetaByte,
+                    NodeByte,
+                    SimpleTypeFactory,
+                > = EnumTermFactory::new(SimpleTypeFactory);
 
                 match canonical_wide.convert::<
                     SimpleType,
                     MetaByte,
                     NodeByte,
                     EnumTerm<SimpleType, MetaByte, NodeByte>,
+                    _,
                     _,
                     _,
                     _,
@@ -237,7 +252,7 @@ fn run_both_mode(proofs: &[&str], verify: bool, format: &str) -> Result<(), MguE
 /// Display a statement with verification
 fn display_statement<V, T, TF>(
     result: &Statement<SimpleType, V, NodeByte, T>,
-    formatter: &dyn symbolic_mgu::OutputFormatter,
+    formatter: &dyn OutputFormatter,
     verify: bool,
     term_factory: &TF,
 ) -> Result<(), MguError>
@@ -249,6 +264,7 @@ where
         SimpleType,
         V,
         NodeByte,
+        SimpleTypeFactory,
         Term = T,
         TermNode = NodeByte,
         TermMetavariable = V,
@@ -270,7 +286,7 @@ where
     if verify {
         if result.get_n_hypotheses() == 0 {
             // No hypotheses: verify assertion is a tautology
-            match test_tautology(result.get_assertion()) {
+            match test_tautology(term_factory.type_factory(), result.get_assertion()) {
                 Ok(true) => println!("  ✓ Verified: This is a tautology"),
                 Ok(false) => println!("  ✗ Warning: This is NOT a tautology"),
                 Err(e) => println!("  ? Could not verify: {}", e),
@@ -296,9 +312,10 @@ fn run_by_factory<V, VF>(
 ) -> Result<(), MguError>
 where
     V: Metavariable<Type = SimpleType>,
-    VF: MetavariableFactory<MetavariableType = SimpleType, Metavariable = V>,
+    VF: MetavariableFactory<SimpleTypeFactory, MetavariableType = SimpleType, Metavariable = V>,
 {
-    let term_factory: EnumTermFactory<SimpleType, V, NodeByte> = EnumTermFactory::new();
+    let term_factory: EnumTermFactory<SimpleType, V, NodeByte, SimpleTypeFactory> =
+        EnumTermFactory::new(SimpleTypeFactory);
 
     // Create standard dictionary
     let dict = create_dict(&term_factory, var_factory, NodeByte::Implies, NodeByte::Not)?;
@@ -348,7 +365,8 @@ where
                 if verify {
                     if canonical.get_n_hypotheses() == 0 {
                         // No hypotheses: verify assertion is a tautology
-                        match test_tautology(canonical.get_assertion()) {
+                        match test_tautology(term_factory.type_factory(), canonical.get_assertion())
+                        {
                             Ok(true) => println!("  ✓ Verified: This is a tautology"),
                             Ok(false) => println!("  ✗ Warning: This is NOT a tautology"),
                             Err(e) => println!("  ? Could not verify: {}", e),

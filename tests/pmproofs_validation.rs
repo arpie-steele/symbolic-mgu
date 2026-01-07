@@ -11,15 +11,16 @@
 //!
 //! Note: This test is marked #[ignore] because it takes several seconds
 //! to validate all proofs. Use `--ignored` flag to run it explicitly.
-#![cfg(feature = "serde")]
 
+#![cfg(feature = "serde")]
 use serde_json::Value;
 use symbolic_mgu::bool_eval::test_validity;
 use symbolic_mgu::logic::create_dict;
 use symbolic_mgu::{
-    EnumTerm, EnumTermFactory, Metavariable, NodeByte, SimpleType, Statement, WideMetavariable,
-    WideMetavariableFactory,
+    EnumTerm, EnumTermFactory, Metavariable, NodeByte, SimpleType, SimpleTypeFactory, Statement,
+    WideMetavariable, WideMetavariableFactory,
 };
+use SimpleType::*;
 
 // Type alias for readability
 type WideStatement = Statement<
@@ -46,11 +47,7 @@ fn count_boolean_variables(stmt: &WideStatement) -> usize {
 
     // Count only Boolean variables
     vars.iter()
-        .filter(|v| {
-            v.get_type()
-                .map(|t| t == SimpleType::Boolean)
-                .unwrap_or(false)
-        })
+        .filter(|v| v.get_type().map(|t| t == Boolean).unwrap_or(false))
         .count()
 }
 
@@ -94,8 +91,9 @@ fn all_pm_subproofs_are_tautologies() {
     println!("  Total subproofs in database: {}", subproofs.len());
 
     // Set up factories and dictionary using WideMetavariable for unlimited variable space
-    let var_factory = WideMetavariableFactory();
-    let term_factory = EnumTermFactory::<SimpleType, WideMetavariable, NodeByte>::new();
+    let var_factory = WideMetavariableFactory::new(SimpleTypeFactory);
+    let term_factory =
+        EnumTermFactory::<SimpleType, WideMetavariable, NodeByte, _>::new(SimpleTypeFactory);
     let dict = create_dict(
         &term_factory,
         &var_factory,

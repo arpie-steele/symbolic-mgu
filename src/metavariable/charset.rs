@@ -4,6 +4,7 @@
 //! for Boolean, Setvar, and Class metavariables in multiple output formats.
 
 use crate::{SimpleType, WIDE_BOOLEANS_ASCII, WIDE_CLASSES_ASCII, WIDE_SETVARS_ASCII};
+use SimpleType::*;
 
 /// Character set for WideMetavariable-style display.
 ///
@@ -213,9 +214,9 @@ impl WideCharSet {
     #[must_use]
     pub fn ascii_char(ty: &SimpleType, index: usize) -> Option<&'static str> {
         match ty {
-            SimpleType::Boolean => Self::ascii_boolean(index),
-            SimpleType::Setvar => Self::ascii_setvar(index),
-            SimpleType::Class => Self::ascii_class(index),
+            Boolean => Self::ascii_boolean(index),
+            Setvar => Self::ascii_setvar(index),
+            Class => Self::ascii_class(index),
         }
     }
 
@@ -223,9 +224,9 @@ impl WideCharSet {
     #[must_use]
     pub fn utf8_char(ty: &SimpleType, index: usize) -> Option<&'static str> {
         match ty {
-            SimpleType::Boolean => Self::utf8_boolean(index),
-            SimpleType::Setvar => Self::utf8_setvar(index),
-            SimpleType::Class => Self::utf8_class(index),
+            Boolean => Self::utf8_boolean(index),
+            Setvar => Self::utf8_setvar(index),
+            Class => Self::utf8_class(index),
         }
     }
 
@@ -233,9 +234,9 @@ impl WideCharSet {
     #[must_use]
     pub fn latex_char(ty: &SimpleType, index: usize) -> Option<&'static str> {
         match ty {
-            SimpleType::Boolean => Self::latex_boolean(index),
-            SimpleType::Setvar => Self::latex_setvar(index),
-            SimpleType::Class => Self::latex_class(index),
+            Boolean => Self::latex_boolean(index),
+            Setvar => Self::latex_setvar(index),
+            Class => Self::latex_class(index),
         }
     }
 
@@ -243,9 +244,9 @@ impl WideCharSet {
     #[must_use]
     pub const fn max_index(ty: &SimpleType) -> usize {
         match ty {
-            SimpleType::Boolean => 11, // 12 chars (0..11)
-            SimpleType::Setvar => 25,  // 26 chars (0..25)
-            SimpleType::Class => 25,   // 26 chars (0..25)
+            Boolean => 11, // 12 chars (0..11)
+            Setvar => 25,  // 26 chars (0..25)
+            Class => 25,   // 26 chars (0..25)
         }
     }
 }
@@ -308,9 +309,9 @@ mod tests {
 
     #[test]
     fn max_index_matches_counts() {
-        assert_eq!(WideCharSet::max_index(&SimpleType::Boolean), 11); // 12 chars: 0..11
-        assert_eq!(WideCharSet::max_index(&SimpleType::Setvar), 25); // 26 chars: 0..25
-        assert_eq!(WideCharSet::max_index(&SimpleType::Class), 25); // 26 chars: 0..25
+        assert_eq!(WideCharSet::max_index(&Boolean), 11); // 12 chars: 0..11
+        assert_eq!(WideCharSet::max_index(&Setvar), 25); // 26 chars: 0..25
+        assert_eq!(WideCharSet::max_index(&Class), 25); // 26 chars: 0..25
     }
 
     #[test]
@@ -362,17 +363,14 @@ mod tests {
     #[test]
     fn type_dispatchers_work() {
         // Test Boolean dispatch
-        assert_eq!(WideCharSet::ascii_char(&SimpleType::Boolean, 0), Some("ph"));
-        assert_eq!(WideCharSet::utf8_char(&SimpleType::Boolean, 0), Some("𝜑"));
-        assert_eq!(
-            WideCharSet::latex_char(&SimpleType::Boolean, 0),
-            Some(r"\varphi")
-        );
+        assert_eq!(WideCharSet::ascii_char(&Boolean, 0), Some("ph"));
+        assert_eq!(WideCharSet::utf8_char(&Boolean, 0), Some("𝜑"));
+        assert_eq!(WideCharSet::latex_char(&Boolean, 0), Some(r"\varphi"));
 
         // Test Setvar dispatch
-        assert_eq!(WideCharSet::ascii_char(&SimpleType::Setvar, 0), Some("x"));
+        assert_eq!(WideCharSet::ascii_char(&Setvar, 0), Some("x"));
 
         // Test Class dispatch
-        assert_eq!(WideCharSet::ascii_char(&SimpleType::Class, 0), Some("A"));
+        assert_eq!(WideCharSet::ascii_char(&Class, 0), Some("A"));
     }
 }

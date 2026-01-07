@@ -7,15 +7,15 @@
 
 use symbolic_mgu::logic::create_dict;
 use symbolic_mgu::{
-    get_formatter, EnumTermFactory, MguError, NodeByte, Statement, Term, WideMetavariable,
-    WideMetavariableFactory,
+    get_formatter, EnumTerm, EnumTermFactory, MguError, NodeByte, SimpleType, SimpleTypeFactory,
+    Statement, Term, WideMetavariable, WideMetavariableFactory,
 };
 
 type WideStatement = Statement<
-    symbolic_mgu::SimpleType,
+    SimpleType,
     WideMetavariable,
     NodeByte,
-    symbolic_mgu::EnumTerm<symbolic_mgu::SimpleType, WideMetavariable, NodeByte>,
+    EnumTerm<SimpleType, WideMetavariable, NodeByte>,
 >;
 
 #[test]
@@ -33,8 +33,8 @@ fn stress_test_deep_proof_100_plus_variables() -> Result<(), MguError> {
     );
 
     // Create factories - must use WideMetavariable since MetaByte maxes out at 11 Boolean vars
-    let term_factory = EnumTermFactory::new();
-    let metavar_factory = WideMetavariableFactory();
+    let term_factory = EnumTermFactory::new(SimpleTypeFactory);
+    let metavar_factory = WideMetavariableFactory::new(SimpleTypeFactory);
 
     // Create dictionary
     let dict = create_dict(
@@ -99,8 +99,8 @@ fn stress_test_wide_metavariable_subscripts() -> Result<(), MguError> {
     let mut proof = "D1".repeat(depth);
     proof.push('1');
 
-    let term_factory = EnumTermFactory::new();
-    let metavar_factory = WideMetavariableFactory();
+    let term_factory = EnumTermFactory::new(SimpleTypeFactory);
+    let metavar_factory = WideMetavariableFactory::new(SimpleTypeFactory);
     let dict = create_dict(
         &term_factory,
         &metavar_factory,
@@ -156,8 +156,8 @@ fn stress_test_very_deep_nesting() -> Result<(), MguError> {
     let mut proof = "D1".repeat(depth);
     proof.push('1');
 
-    let term_factory = EnumTermFactory::new();
-    let metavar_factory = WideMetavariableFactory();
+    let term_factory = EnumTermFactory::new(SimpleTypeFactory);
+    let metavar_factory = WideMetavariableFactory::new(SimpleTypeFactory);
     let dict = create_dict(
         &term_factory,
         &metavar_factory,

@@ -40,8 +40,8 @@
 //! register_type_color("RealNumber", Color::new(220, "#ffaa00"));
 //! ```
 //!
-//! [`Metavariable`]: crate::Metavariable
-//! [`Node`]: crate::Node
+//! [`Metavariable`]: `crate::Metavariable`
+//! [`Node`]: `crate::Node`
 
 pub(crate) mod color;
 pub(crate) mod formatters;

@@ -1,9 +1,8 @@
 //! Introduce an implementation of the [`Metavariable`] trait for [`MetaByte`].
 
-use crate::Metavariable;
-use crate::MetavariableFactory;
-use crate::MguError;
-use crate::SimpleType;
+use crate::{
+    Metavariable, MetavariableFactory, MguError, OutputFormatter, SimpleType, TypeFactory,
+};
 
 /// Uppercase letters from the second half of the Latin alphabet, used for ASCII Boolean metavariables.
 pub const OUR_BOOLEANS: &str = "PQRSTUVWXYZ";
@@ -116,7 +115,7 @@ impl Metavariable for MetaByte {
         Self::try_from_type_and_index(my_type, my_index)
     }
 
-    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn format_with(&self, formatter: &dyn OutputFormatter) -> String {
         match formatter.name() {
             "ascii" => self.to_ascii(),
             "latex" => self.to_latex(),
@@ -148,7 +147,7 @@ impl MetaByte {
 
     /// Get HTML representation with optional coloring.
     #[must_use]
-    fn to_html(self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn to_html(self, formatter: &dyn OutputFormatter) -> String {
         let char_str = self.to_str();
 
         if let Ok((typ, _)) = self.get_type_and_index() {
@@ -169,7 +168,7 @@ impl MetaByte {
 
     /// Get UTF-8 representation with ANSI color codes.
     #[must_use]
-    fn to_utf8_color(self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn to_utf8_color(self, formatter: &dyn OutputFormatter) -> String {
         let char_str = self.to_str();
 
         if let Ok((typ, _)) = self.get_type_and_index() {
@@ -203,14 +202,50 @@ impl From<u8> for MetaByte {
 
 /// A very simple example of a factory for a very simple metavariable.
 #[derive(Debug)]
-pub struct MetaByteFactory();
+pub struct MetaByteFactory<TyF>
+where
+    TyF: TypeFactory<Type = SimpleType>,
+{
+    /// Type factory for constructing type instances.
+    type_factory: TyF,
+}
 
-impl MetavariableFactory for MetaByteFactory {
+impl<TyF> MetaByteFactory<TyF>
+where
+    TyF: TypeFactory<Type = SimpleType>,
+{
+    /// Create a new `MetaByteFactory` with the given type factory.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use symbolic_mgu::{MetaByteFactory, SimpleTypeFactory};
+    ///
+    /// let type_factory = SimpleTypeFactory;
+    /// let var_factory = MetaByteFactory::new(type_factory);
+    /// ```
+    #[must_use]
+    pub fn new(type_factory: TyF) -> Self {
+        Self { type_factory }
+    }
+}
+
+impl<TyF> MetavariableFactory<TyF> for MetaByteFactory<TyF>
+where
+    TyF: TypeFactory<Type = SimpleType>,
+{
     type MetavariableType = <MetaByte as Metavariable>::Type;
 
     type Metavariable = MetaByte;
 
-    type MetavariableIterator<'a> = std::vec::IntoIter<MetaByte>;
+    type MetavariableIterator<'a>
+        = std::vec::IntoIter<MetaByte>
+    where
+        TyF: 'a;
+
+    fn type_factory(&self) -> &TyF {
+        &self.type_factory
+    }
 
     fn create_by_name(&self, name: &str) -> Result<Self::Metavariable, MguError> {
         if name.is_ascii() && name.len() == 1 {

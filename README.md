@@ -11,9 +11,9 @@ A Rust library for symbolic logic unification using Most General Unifiers (MGU).
 ## Overview
 
 symbolic-mgu provides a framework for representing logical formulas as structured
-objects and applying unification operations for automated theorem proving.
-The implementation follows Robinson's unification algorithm and supports
-Meredith's condensed detachment principle.
+objects and exploring symbolic logic through unification and automated proof
+discovery. The implementation follows Robinson's unification algorithm and
+supports Meredith's condensed detachment principle.
 
 **Academic Context:** This crate implements typed symbolic unification based on Robinson (1965) and Meredith's condensed detachment (1953). For detailed mathematical background, references, and citation information, see [docs/SCHOLARLY_CONTEXT.md](docs/SCHOLARLY_CONTEXT.md).
 
@@ -22,7 +22,7 @@ Meredith's condensed detachment principle.
 **Core Unification:**
 - Robinson's unification algorithm with occurs check
 - Type-safe substitutions (prevents cycles like x ↦ f(x))
-- Type-aware matching (Boolean, Setvar, Class hierarchy)
+- Type-safe matching with Boolean/Setvar/Class types
 - Normal form maintenance (no variable chains)
 
 **Theorem Proving:**
@@ -31,8 +31,7 @@ Meredith's condensed detachment principle.
 - Distinctness graphs to prevent invalid substitutions
 
 **Boolean Expression Evaluation:**
-- Truth table generation for formulas with up to 7+ variables
-- Support for arbitrary variable counts with `bigint` feature
+- Truth table generation for formulas with up to 7 variables (20 with `bigint` feature)
 - Efficient bit-wise operations on compact representations
 
 ## Quick Start
@@ -46,7 +45,7 @@ cargo build
 # Run all tests
 cargo test
 
-# Build with all features (including bigint for 7+ variables)
+# Build with all features (including `bigint` for up to 20 variables)
 cargo build --all-features
 
 # Build and view documentation
@@ -76,7 +75,7 @@ See the [full API documentation](https://docs.rs/symbolic-mgu) for detailed usag
 
 ## Optional Features
 
-- **`bigint`**: Support for Boolean logic with more than 7 variables (requires `num-bigint`)
+- **`bigint`**: Support for Boolean logic with up to 20 variables (requires `num-bigint`)
 - **`serde`**: JSON serialization support for terms and statements
 
 ### Building with Features

@@ -3,7 +3,7 @@
 //! This module defines the [`Statement`] type, representing axioms, inference rules,
 //! and theorems in a logical system.
 
-use crate::{DistinctnessGraph, Metavariable, MguError, Node, Term, Type};
+use crate::{DistinctnessGraph, Metavariable, MguError, Node, Term, Type, TypeFactory};
 use std::collections::HashSet;
 use std::marker::PhantomData;
 
@@ -56,23 +56,28 @@ where
     ///
     /// Returns an error if the assertion or any hypothesis is not
     /// a valid sentence (where the type is Boolean).
-    pub fn new(
+    pub fn new<TyF>(
+        type_factory: &TyF,
         assertion: T,
         hypotheses: Vec<T>,
         distinctness_graph: DistinctnessGraph<V>,
-    ) -> Result<Self, MguError> {
+    ) -> Result<Self, MguError>
+    where
+        TyF: TypeFactory<Type = Ty>,
+    {
+        let boolean_type = type_factory.try_boolean()?;
+
         // Validate that assertion is structurally well-formed
         if !assertion.is_valid_sentence()? {
             return Err(MguError::from_found_and_expected_types(
                 true,
                 &(assertion.get_type()?),
-                &(Ty::try_boolean()?),
+                &boolean_type,
             ));
         }
 
         // Validate that assertion has Boolean type (is a sentence)
         let assertion_type = assertion.get_type()?;
-        let boolean_type = Ty::try_boolean()?;
         if !assertion_type.is_subtype_of(&boolean_type) {
             return Err(MguError::from_found_and_expected_types(
                 true,
@@ -119,8 +124,16 @@ where
     /// # Errors
     ///
     /// Returns an error if the assertion is not a valid sentence.
-    pub fn simple_axiom(assertion: T) -> Result<Self, MguError> {
-        Self::new(assertion, Vec::new(), DistinctnessGraph::default())
+    pub fn simple_axiom<TyF>(type_factory: &TyF, assertion: T) -> Result<Self, MguError>
+    where
+        TyF: TypeFactory<Type = Ty>,
+    {
+        Self::new(
+            type_factory,
+            assertion,
+            Vec::new(),
+            DistinctnessGraph::default(),
+        )
     }
 
     /// Access the Assertion Sentence.

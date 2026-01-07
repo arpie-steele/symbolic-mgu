@@ -12,22 +12,23 @@
 //! # Examples
 //!
 //! ```
-//! use symbolic_mgu::{ParametricMetavariable, WideCharSet, SimpleType, Metavariable};
+//! use symbolic_mgu::{ParametricMetavariable, WideCharSet, SimpleType, SimpleType::*, Metavariable};
 //!
 //! // Create with numeric subscripts (usize decorator)
 //! type MyVar = ParametricMetavariable<SimpleType, usize, WideCharSet>;
 //!
-//! let phi = MyVar::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+//! let phi = MyVar::try_from_type_and_index(Boolean, 0).unwrap();
 //! assert_eq!(phi.to_string(), "𝜑");
 //!
-//! let phi_1 = MyVar::try_from_type_and_index(SimpleType::Boolean, 12).unwrap();
+//! let phi_1 = MyVar::try_from_type_and_index(Boolean, 12).unwrap();
 //! assert_eq!(phi_1.to_string(), "𝜑₁");
 //! ```
 
-use crate::{Decorator, Metavariable, MguError, SimpleType, Type, WideCharSet};
+use crate::{Decorator, Metavariable, MguError, OutputFormatter, SimpleType, Type, WideCharSet};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 use std::marker::PhantomData;
+use SimpleType::*;
 
 /// Generic metavariable with pluggable types, decorators, and character sets.
 ///
@@ -73,13 +74,13 @@ where
     /// # Examples
     ///
     /// ```
-    /// use symbolic_mgu::{ParametricMetavariable, WideCharSet, SimpleType, Metavariable};
+    /// use symbolic_mgu::{ParametricMetavariable, WideCharSet, SimpleType, SimpleType::*, Metavariable};
     ///
     /// type MyVar = ParametricMetavariable<SimpleType, usize, WideCharSet>;
-    /// let phi = MyVar::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+    /// let phi = MyVar::try_from_type_and_index(Boolean, 0).unwrap();
     /// assert_eq!(phi.format_as_ascii(), "ph");
     ///
-    /// let phi_1 = MyVar::try_from_type_and_index(SimpleType::Boolean, 12).unwrap();
+    /// let phi_1 = MyVar::try_from_type_and_index(Boolean, 12).unwrap();
     /// assert_eq!(phi_1.format_as_ascii(), "ph_1");
     /// ```
     #[must_use]
@@ -118,16 +119,16 @@ where
 
     /// Format as HTML with optional coloring.
     #[must_use]
-    pub fn format_as_html(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String
+    pub fn format_as_html(&self, formatter: &dyn OutputFormatter) -> String
     where
         Ty: Into<SimpleType>,
     {
         let base = WideCharSet::utf8_char(&self.ty.clone().into(), self.base_index).unwrap_or("?");
 
         let color_opt = match self.ty.clone().into() {
-            SimpleType::Boolean => formatter.get_boolean_color(),
-            SimpleType::Setvar => formatter.get_setvar_color(),
-            SimpleType::Class => formatter.get_class_color(),
+            Boolean => formatter.get_boolean_color(),
+            Setvar => formatter.get_setvar_color(),
+            Class => formatter.get_class_color(),
         };
 
         let main_html = if let Some(color) = color_opt {
@@ -155,16 +156,16 @@ where
 
     /// Format as UTF-8 with ANSI color codes.
     #[must_use]
-    pub fn format_as_utf8_color(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String
+    pub fn format_as_utf8_color(&self, formatter: &dyn OutputFormatter) -> String
     where
         Ty: Into<SimpleType>,
     {
         let base = WideCharSet::utf8_char(&self.ty.clone().into(), self.base_index).unwrap_or("?");
 
         let color_opt = match self.ty.clone().into() {
-            SimpleType::Boolean => formatter.get_boolean_color(),
-            SimpleType::Setvar => formatter.get_setvar_color(),
-            SimpleType::Class => formatter.get_class_color(),
+            Boolean => formatter.get_boolean_color(),
+            Setvar => formatter.get_setvar_color(),
+            Class => formatter.get_class_color(),
         };
 
         let dec_str = self.decorator.format_utf8();
@@ -221,7 +222,7 @@ where
         usize::MAX
     }
 
-    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn format_with(&self, formatter: &dyn OutputFormatter) -> String {
         match formatter.name() {
             "ascii" => self.format_as_ascii(),
             "latex" => self.format_as_latex(),
@@ -248,11 +249,11 @@ mod tests {
 
     #[test]
     fn parametric_metavariable_basic() {
-        let phi = TestVar::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let phi = TestVar::try_from_type_and_index(Boolean, 0).unwrap();
         assert_eq!(phi.to_string(), "𝜑");
         assert_eq!(phi.format_as_ascii(), "ph");
 
-        let psi = TestVar::try_from_type_and_index(SimpleType::Boolean, 1).unwrap();
+        let psi = TestVar::try_from_type_and_index(Boolean, 1).unwrap();
         assert_eq!(psi.to_string(), "𝜓");
         assert_eq!(psi.format_as_ascii(), "ps");
     }
@@ -260,13 +261,13 @@ mod tests {
     #[test]
     fn parametric_metavariable_with_subscripts() {
         // Index 12 = first Boolean with subscript 1
-        let phi_1 = TestVar::try_from_type_and_index(SimpleType::Boolean, 12).unwrap();
+        let phi_1 = TestVar::try_from_type_and_index(Boolean, 12).unwrap();
         assert_eq!(phi_1.to_string(), "𝜑₁");
         assert_eq!(phi_1.format_as_ascii(), "ph_1");
         assert_eq!(phi_1.format_as_latex(), r"\varphi_{1}");
 
         // Index 24 = first Boolean with subscript 2
-        let phi_2 = TestVar::try_from_type_and_index(SimpleType::Boolean, 24).unwrap();
+        let phi_2 = TestVar::try_from_type_and_index(Boolean, 24).unwrap();
         assert_eq!(phi_2.to_string(), "𝜑₂");
         assert_eq!(phi_2.format_as_ascii(), "ph_2");
     }
@@ -274,9 +275,9 @@ mod tests {
     #[test]
     fn parametric_metavariable_round_trip() {
         for index in 0..50 {
-            let var = TestVar::try_from_type_and_index(SimpleType::Boolean, index).unwrap();
+            let var = TestVar::try_from_type_and_index(Boolean, index).unwrap();
             let (ty, idx) = var.get_type_and_index().unwrap();
-            assert_eq!(ty, SimpleType::Boolean);
+            assert_eq!(ty, Boolean);
             assert_eq!(idx, index);
         }
     }
@@ -284,7 +285,7 @@ mod tests {
     #[test]
     fn parametric_metavariable_sequence() {
         let vars: Vec<_> = (0..15)
-            .map(|i| TestVar::try_from_type_and_index(SimpleType::Boolean, i).unwrap())
+            .map(|i| TestVar::try_from_type_and_index(Boolean, i).unwrap())
             .collect();
 
         // First 12 should be base characters
@@ -300,38 +301,38 @@ mod tests {
 
     #[test]
     fn parametric_metavariable_setvars() {
-        let x = TestVar::try_from_type_and_index(SimpleType::Setvar, 0).unwrap();
+        let x = TestVar::try_from_type_and_index(Setvar, 0).unwrap();
         assert_eq!(x.to_string(), "𝑥");
         assert_eq!(x.format_as_ascii(), "x");
 
-        let y = TestVar::try_from_type_and_index(SimpleType::Setvar, 1).unwrap();
+        let y = TestVar::try_from_type_and_index(Setvar, 1).unwrap();
         assert_eq!(y.to_string(), "𝑦");
         assert_eq!(y.format_as_ascii(), "y");
     }
 
     #[test]
     fn parametric_metavariable_classes() {
-        let a = TestVar::try_from_type_and_index(SimpleType::Class, 0).unwrap();
+        let a = TestVar::try_from_type_and_index(Class, 0).unwrap();
         assert_eq!(a.to_string(), "𝐴");
         assert_eq!(a.format_as_ascii(), "A");
 
-        let b = TestVar::try_from_type_and_index(SimpleType::Class, 1).unwrap();
+        let b = TestVar::try_from_type_and_index(Class, 1).unwrap();
         assert_eq!(b.to_string(), "𝐵");
         assert_eq!(b.format_as_ascii(), "B");
     }
 
     #[test]
     fn latex_formatting() {
-        let phi = TestVar::try_from_type_and_index(SimpleType::Boolean, 0).unwrap();
+        let phi = TestVar::try_from_type_and_index(Boolean, 0).unwrap();
         assert_eq!(phi.format_as_latex(), r"\varphi");
 
-        let phi_1 = TestVar::try_from_type_and_index(SimpleType::Boolean, 12).unwrap();
+        let phi_1 = TestVar::try_from_type_and_index(Boolean, 12).unwrap();
         assert_eq!(phi_1.format_as_latex(), r"\varphi_{1}");
 
-        let x = TestVar::try_from_type_and_index(SimpleType::Setvar, 0).unwrap();
+        let x = TestVar::try_from_type_and_index(Setvar, 0).unwrap();
         assert_eq!(x.format_as_latex(), "x");
 
-        let x_1 = TestVar::try_from_type_and_index(SimpleType::Setvar, 26).unwrap();
+        let x_1 = TestVar::try_from_type_and_index(Setvar, 26).unwrap();
         assert_eq!(x_1.format_as_latex(), "x_{1}");
     }
 }

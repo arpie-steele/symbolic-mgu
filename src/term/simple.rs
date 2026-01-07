@@ -1,7 +1,9 @@
 //! Very Generic Simple Term implementation.
 
+use crate::formatter::OutputFormatter;
 use crate::{
     Metavariable, MetavariableFactory, MguError, Node, NodeFactory, Term, TermFactory, Type,
+    TypeFactory,
 };
 use std::collections::HashSet;
 use std::fmt::Display;
@@ -62,7 +64,7 @@ where
 
     type Node = N;
 
-    fn is_valid_sentence(&self) -> Result<bool, crate::MguError> {
+    fn is_valid_sentence(&self) -> Result<bool, MguError> {
         match self {
             Self::Leaf(v) => {
                 _ = v.get_type_and_index()?; // Just make sure it is "alive"
@@ -80,7 +82,7 @@ where
         }
     }
 
-    fn get_type(&self) -> Result<Ty, crate::MguError> {
+    fn get_type(&self) -> Result<Ty, MguError> {
         match self {
             Self::Leaf(v) => v.get_type(),
             Self::NodeOrLeaf(n, _) => n.get_type(),
@@ -158,7 +160,7 @@ where
         }
     }
 
-    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn format_with(&self, formatter: &dyn OutputFormatter) -> String {
         match self {
             Self::Leaf(v) => v.format_with(formatter),
             Self::NodeOrLeaf(n, children) => {
@@ -194,12 +196,15 @@ where
 ///
 /// This factory creates terms directly without caching or deduplication.
 #[derive(Debug)]
-pub struct EnumTermFactory<T, V, N>
+pub struct EnumTermFactory<T, V, N, TyF>
 where
     T: Type,
     V: Metavariable<Type = T>,
     N: Node<Type = T>,
+    TyF: TypeFactory<Type = T>,
 {
+    /// Type factory for constructing type instances.
+    type_factory: TyF,
     /// Phantom data to hold type parameter T.
     _phantom_t: std::marker::PhantomData<T>,
     /// Phantom data to hold type parameter V.
@@ -208,16 +213,27 @@ where
     _phantom_n: std::marker::PhantomData<N>,
 }
 
-impl<T, V, N> EnumTermFactory<T, V, N>
+impl<T, V, N, TyF> EnumTermFactory<T, V, N, TyF>
 where
     T: Type,
     V: Metavariable<Type = T>,
     N: Node<Type = T>,
+    TyF: TypeFactory<Type = T>,
 {
-    /// Create a new `EnumTermFactory`.
+    /// Create a new `EnumTermFactory` with the given type factory.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use symbolic_mgu::{EnumTermFactory, SimpleTypeFactory, SimpleType, MetaByte, NodeByte};
+    ///
+    /// let type_factory = SimpleTypeFactory;
+    /// let term_factory = EnumTermFactory::<SimpleType, MetaByte, NodeByte, _>::new(type_factory);
+    /// ```
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(type_factory: TyF) -> Self {
         Self {
+            type_factory,
             _phantom_t: std::marker::PhantomData,
             _phantom_v: std::marker::PhantomData,
             _phantom_n: std::marker::PhantomData,
@@ -225,34 +241,28 @@ where
     }
 }
 
-impl<T, V, N> Default for EnumTermFactory<T, V, N>
+impl<T, V, N, TyF> TermFactory<EnumTerm<T, V, N>, T, V, N, TyF> for EnumTermFactory<T, V, N, TyF>
 where
     T: Type,
     V: Metavariable<Type = T>,
     N: Node<Type = T>,
-{
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<T, V, N> TermFactory<EnumTerm<T, V, N>, T, V, N> for EnumTermFactory<T, V, N>
-where
-    T: Type,
-    V: Metavariable<Type = T>,
-    N: Node<Type = T>,
+    TyF: TypeFactory<Type = T>,
 {
     type TermType = T;
     type Term = EnumTerm<T, V, N>;
     type TermNode = N;
     type TermMetavariable = V;
 
-    fn from_factories<VF, NF>(_vars: VF, _nodes: NF) -> Self
+    fn type_factory(&self) -> &TyF {
+        &self.type_factory
+    }
+
+    fn from_factories<VF, NF>(type_factory: TyF, _vars: VF, _nodes: NF) -> Self
     where
-        VF: MetavariableFactory<Metavariable = V>,
+        VF: MetavariableFactory<TyF, Metavariable = V>,
         NF: NodeFactory<Node = N>,
     {
-        Self::new()
+        Self::new(type_factory)
     }
 
     fn create_leaf(&self, var: Self::TermMetavariable) -> Result<Self::Term, MguError> {

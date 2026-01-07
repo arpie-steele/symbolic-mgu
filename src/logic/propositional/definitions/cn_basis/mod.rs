@@ -3,7 +3,7 @@
 //! "C" here refers to material implication and "N" to the not operator.
 
 use crate::logic::require_var_is_boolean;
-use crate::{Metavariable, MguError, Node, Statement, Term, TermFactory, Type};
+use crate::{Metavariable, MguError, Node, Statement, Term, TermFactory, Type, TypeFactory};
 
 /// Build the (disguised) definition: ¬ (((𝜑 ↔ 𝜓) → ¬ ((𝜑 → 𝜓) → ¬ (𝜓 → 𝜑))) → ¬ (¬ ((𝜑 → 𝜓) → ¬ (𝜓 → 𝜑)) → (𝜑 ↔ 𝜓)))
 ///
@@ -12,7 +12,7 @@ use crate::{Metavariable, MguError, Node, Statement, Term, TermFactory, Type};
 /// # Errors
 ///
 /// Returns an error if term construction or statement validation fails.
-pub fn define_biimp<Ty, V, N, T, TF>(
+pub fn define_biimp<Ty, V, N, T, TF, TyF>(
     factory: &TF,
     biimp_node: N,
     phi_var: V,
@@ -25,11 +25,12 @@ where
     V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
-    TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+    TF: TermFactory<T, Ty, V, N, TyF, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+    TyF: TypeFactory<Type = Ty>,
 {
     // Verify both variables are Boolean
-    require_var_is_boolean(&phi_var)?;
-    require_var_is_boolean(&psi_var)?;
+    require_var_is_boolean(factory.type_factory(), &phi_var)?;
+    require_var_is_boolean(factory.type_factory(), &psi_var)?;
 
     // Build terms for φ and ψ
     let phi = factory.create_leaf(phi_var)?;
@@ -79,7 +80,7 @@ where
     // Build ¬ (((𝜑 ↔ 𝜓) → ¬ ((𝜑 → 𝜓) → ¬ (𝜓 → 𝜑))) → ¬ (¬ ((𝜑 → 𝜓) → ¬ (𝜓 → 𝜑)) → (𝜑 ↔ 𝜓)))
     let assertion = factory.create_node(not_node, vec![equivalence_xor_fore_and_back])?;
 
-    Statement::simple_axiom(assertion)
+    Statement::simple_axiom(factory.type_factory(), assertion)
 }
 
 /// Build the definition: ((𝜑 ∧ 𝜓) ↔ ¬ (𝜑 → ¬ 𝜓))
@@ -87,7 +88,7 @@ where
 /// # Errors
 ///
 /// Returns an error if term construction or statement validation fails.
-pub fn define_and<Ty, V, N, T, TF>(
+pub fn define_and<Ty, V, N, T, TF, TyF>(
     factory: &TF,
     and_node: N,
     phi_var: V,
@@ -101,11 +102,12 @@ where
     V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
-    TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+    TF: TermFactory<T, Ty, V, N, TyF, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+    TyF: TypeFactory<Type = Ty>,
 {
     // Verify both variables are Boolean
-    require_var_is_boolean(&phi_var)?;
-    require_var_is_boolean(&psi_var)?;
+    require_var_is_boolean(factory.type_factory(), &phi_var)?;
+    require_var_is_boolean(factory.type_factory(), &psi_var)?;
 
     // Build terms for φ and ψ
     let phi = factory.create_leaf(phi_var)?;
@@ -126,7 +128,7 @@ where
     // Build ((𝜑 ∧ 𝜓) ↔ ¬ (𝜑 → ¬ 𝜓))
     let assertion = factory.create_node(biimp_node, vec![left, right])?;
 
-    Statement::simple_axiom(assertion)
+    Statement::simple_axiom(factory.type_factory(), assertion)
 }
 
 /// Build the definition: ((𝜑 ∨ 𝜓) ↔ (¬ 𝜑 → 𝜓))
@@ -134,7 +136,7 @@ where
 /// # Errors
 ///
 /// Returns an error if term construction or statement validation fails.
-pub fn define_or<Ty, V, N, T, TF>(
+pub fn define_or<Ty, V, N, T, TF, TyF>(
     factory: &TF,
     or_node: N,
     phi_var: V,
@@ -148,11 +150,12 @@ where
     V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
-    TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+    TF: TermFactory<T, Ty, V, N, TyF, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+    TyF: TypeFactory<Type = Ty>,
 {
     // Verify both variables are Boolean
-    require_var_is_boolean(&phi_var)?;
-    require_var_is_boolean(&psi_var)?;
+    require_var_is_boolean(factory.type_factory(), &phi_var)?;
+    require_var_is_boolean(factory.type_factory(), &psi_var)?;
 
     // Build terms for φ and ψ
     let phi = factory.create_leaf(phi_var)?;
@@ -170,7 +173,7 @@ where
     // Build ((𝜑 ∨ 𝜓) ↔ (¬ 𝜑 → 𝜓))
     let assertion = factory.create_node(biimp_node, vec![left, right])?;
 
-    Statement::simple_axiom(assertion)
+    Statement::simple_axiom(factory.type_factory(), assertion)
 }
 
 /*
@@ -202,7 +205,11 @@ mod tests {
     use super::*;
     use crate::bool_eval::BooleanSimpleOp::{AndAB2, BiimpAB2, ImpliesAB2, NotA1, OrAB2};
     use crate::bool_eval::{test_tautology, BooleanSimpleNode};
-    use crate::{EnumTermFactory, MetavariableFactory, SimpleType, WideMetavariableFactory};
+    use crate::logic::build_boolean_statement_from_polish;
+    use crate::{
+        EnumTermFactory, MetavariableFactory, SimpleType, SimpleTypeFactory,
+        WideMetavariableFactory,
+    };
     use itertools::Itertools;
 
     type MyType = SimpleType;
@@ -210,89 +217,96 @@ mod tests {
 
     #[test]
     fn define_biimp_tautology() {
-        let (phi, psi) = WideMetavariableFactory::new()
+        let (phi, psi) = WideMetavariableFactory::new(SimpleTypeFactory)
             .list_metavariables_by_type(&MyType::Boolean)
             .tuples()
             .next()
             .unwrap();
-        let factory = EnumTermFactory::new();
+        let factory = EnumTermFactory::new(SimpleTypeFactory);
         let statement = define_biimp(
             &factory,
-            MyNode::from_op(BiimpAB2),
+            MyNode::from_op(BiimpAB2, SimpleType::Boolean),
             phi,
             psi,
-            MyNode::from_op(NotA1),
-            MyNode::from_op(ImpliesAB2),
+            MyNode::from_op(NotA1, SimpleType::Boolean),
+            MyNode::from_op(ImpliesAB2, SimpleType::Boolean),
         );
         assert!(statement.is_ok());
         let statement = statement.unwrap();
-        assert_eq!(test_tautology(statement.get_assertion()), Ok(true));
+        assert_eq!(
+            test_tautology(&SimpleTypeFactory, statement.get_assertion()),
+            Ok(true)
+        );
     }
 
     #[test]
     fn define_and_tautology() {
-        let (phi, psi) = WideMetavariableFactory::new()
+        let (phi, psi) = WideMetavariableFactory::new(SimpleTypeFactory)
             .list_metavariables_by_type(&MyType::Boolean)
             .tuples()
             .next()
             .unwrap();
-        let factory = EnumTermFactory::new();
+        let factory = EnumTermFactory::new(SimpleTypeFactory);
         let statement = define_and(
             &factory,
-            MyNode::from_op(AndAB2),
+            MyNode::from_op(AndAB2, SimpleType::Boolean),
             phi,
             psi,
-            MyNode::from_op(BiimpAB2),
-            MyNode::from_op(NotA1),
-            MyNode::from_op(ImpliesAB2),
+            MyNode::from_op(BiimpAB2, SimpleType::Boolean),
+            MyNode::from_op(NotA1, SimpleType::Boolean),
+            MyNode::from_op(ImpliesAB2, SimpleType::Boolean),
         );
         assert!(statement.is_ok());
         let statement = statement.unwrap();
-        assert_eq!(test_tautology(statement.get_assertion()), Ok(true));
+        assert_eq!(
+            test_tautology(&SimpleTypeFactory, statement.get_assertion()),
+            Ok(true)
+        );
     }
 
     #[test]
     fn define_or_tautology() {
-        let (phi, psi) = WideMetavariableFactory::new()
+        let (phi, psi) = WideMetavariableFactory::new(SimpleTypeFactory)
             .list_metavariables_by_type(&MyType::Boolean)
             .tuples()
             .next()
             .unwrap();
-        let factory = EnumTermFactory::new();
+        let factory = EnumTermFactory::new(SimpleTypeFactory);
         let statement = define_or(
             &factory,
-            MyNode::from_op(OrAB2),
+            MyNode::from_op(OrAB2, SimpleType::Boolean),
             phi,
             psi,
-            MyNode::from_op(BiimpAB2),
-            MyNode::from_op(NotA1),
-            MyNode::from_op(ImpliesAB2),
+            MyNode::from_op(BiimpAB2, SimpleType::Boolean),
+            MyNode::from_op(NotA1, SimpleType::Boolean),
+            MyNode::from_op(ImpliesAB2, SimpleType::Boolean),
         );
         assert!(statement.is_ok());
         let statement = statement.unwrap();
-        assert_eq!(test_tautology(statement.get_assertion()), Ok(true));
+        assert_eq!(
+            test_tautology(&SimpleTypeFactory, statement.get_assertion()),
+            Ok(true)
+        );
     }
 
     // Tests comparing definition builders with Polish notation builder
 
-    use crate::logic::build_boolean_statement_from_polish;
-
     #[test]
     fn define_biimp_equals_polish() {
-        let var_factory = WideMetavariableFactory::new();
+        let var_factory = WideMetavariableFactory::new(SimpleTypeFactory);
         let vars = var_factory
             .list_metavariables_by_type(&MyType::Boolean)
             .take(2)
             .collect::<Vec<_>>();
-        let factory = EnumTermFactory::new();
+        let factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let from_builder = define_biimp(
             &factory,
-            MyNode::from_op(BiimpAB2),
+            MyNode::from_op(BiimpAB2, SimpleType::Boolean),
             vars[0],
             vars[1],
-            MyNode::from_op(NotA1),
-            MyNode::from_op(ImpliesAB2),
+            MyNode::from_op(NotA1, SimpleType::Boolean),
+            MyNode::from_op(ImpliesAB2, SimpleType::Boolean),
         )
         .unwrap();
 
@@ -303,9 +317,9 @@ mod tests {
             &factory,
             &vars,
             &[
-                MyNode::from_op(BiimpAB2),
-                MyNode::from_op(ImpliesAB2),
-                MyNode::from_op(NotA1),
+                MyNode::from_op(BiimpAB2, SimpleType::Boolean),
+                MyNode::from_op(ImpliesAB2, SimpleType::Boolean),
+                MyNode::from_op(NotA1, SimpleType::Boolean),
             ],
         )
         .unwrap();
@@ -319,21 +333,21 @@ mod tests {
 
     #[test]
     fn define_and_equals_polish() {
-        let var_factory = WideMetavariableFactory::new();
+        let var_factory = WideMetavariableFactory::new(SimpleTypeFactory);
         let vars = var_factory
             .list_metavariables_by_type(&MyType::Boolean)
             .take(2)
             .collect::<Vec<_>>();
-        let factory = EnumTermFactory::new();
+        let factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let from_builder = define_and(
             &factory,
-            MyNode::from_op(AndAB2),
+            MyNode::from_op(AndAB2, SimpleType::Boolean),
             vars[0],
             vars[1],
-            MyNode::from_op(BiimpAB2),
-            MyNode::from_op(NotA1),
-            MyNode::from_op(ImpliesAB2),
+            MyNode::from_op(BiimpAB2, SimpleType::Boolean),
+            MyNode::from_op(NotA1, SimpleType::Boolean),
+            MyNode::from_op(ImpliesAB2, SimpleType::Boolean),
         )
         .unwrap();
 
@@ -343,10 +357,10 @@ mod tests {
             &factory,
             &vars,
             &[
-                MyNode::from_op(AndAB2),
-                MyNode::from_op(BiimpAB2),
-                MyNode::from_op(ImpliesAB2),
-                MyNode::from_op(NotA1),
+                MyNode::from_op(AndAB2, SimpleType::Boolean),
+                MyNode::from_op(BiimpAB2, SimpleType::Boolean),
+                MyNode::from_op(ImpliesAB2, SimpleType::Boolean),
+                MyNode::from_op(NotA1, SimpleType::Boolean),
             ],
         )
         .unwrap();
@@ -360,21 +374,21 @@ mod tests {
 
     #[test]
     fn define_or_equals_polish() {
-        let var_factory = WideMetavariableFactory::new();
+        let var_factory = WideMetavariableFactory::new(SimpleTypeFactory);
         let vars = var_factory
             .list_metavariables_by_type(&MyType::Boolean)
             .take(2)
             .collect::<Vec<_>>();
-        let factory = EnumTermFactory::new();
+        let factory = EnumTermFactory::new(SimpleTypeFactory);
 
         let from_builder = define_or(
             &factory,
-            MyNode::from_op(OrAB2),
+            MyNode::from_op(OrAB2, SimpleType::Boolean),
             vars[0],
             vars[1],
-            MyNode::from_op(BiimpAB2),
-            MyNode::from_op(NotA1),
-            MyNode::from_op(ImpliesAB2),
+            MyNode::from_op(BiimpAB2, SimpleType::Boolean),
+            MyNode::from_op(NotA1, SimpleType::Boolean),
+            MyNode::from_op(ImpliesAB2, SimpleType::Boolean),
         )
         .unwrap();
 
@@ -384,10 +398,10 @@ mod tests {
             &factory,
             &vars,
             &[
-                MyNode::from_op(OrAB2),
-                MyNode::from_op(BiimpAB2),
-                MyNode::from_op(ImpliesAB2),
-                MyNode::from_op(NotA1),
+                MyNode::from_op(OrAB2, SimpleType::Boolean),
+                MyNode::from_op(BiimpAB2, SimpleType::Boolean),
+                MyNode::from_op(ImpliesAB2, SimpleType::Boolean),
+                MyNode::from_op(NotA1, SimpleType::Boolean),
             ],
         )
         .unwrap();

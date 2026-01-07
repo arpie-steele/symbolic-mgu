@@ -5,7 +5,10 @@
 //! of Prior (1955) and earlier logicians.
 
 use crate::bool_eval::BooleanSimpleOp;
-use crate::{DistinctnessGraph, Metavariable, MguError, Node, Statement, Term, TermFactory, Type};
+use crate::{
+    DistinctnessGraph, Metavariable, MguError, Node, Statement, Term, TermFactory, Type,
+    TypeFactory,
+};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -16,6 +19,7 @@ use std::marker::PhantomData;
 /// The Default implementation provides standard Łukasiewicz notation mappings.
 ///
 /// Lowercase ASCII letters ('a'-'z') are reserved for variables and cannot be mapped to operators.
+/// If no uppercase letter is mapped to a Boolean operation then uppercase variables are also valid as variables.
 /// Whitespace, control characters, and semicolons are reserved as separators and cannot be mapped.
 ///
 /// # Type Parameters
@@ -35,9 +39,10 @@ use std::marker::PhantomData;
 /// type N = ();
 /// type T = ();
 /// type TF = ();
+/// type TyF = ();
 ///
 /// // Use standard Łukasiewicz mappings
-/// let engine: PolishNotationEngine<V, N, T, TF> = PolishNotationEngine::default();
+/// let engine: PolishNotationEngine<V, N, T, TF, TyF> = PolishNotationEngine::default();
 /// assert_eq!(engine.get_operator('C'), Some(&BooleanSimpleOp::ImpliesAB2));
 /// assert_eq!(engine.get_operator('N'), Some(&BooleanSimpleOp::NotA1));
 /// ```
@@ -47,7 +52,7 @@ use std::marker::PhantomData;
 /// [`Term`]: `crate::Term`
 /// [`TermFactory`]: `crate::TermFactory`
 #[derive(Debug)]
-pub struct PolishNotationEngine<V, N, T, TF> {
+pub struct PolishNotationEngine<V, N, T, TF, TyF> {
     /// Mapping from characters to Boolean operators
     operator_map: HashMap<char, BooleanSimpleOp>,
     /// Mapping from Boolean operators to nodes (populated during parsing)
@@ -58,9 +63,11 @@ pub struct PolishNotationEngine<V, N, T, TF> {
     stack: Vec<(T, String)>,
     /// Phantom data to maintain type parameter `TF` in the struct signature.
     unused: PhantomData<TF>,
+    /// Phantom data to maintain type parameter `TyF` in the struct signature.
+    unused2: PhantomData<TyF>,
 }
 
-impl<V, N, T, TF> PolishNotationEngine<V, N, T, TF> {
+impl<V, N, T, TF, TyF> PolishNotationEngine<V, N, T, TF, TyF> {
     /// Creates a new empty Polish notation engine.
     ///
     /// Use this constructor when you want to define a custom operator mapping.
@@ -76,8 +83,9 @@ impl<V, N, T, TF> PolishNotationEngine<V, N, T, TF> {
     /// type N = ();
     /// type T = ();
     /// type TF = ();
+    /// type TyF = ();
     ///
-    /// let mut engine: PolishNotationEngine<V, N, T, TF> = PolishNotationEngine::new();
+    /// let mut engine: PolishNotationEngine<V, N, T, TF, TyF> = PolishNotationEngine::new();
     /// assert_eq!(engine.get_operator('C'), None);
     ///
     /// engine.insert_operator('C', BooleanSimpleOp::ImpliesAB2).unwrap();
@@ -91,10 +99,13 @@ impl<V, N, T, TF> PolishNotationEngine<V, N, T, TF> {
             var_map: HashMap::new(),
             stack: Vec::new(),
             unused: PhantomData,
+            unused2: PhantomData,
         }
     }
 
     /// Inserts a character-to-operator mapping.
+    ///
+    /// Lowercase letters are reserved for variables, but if no uppercase letter is mapped to a Boolean operation then uppercase variables are also valid as variables.
     ///
     /// # Errors
     ///
@@ -112,8 +123,9 @@ impl<V, N, T, TF> PolishNotationEngine<V, N, T, TF> {
     /// type N = ();
     /// type T = ();
     /// type TF = ();
+    /// type TyF = ();
     ///
-    /// let mut engine: PolishNotationEngine<V, N, T, TF> = PolishNotationEngine::new();
+    /// let mut engine: PolishNotationEngine<V, N, T, TF, TyF> = PolishNotationEngine::new();
     ///
     /// // Valid insertion
     /// assert!(engine.insert_operator('C', BooleanSimpleOp::ImpliesAB2).is_ok());
@@ -153,8 +165,9 @@ impl<V, N, T, TF> PolishNotationEngine<V, N, T, TF> {
     /// type N = ();
     /// type T = ();
     /// type TF = ();
+    /// type TyF = ();
     ///
-    /// let engine: PolishNotationEngine<V, N, T, TF> = PolishNotationEngine::default();
+    /// let engine: PolishNotationEngine<V, N, T, TF, TyF> = PolishNotationEngine::default();
     /// assert_eq!(engine.get_operator('C'), Some(&BooleanSimpleOp::ImpliesAB2));
     /// assert_eq!(engine.get_operator('z'), None); // Variables have no mapping
     /// ```
@@ -204,13 +217,14 @@ impl<V, N, T, TF> PolishNotationEngine<V, N, T, TF> {
     }
 }
 
-impl<Ty, V, N, T, TF> PolishNotationEngine<V, N, T, TF>
+impl<Ty, V, N, T, TF, TyF> PolishNotationEngine<V, N, T, TF, TyF>
 where
     Ty: Type,
     V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
-    TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+    TF: TermFactory<T, Ty, V, N, TyF, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+    TyF: TypeFactory<Type = Ty>,
 {
     /// Populate `node_map` prior to building terms or statements.
     ///
@@ -243,17 +257,27 @@ where
 
     /// Populate `var_map` prior to building terms or statements.
     ///
+    /// Lowercase letters are reserved for variables, but if no uppercase letter is mapped to a Boolean operation then uppercase variables are also valid as variables.
+    ///
     /// # Errors
     ///
     /// Returns an error if:
     /// - Variables are not Boolean type
     /// - Duplicate variables are provided
     /// - Unknown characters appear in the notation
-    pub fn setup_vars(&mut self, vars: &[V], polish: &str) -> Result<(), MguError> {
+    pub fn setup_vars(
+        &mut self,
+        type_factory: &TyF,
+        vars: &[V],
+        polish: &str,
+    ) -> Result<(), MguError>
+    where
+        TyF: TypeFactory<Type = V::Type>,
+    {
         // Validate and prepare potential variables
         let mut unique_vars = Vec::with_capacity(vars.len());
         for v in vars {
-            super::require_var_is_boolean(v)?;
+            super::require_var_is_boolean(type_factory, v)?;
             if unique_vars.contains(v) {
                 return Err(MguError::ArgumentError(format!(
                     "Variable {v:?} has been seen twice. Such duplicates are not allowed."
@@ -264,13 +288,22 @@ where
         }
         unique_vars.reverse();
 
+        let mut free_to_use_uppercase: Option<bool> = None;
+
         // First pass: identify all variables used in the notation
         for part in polish.split(is_separator).rev() {
             for ch in part.chars() {
                 if let Some(_op) = self.get_operator(ch) {
                     // Valid operator, continue
                     continue;
-                } else if ch.is_ascii_lowercase() {
+                } else if ch.is_ascii_lowercase()
+                    || ch.is_ascii_uppercase()
+                        && (free_to_use_uppercase == Some(true)
+                            || free_to_use_uppercase.is_none() && {
+                                free_to_use_uppercase = Some(self.safe_to_use_uc());
+                                free_to_use_uppercase == Some(true)
+                            })
+                {
                     // Variable character
                     let var_map = self.var_map_mut();
                     if let Entry::Vacant(e) = var_map.entry(ch) {
@@ -293,7 +326,14 @@ where
         Ok(())
     }
 
+    /// Test if any uppercase letters are mapped to operators and if none, we are free to interpret uppercase letters as variables.
+    fn safe_to_use_uc(&self) -> bool {
+        !self.operator_map.keys().any(|ch| ch.is_ascii_uppercase())
+    }
+
     /// Build a term from Polish notation after nodes and vars have been setup.
+    ///
+    /// Lowercase letters are reserved for variables, but if no uppercase letter is mapped to a Boolean operation then uppercase variables are also valid as variables.
     ///
     /// # Errors
     ///
@@ -302,6 +342,7 @@ where
     /// - Stack underflow/overflow occurs during parsing
     pub fn build_term(&mut self, single_part: &str, factory: &TF) -> Result<T, MguError> {
         self.stack_mut().clear();
+        let mut free_to_use_uppercase: Option<bool> = None;
 
         for ch in single_part.chars().rev() {
             if let Some(&op) = self.get_operator(ch) {
@@ -336,7 +377,14 @@ where
                     tree.push_str(t);
                 }
                 self.stack_mut().push((term, tree));
-            } else if ch.is_ascii_lowercase() {
+            } else if ch.is_ascii_lowercase()
+                || ch.is_ascii_uppercase()
+                    && (free_to_use_uppercase == Some(true)
+                        || free_to_use_uppercase.is_none() && {
+                            free_to_use_uppercase = Some(self.safe_to_use_uc());
+                            free_to_use_uppercase == Some(true)
+                        })
+            {
                 // Variable
                 let var = self
                     .var_map()
@@ -380,7 +428,11 @@ where
         &mut self,
         polish: &str,
         factory: &TF,
-    ) -> Result<Statement<Ty, V, N, T>, MguError> {
+    ) -> Result<Statement<Ty, V, N, T>, MguError>
+    where
+        TF: TermFactory<T, Ty, V, N, TyF>,
+        TyF: TypeFactory<Type = Ty>,
+    {
         let mut terms = Vec::new();
 
         for part in polish.split(is_separator) {
@@ -392,7 +444,12 @@ where
 
         if let Some(assertion) = terms.pop() {
             terms.shrink_to_fit();
-            let s = Statement::new(assertion, terms, DistinctnessGraph::default())?;
+            let s = Statement::new(
+                factory.type_factory(),
+                assertion,
+                terms,
+                DistinctnessGraph::default(),
+            )?;
             Ok(s)
         } else {
             Err(MguError::ArgumentError("No terms specified.".to_string()))
@@ -400,8 +457,10 @@ where
     }
 }
 
-impl<V, N, T, TF> Default for PolishNotationEngine<V, N, T, TF> {
+impl<V, N, T, TF, TyF> Default for PolishNotationEngine<V, N, T, TF, TyF> {
     /// Creates a Polish notation engine with standard Łukasiewicz notation mappings as well as a few additional ones.
+    ///
+    /// Since this default uses uppercase letters, only lowercase letters will be valid as variables.
     ///
     /// This includes all operators documented in Prior's table (1955) plus
     /// additional operators for arity 0 and 3.
@@ -450,6 +509,7 @@ impl<V, N, T, TF> Default for PolishNotationEngine<V, N, T, TF> {
             var_map: HashMap::new(),
             stack: Vec::new(),
             unused: PhantomData,
+            unused2: PhantomData,
         }
     }
 }
@@ -465,7 +525,7 @@ fn is_separator(ch: char) -> bool {
 mod tests {
     use super::*;
 
-    type TestEngine = PolishNotationEngine<(), (), (), ()>;
+    type TestEngine = PolishNotationEngine<(), (), (), (), ()>;
 
     #[test]
     fn new_creates_empty_mapping() {

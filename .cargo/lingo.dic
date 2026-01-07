@@ -258,6 +258,7 @@ bandaids
 Begriffsschrift
 benchmarked
 benchmarking
+biconditional
 BigUint
 biimp
 biimplication
@@ -352,6 +353,7 @@ CopyableNode
 Coq
 CP
 CRF
+CRLF
 CSS
 CumulativeHierarchy
 curvilinear
@@ -496,6 +498,8 @@ fff100
 fff101
 ffff00
 FFmpeg
+filename
+filenames
 filesystem
 filesystems
 Finite1a
@@ -532,6 +536,7 @@ grc
 GrothendieckUnis
 GroupBuilder
 GSZ
+gzip
 H0
 H1
 hadd
@@ -598,6 +603,7 @@ len
 LessOrEqual
 LessThan
 lexicographically
+LF
 libx264
 libx265
 LimitOrdinalPred
@@ -629,6 +635,7 @@ md
 Megill
 MembershipRelation
 memoization
+memoizing
 MetaByte
 metadata
 MetaLeaf
@@ -725,6 +732,8 @@ P6
 PairValidationFailure
 Pantone
 parameterization
+parameterized
+parsable
 PartialEq
 PartialMappingOp
 PartialOrd
@@ -762,6 +771,7 @@ ProperSubsetRel
 prover
 provers
 ps
+punycode
 py
 python3
 Q1
@@ -801,6 +811,7 @@ r2
 radialGradient
 RadialGradientBuilder
 radians
+radix
 Rc
 README
 RealNumbers
@@ -921,6 +932,8 @@ struct
 structs
 SubClassInCls
 SubClassInWff
+subsequence
+subsequences
 SubSetInWff
 subst
 SumFromAdder
@@ -933,6 +946,7 @@ SVGDocBuilder
 SVGNumber
 SVGNumberList
 SymDiffOp
+symlinks
 SystemOverview
 Szpiro
 t1
@@ -1042,6 +1056,7 @@ WellFounded
 WellFoundRecGen
 WellOrdering
 WellOrderRecGen
+wff
 whitespace
 whitespaces
 WideMetavariable
@@ -1136,6 +1151,7 @@ check_clique
 check_decomposition
 checkable's
 checkable/MS
+children's
 CIE xyY
 CIE XYZ
 clang's
@@ -1381,6 +1397,7 @@ xᵗ
 ψ₁
 ψ₂
 ω
+теорема
 Ἔξεστι
 ἔχει
 ἡμετέρων
@@ -1524,6 +1541,7 @@ Sₙ₋₁
 ¬ψ
 ¬𝜑
 ¬𝜓
+×
 –
 —
 “

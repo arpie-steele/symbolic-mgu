@@ -32,14 +32,15 @@ use std::collections::HashSet;
 use symbolic_mgu::bool_eval::{BooleanSimpleNode, BooleanSimpleOp};
 use symbolic_mgu::search::{get_iterator, TermSearchStaticState};
 use symbolic_mgu::{
-    EnumTerm, EnumTermFactory, MetavariableFactory, MguError, Node, SimpleType, Term,
-    WideMetavariable, WideMetavariableFactory,
+    EnumTerm, EnumTermFactory, MetavariableFactory, MguError, Node, SimpleType, SimpleTypeFactory,
+    Term, WideMetavariable, WideMetavariableFactory,
 };
+use SimpleType::*;
 
 type TestVar = WideMetavariable;
 type TestNode = BooleanSimpleNode<SimpleType>;
 type TestTerm = EnumTerm<SimpleType, TestVar, TestNode>;
-type TestFactory = EnumTermFactory<SimpleType, TestVar, TestNode>;
+type TestFactory = EnumTermFactory<SimpleType, TestVar, TestNode, SimpleTypeFactory>;
 
 /// Recursively evaluate a Boolean term to get its complete truth table as a u8.
 ///
@@ -170,25 +171,19 @@ fn evaluate_2var_truth_table(
 ///
 /// Panics if not all 16 functions are found by max_depth.
 fn test_functional_completeness(ops: &[BooleanSimpleOp], max_depth: usize) -> usize {
-    let vf = WideMetavariableFactory();
-    let var_a = vf
-        .list_metavariables_by_type(&SimpleType::Boolean)
-        .next()
-        .unwrap();
-    let var_b = vf
-        .list_metavariables_by_type(&SimpleType::Boolean)
-        .nth(1)
-        .unwrap();
+    let vf = WideMetavariableFactory::new(SimpleTypeFactory);
+    let var_a = vf.list_metavariables_by_type(&Boolean).next().unwrap();
+    let var_b = vf.list_metavariables_by_type(&Boolean).nth(1).unwrap();
     let vars = vec![var_a, var_b];
 
     // Convert operators to nodes
     let nodes: Vec<TestNode> = ops
         .iter()
-        .map(|&op| BooleanSimpleNode::from_op(op))
+        .map(|&op| BooleanSimpleNode::from_op(op, Boolean))
         .collect();
 
     // Create search state
-    let tf = TestFactory::new();
+    let tf = TestFactory::new(SimpleTypeFactory);
     let state =
         TermSearchStaticState::new(tf, &nodes, &vars).expect("Failed to create search state");
 
@@ -196,8 +191,7 @@ fn test_functional_completeness(ops: &[BooleanSimpleOp], max_depth: usize) -> us
 
     // Search incrementally by depth
     for depth in 0..=max_depth {
-        let iter =
-            get_iterator(&state, SimpleType::Boolean, depth).expect("Failed to create iterator");
+        let iter = get_iterator(&state, Boolean, depth).expect("Failed to create iterator");
 
         let mut term_count = 0;
         for term in iter {

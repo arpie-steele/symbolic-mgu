@@ -12,7 +12,7 @@
 //! of terms can be generated. Always use a depth limit or other
 //! plan to prevent memory exhaustion.
 
-use crate::{Metavariable, MguError, Node, Term, TermFactory, Type};
+use crate::{Metavariable, MguError, Node, Term, TermFactory, Type, TypeFactory};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::{Rc, Weak};
@@ -165,7 +165,7 @@ impl Iterator for DepthCombinationIterator {
 /// lookup when filling slots that accept a given type - we can use any
 /// compatible sub-type.
 #[derive(Debug)]
-pub struct TermSearchStaticState<Ty, V, N, T, TF> {
+pub struct TermSearchStaticState<Ty, V, N, T, TF, TyF> {
     /// A factor to generate Term items.
     factory: TF,
     /// An ordered vector of unique Types seen for Nodes and Metavariables.
@@ -177,12 +177,12 @@ pub struct TermSearchStaticState<Ty, V, N, T, TF> {
     /// For each type, store all types that are sub-types of it (including itself)
     subtypes_of: HashMap<Ty, Vec<Ty>>,
     /// Cached iterators by (type, depth)
-    prior_depths: TSIteratorCache<Ty, V, N, T, TF>,
+    prior_depths: TSIteratorCache<Ty, V, N, T, TF, TyF>,
 }
 
 /// A Cache of iterators with a key of Type and maximum depth.
-type TSIteratorCache<Ty, V, N, T, TF> =
-    RefCell<HashMap<(Ty, usize), TermSearchIterator<Ty, V, N, T, TF>>>;
+type TSIteratorCache<Ty, V, N, T, TF, TyF> =
+    RefCell<HashMap<(Ty, usize), TermSearchIterator<Ty, V, N, T, TF, TyF>>>;
 
 /// Iterator over all terms of a given type up to a specified depth.
 ///
@@ -208,7 +208,7 @@ type TSIteratorCache<Ty, V, N, T, TF> =
 /// through the state fields.
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)]
-pub enum TermSearchIterator<Ty, V, N, T, TF> {
+pub enum TermSearchIterator<Ty, V, N, T, TF, TyF> {
     /// Iterator over leaf-like terms of a specific type (depth 0).
     ///
     /// Produces terms in this order:
@@ -224,7 +224,7 @@ pub enum TermSearchIterator<Ty, V, N, T, TF> {
     /// - `sub_index`: Current position in the variable or node list
     PassZero {
         /// Weak reference to shared search state
-        search: Weak<TermSearchStaticState<Ty, V, N, T, TF>>,
+        search: Weak<TermSearchStaticState<Ty, V, N, T, TF, TyF>>,
         /// Type of terms to generate
         term_type: Ty,
         /// Have we finished iterating nullary nodes?
@@ -264,7 +264,7 @@ pub enum TermSearchIterator<Ty, V, N, T, TF> {
     ///   Implements a generalized odometer/counter for Cartesian product iteration
     PassN {
         /// Weak reference to shared search state
-        search: Weak<TermSearchStaticState<Ty, V, N, T, TF>>,
+        search: Weak<TermSearchStaticState<Ty, V, N, T, TF, TyF>>,
         /// Type of terms to generate
         term_type: Ty,
         /// Maximum depth for generated terms
@@ -289,21 +289,27 @@ pub enum TermSearchIterator<Ty, V, N, T, TF> {
         current_depths: Option<Vec<usize>>,
         /// For each child slot: (`current_term`, `list_of_iterators_for_subtypes`, `current_iterator_index`)
         /// We iterate through sub-types, and for each sub-type we iterate through its terms
-        child_slot_state: ChildSlotsState<Ty, V, N, T, TF>,
+        child_slot_state: ChildSlotsState<Ty, V, N, T, TF, TyF>,
     },
 }
 
 /// Optional vectors of triples to keep track of state as we iterate.
-type ChildSlotsState<Ty, V, N, T, TF> =
-    Option<Vec<(Option<T>, Vec<TermSearchIterator<Ty, V, N, T, TF>>, usize)>>;
+type ChildSlotsState<Ty, V, N, T, TF, TyF> = Option<
+    Vec<(
+        Option<T>,
+        Vec<TermSearchIterator<Ty, V, N, T, TF, TyF>>,
+        usize,
+    )>,
+>;
 
-impl<Ty, V, N, T, TF> TermSearchStaticState<Ty, V, N, T, TF>
+impl<Ty, V, N, T, TF, TyF> TermSearchStaticState<Ty, V, N, T, TF, TyF>
 where
     Ty: Type,
     V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
-    TF: TermFactory<T, Ty, V, N>,
+    TF: TermFactory<T, Ty, V, N, TyF>,
+    TyF: TypeFactory<Type = Ty>,
 {
     /// Create a new term search state from a factory, nodes, and variables.
     ///
@@ -554,17 +560,18 @@ where
 /// Propagates any errors from [`TermSearchIterator::new_at_depth`]. Currently never
 /// fails with standard implementations, but future database-backed implementations
 /// may return errors.
-pub fn get_iterator<Ty, V, N, T, TF>(
-    rc_state: &Rc<TermSearchStaticState<Ty, V, N, T, TF>>,
+pub fn get_iterator<Ty, V, N, T, TF, TyF>(
+    rc_state: &Rc<TermSearchStaticState<Ty, V, N, T, TF, TyF>>,
     term_type: Ty,
     max_depth: usize,
-) -> Result<TermSearchIterator<Ty, V, N, T, TF>, MguError>
+) -> Result<TermSearchIterator<Ty, V, N, T, TF, TyF>, MguError>
 where
     Ty: Type,
     V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
-    TF: TermFactory<T, Ty, V, N, Term = T, TermMetavariable = V, TermNode = N>,
+    TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermMetavariable = V, TermNode = N>,
+    TyF: TypeFactory<Type = Ty>,
 {
     // Check if the requested iterator already exists
     let key = (term_type.clone(), max_depth);
@@ -598,13 +605,14 @@ where
     Ok(new_iter)
 }
 
-impl<Ty, V, N, T, TF> TermSearchIterator<Ty, V, N, T, TF>
+impl<Ty, V, N, T, TF, TyF> TermSearchIterator<Ty, V, N, T, TF, TyF>
 where
     Ty: Type,
     V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
-    TF: TermFactory<T, Ty, V, N, Term = T, TermMetavariable = V, TermNode = N>,
+    TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermMetavariable = V, TermNode = N>,
+    TyF: TypeFactory<Type = Ty>,
 {
     /// Create a new iterator for terms of `term_type` at exactly `depth`.
     ///
@@ -625,7 +633,7 @@ where
     /// future implementations that may need to perform fallible operations (e.g.,
     /// database queries).
     pub fn new_at_depth(
-        rc_state: &Rc<TermSearchStaticState<Ty, V, N, T, TF>>,
+        rc_state: &Rc<TermSearchStaticState<Ty, V, N, T, TF, TyF>>,
         term_type: Ty,
         depth: usize,
     ) -> Result<Self, MguError> {
@@ -666,7 +674,7 @@ where
     }
 }
 
-impl<Ty, V, N, T, TF> Clone for TermSearchIterator<Ty, V, N, T, TF>
+impl<Ty, V, N, T, TF, TyF> Clone for TermSearchIterator<Ty, V, N, T, TF, TyF>
 where
     Ty: Type,
     V: Metavariable<Type = Ty>,
@@ -741,13 +749,14 @@ where
     }
 }
 
-impl<Ty, V, N, T, TF> Iterator for TermSearchIterator<Ty, V, N, T, TF>
+impl<Ty, V, N, T, TF, TyF> Iterator for TermSearchIterator<Ty, V, N, T, TF, TyF>
 where
     Ty: Type,
     V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
-    TF: TermFactory<T, Ty, V, N, Term = T, TermMetavariable = V, TermNode = N>,
+    TF: TermFactory<T, Ty, V, N, TyF, Term = T, TermMetavariable = V, TermNode = N>,
+    TyF: TypeFactory<Type = Ty>,
 {
     type Item = T;
 
@@ -1125,21 +1134,29 @@ mod tests {
     use super::*;
     use crate::{
         EnumTerm, EnumTermFactory, MetavariableFactory, MguError, NodeByte, SimpleType,
-        WideMetavariable, WideMetavariableFactory,
+        SimpleTypeFactory, WideMetavariable, WideMetavariableFactory,
     };
 
     type TestVar = WideMetavariable;
     type TestTerm = EnumTerm<SimpleType, TestVar, NodeByte>;
-    type TestFactory = EnumTermFactory<SimpleType, TestVar, NodeByte>;
-    type TestState =
-        Rc<TermSearchStaticState<SimpleType, TestVar, NodeByte, TestTerm, TestFactory>>;
+    type TestFactory = EnumTermFactory<SimpleType, TestVar, NodeByte, SimpleTypeFactory>;
+    type TestState = Rc<
+        TermSearchStaticState<
+            SimpleType,
+            TestVar,
+            NodeByte,
+            TestTerm,
+            TestFactory,
+            SimpleTypeFactory,
+        >,
+    >;
 
     fn create_simple_state(
         n_bools: usize,
         n_sets: usize,
         n_classes: usize,
     ) -> Result<TestState, MguError> {
-        let vf = WideMetavariableFactory();
+        let vf = WideMetavariableFactory::new(SimpleTypeFactory);
         use SimpleType::*;
         let some_vars = vf
             .list_metavariables_by_type(&Boolean)
@@ -1149,7 +1166,7 @@ mod tests {
             .collect::<Vec<_>>();
         use NodeByte::*;
         let some_nodes = vec![Not, Implies, ForAll, IsElementOf, True, False, UniversalCls];
-        let tf: TestFactory = EnumTermFactory::new();
+        let tf: TestFactory = EnumTermFactory::new(SimpleTypeFactory);
         TermSearchStaticState::new(tf, &some_nodes, &some_vars)
     }
 

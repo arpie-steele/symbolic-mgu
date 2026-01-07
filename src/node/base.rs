@@ -5,7 +5,7 @@
 //! [`Term`]: `crate::Term`
 
 use crate::bool_eval::BooleanSimpleOp;
-use crate::{MguError, Type};
+use crate::{MguError, OutputFormatter, Type};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
@@ -113,7 +113,7 @@ pub trait Node: Debug + Display + PartialEq + Eq + Hash + Clone + PartialOrd + O
     /// assert_eq!(output, "→");
     /// ```
     #[must_use]
-    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn format_with(&self, formatter: &dyn OutputFormatter) -> String {
         let _ = formatter; // Suppress unused warning
         format!("{}", self) // Default: use Display
     }
@@ -206,7 +206,7 @@ mod tests {
         // This test documents that Node is NOT dyn-safe by design.
         // The following line would NOT compile (commented out to prevent error):
         //
-        // let _: &dyn Node = todo!();
+        // let _: &dyn Node = todo!(); // OK to ignore
         //
         // Error: Node is not dyn-safe because it requires Clone, Eq, Hash, PartialOrd, Ord
         // which use Self as a type parameter.

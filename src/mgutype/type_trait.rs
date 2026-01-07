@@ -1,6 +1,5 @@
 //! Introduce the `TypeCore` and `Type` traits.
 
-use crate::MguError;
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
@@ -38,24 +37,6 @@ where
     #[must_use]
     fn is_subtype_of(&self, other: &Self) -> bool;
 
-    /// Return an object which behaves like the expected Boolean type.
-    ///
-    /// # Errors
-    /// - Not every implementation will support the Boolean type.
-    fn try_boolean() -> Result<Self, MguError>;
-
-    /// Return an object which behaves like the expected Setvar type.
-    ///
-    /// # Errors
-    /// - Not every implementation will support the Setvar type.
-    fn try_setvar() -> Result<Self, MguError>;
-
-    /// Return an object which behaves like the expected Class type.
-    ///
-    /// # Errors
-    /// - Not every implementation will support the Class type.
-    fn try_class() -> Result<Self, MguError>;
-
     /// Box what is effectively a clone of this object.
     #[must_use]
     fn to_boxed(&self) -> Box<dyn TypeCore> {
@@ -67,7 +48,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::SimpleType;
+    use crate::SimpleType::*;
 
     /// Verify that `TypeCore` IS dyn-safe (can be used as a trait object).
     ///
@@ -76,12 +57,12 @@ mod tests {
     /// It omits `Clone`, `Eq`, `Hash`, and `Ord` to maintain dyn-safety.
     #[test]
     fn typecore_is_dyn_safe() {
-        let simple_type = SimpleType::Boolean;
+        let simple_type = Boolean;
         let type_core_ref: &dyn TypeCore = &simple_type;
         assert!(type_core_ref.is_boolean());
 
         // Can also box it
-        let boxed: Box<dyn TypeCore> = Box::new(SimpleType::Setvar);
+        let boxed: Box<dyn TypeCore> = Box::new(Setvar);
         assert!(boxed.is_setvar());
     }
 
@@ -95,7 +76,7 @@ mod tests {
         // This test documents that Type is NOT dyn-safe by design.
         // The following line would NOT compile (commented out to prevent error):
         //
-        // let _: &dyn Type = todo!();
+        // let _: &dyn Type = todo!(); // OK to ignore
         //
         // Error: Type is not dyn-safe because it requires Clone, Eq, Hash, PartialOrd, Ord
         // which use Self as a type parameter.
@@ -107,7 +88,7 @@ mod tests {
     /// Verify that `to_boxed()` correctly bridges from `Type` to `Box<dyn TypeCore>`.
     #[test]
     fn to_boxed_works() {
-        let simple_type = SimpleType::Class;
+        let simple_type = Class;
         let boxed = simple_type.to_boxed();
         assert!(boxed.is_class());
     }

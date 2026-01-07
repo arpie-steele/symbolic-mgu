@@ -5,21 +5,22 @@
 
 use symbolic_mgu::search::{get_iterator, TermSearchStaticState};
 use symbolic_mgu::{
-    get_formatter, EnumTermFactory, MetavariableFactory, MguError, NodeByte, SimpleType, Term,
-    WideMetavariable, WideMetavariableFactory,
+    get_formatter, EnumTermFactory, MetavariableFactory, MguError, NodeByte, SimpleType,
+    SimpleTypeFactory, Term, WideMetavariable, WideMetavariableFactory,
 };
 
 fn run() -> Result<(), MguError> {
     use NodeByte::*;
+    use SimpleType::*;
     let formatter = get_formatter("utf8");
 
     // Create variables of different types
-    let vf = WideMetavariableFactory();
+    let vf = WideMetavariableFactory::new(SimpleTypeFactory);
     let vars = vf
-        .list_metavariables_by_type(&SimpleType::Boolean)
+        .list_metavariables_by_type(&Boolean)
         .take(3)
-        .chain(vf.list_metavariables_by_type(&SimpleType::Setvar).take(3))
-        .chain(vf.list_metavariables_by_type(&SimpleType::Class).take(3))
+        .chain(vf.list_metavariables_by_type(&Setvar).take(3))
+        .chain(vf.list_metavariables_by_type(&Class).take(3))
         .collect::<Vec<_>>();
 
     // Nodes spanning different types and arities
@@ -47,11 +48,11 @@ fn run() -> Result<(), MguError> {
         OperatorMapsTo,      // Class, arity 5 (Setvar, Class, Setvar, Class, Class)
     ];
 
-    let factory = EnumTermFactory::<SimpleType, WideMetavariable, NodeByte>::new();
+    let factory = EnumTermFactory::<_, WideMetavariable, NodeByte, _>::new(SimpleTypeFactory);
     let search = TermSearchStaticState::new(factory, &nodes, &vars)?;
 
     // Demonstrate term generation for different types
-    for term_type in &[SimpleType::Boolean, SimpleType::Setvar, SimpleType::Class] {
+    for term_type in &[Boolean, Setvar, Class] {
         println!("=== Type: {} ===", term_type);
 
         for depth in 0..=1 {

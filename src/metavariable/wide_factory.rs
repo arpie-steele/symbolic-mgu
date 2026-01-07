@@ -3,7 +3,9 @@
 //! This module provides [`WideMetavariableFactory`], a stateless factory
 //! implementing the [`MetavariableFactory`] trait for [`WideMetavariable`] construction.
 
-use crate::{Metavariable, MetavariableFactory, MguError, SimpleType as Type, WideMetavariable};
+use crate::{
+    Metavariable, MetavariableFactory, MguError, SimpleType as Type, TypeFactory, WideMetavariable,
+};
 
 /// Stateless factory for creating [`WideMetavariable`] instances.
 ///
@@ -13,46 +15,66 @@ use crate::{Metavariable, MetavariableFactory, MguError, SimpleType as Type, Wid
 /// # Examples
 ///
 /// ```
-/// use symbolic_mgu::{WideMetavariableFactory, MetavariableFactory, SimpleType, Metavariable};
+/// use symbolic_mgu::{WideMetavariableFactory, MetavariableFactory, SimpleType::*, SimpleTypeFactory, Metavariable};
 ///
-/// let factory = WideMetavariableFactory();
+/// let factory = WideMetavariableFactory::new(SimpleTypeFactory);
 ///
 /// // Create first Boolean variable
-/// let phi = factory.create_by_type_and_index(&SimpleType::Boolean, 0).unwrap();
+/// let phi = factory.create_by_type_and_index(&Boolean, 0).unwrap();
 /// assert_eq!(phi.to_string(), "𝜑");
 ///
 /// // Create with subscript
-/// let phi_1 = factory.create_by_type_and_index(&SimpleType::Boolean, 12).unwrap();
+/// let phi_1 = factory.create_by_type_and_index(&Boolean, 12).unwrap();
 /// assert_eq!(phi_1.to_string(), "𝜑₁");
 ///
 /// // Enumerate variables
-/// let mut vars = factory.list_metavariables_by_type(&SimpleType::Boolean);
+/// let mut vars = factory.list_metavariables_by_type(&Boolean);
 /// assert_eq!(vars.next().unwrap().to_string(), "𝜑");
 /// assert_eq!(vars.next().unwrap().to_string(), "𝜓");
 /// ```
-#[derive(Debug, Clone, Copy, Default)]
-pub struct WideMetavariableFactory();
+#[derive(Debug)]
+pub struct WideMetavariableFactory<TyF>
+where
+    TyF: TypeFactory<Type = Type>,
+{
+    /// Type factory for constructing type instances.
+    type_factory: TyF,
+}
 
-impl WideMetavariableFactory {
-    /// Create a new [`WideMetavariableFactory`].
+impl<TyF> WideMetavariableFactory<TyF>
+where
+    TyF: TypeFactory<Type = Type>,
+{
+    /// Create a new [`WideMetavariableFactory`] with the given type factory.
     ///
     /// # Examples
     ///
     /// ```
-    /// use symbolic_mgu::WideMetavariableFactory;
+    /// use symbolic_mgu::{WideMetavariableFactory, SimpleTypeFactory};
     ///
-    /// let factory = WideMetavariableFactory::new();
+    /// let type_factory = SimpleTypeFactory;
+    /// let factory = WideMetavariableFactory::new(type_factory);
     /// ```
     #[must_use]
-    pub fn new() -> Self {
-        WideMetavariableFactory()
+    pub fn new(type_factory: TyF) -> Self {
+        WideMetavariableFactory { type_factory }
     }
 }
 
-impl MetavariableFactory for WideMetavariableFactory {
+impl<TyF> MetavariableFactory<TyF> for WideMetavariableFactory<TyF>
+where
+    TyF: TypeFactory<Type = Type>,
+{
     type Metavariable = WideMetavariable;
     type MetavariableType = Type;
-    type MetavariableIterator<'a> = Box<dyn Iterator<Item = WideMetavariable> + 'a>;
+    type MetavariableIterator<'a>
+        = Box<dyn Iterator<Item = WideMetavariable> + 'a>
+    where
+        TyF: 'a;
+
+    fn type_factory(&self) -> &TyF {
+        &self.type_factory
+    }
 
     fn create_by_name(&self, name: &str) -> Result<Self::Metavariable, MguError> {
         // WideMetavariable uses UTF-8 display, so name-based creation
@@ -88,12 +110,12 @@ impl MetavariableFactory for WideMetavariableFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::metavariable::wide::{WIDE_BOOLEANS, WIDE_CLASSES, WIDE_SETVARS};
+    use crate::SimpleTypeFactory;
 
     #[test]
     fn factory_creates_valid_variables() {
-        use crate::metavariable::wide::{WIDE_BOOLEANS, WIDE_CLASSES, WIDE_SETVARS};
-
-        let factory = WideMetavariableFactory::new();
+        let factory = WideMetavariableFactory::new(SimpleTypeFactory);
 
         // Test Boolean creation
         let phi = factory.create_by_type_and_index(&Type::Boolean, 0).unwrap();
@@ -124,9 +146,7 @@ mod tests {
 
     #[test]
     fn factory_list_works() {
-        use crate::metavariable::wide::WIDE_BOOLEANS;
-
-        let factory = WideMetavariableFactory::new();
+        let factory = WideMetavariableFactory::new(SimpleTypeFactory);
 
         let vars: Vec<_> = factory
             .list_metavariables_by_type(&Type::Boolean)
@@ -157,15 +177,5 @@ mod tests {
             usize::MAX
         );
         assert_eq!(WideMetavariable::max_index_by_type(Type::Class), usize::MAX);
-    }
-
-    #[test]
-    fn default_factory_works() {
-        use crate::metavariable::wide::WIDE_BOOLEANS;
-
-        let factory = WideMetavariableFactory::default();
-        let phi = factory.create_by_type_and_index(&Type::Boolean, 0).unwrap();
-        let expected = WIDE_BOOLEANS.chars().next().unwrap().to_string();
-        assert_eq!(phi.to_string(), expected);
     }
 }

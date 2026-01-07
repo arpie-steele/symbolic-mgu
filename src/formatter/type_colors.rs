@@ -4,7 +4,7 @@
 //! Formatters can query this registry to determine how to color metavariables
 //! based on their type (Boolean, Setvar, Class, or custom types).
 
-use super::color::Color;
+use crate::{Color, Type};
 use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
 
@@ -109,13 +109,13 @@ pub fn get_type_color(type_name: &str) -> Option<Color> {
 /// # Examples
 ///
 /// ```
-/// use symbolic_mgu::{get_type_color_from_trait, Color, SimpleType};
+/// use symbolic_mgu::{get_type_color_from_trait, Color, SimpleType::*};
 ///
-/// let bool_color = get_type_color_from_trait(&SimpleType::Boolean);
+/// let bool_color = get_type_color_from_trait(&Boolean);
 /// assert_eq!(bool_color, Some(Color::BLUE));
 /// ```
 #[must_use]
-pub fn get_type_color_from_trait(ty: &impl crate::Type) -> Option<Color> {
+pub fn get_type_color_from_trait(ty: &impl Type) -> Option<Color> {
     let type_name = if ty.is_boolean() {
         "Boolean"
     } else if ty.is_setvar() {

@@ -7,16 +7,17 @@ use itertools::Itertools;
 use proptest::prelude::*;
 use symbolic_mgu::{
     apply_substitution, unify, EnumTerm, EnumTermFactory, MetaByte, MetaByteFactory,
-    MetavariableFactory, NodeByte, SimpleType, TermFactory,
+    MetavariableFactory, NodeByte, SimpleType, SimpleTypeFactory, TermFactory,
 };
+use SimpleType::*;
 
 // Type aliases for test clarity
 type TestTerm = EnumTerm<SimpleType, MetaByte, NodeByte>;
-type TestFactory = EnumTermFactory<SimpleType, MetaByte, NodeByte>;
+type TestFactory = EnumTermFactory<SimpleType, MetaByte, NodeByte, SimpleTypeFactory>;
 
 /// Generate a random metavariable of the given type.
 fn arbitrary_metavar(typ: SimpleType) -> impl Strategy<Value = MetaByte> {
-    let factory = MetaByteFactory();
+    let factory = MetaByteFactory::new(SimpleTypeFactory);
     let max_index = MetaByte::max_index_by_type(typ);
     (0..=max_index).prop_map(move |index| {
         factory
@@ -27,17 +28,17 @@ fn arbitrary_metavar(typ: SimpleType) -> impl Strategy<Value = MetaByte> {
 
 /// Generate a random Boolean metavariable.
 fn arbitrary_boolean_var() -> impl Strategy<Value = MetaByte> {
-    arbitrary_metavar(SimpleType::Boolean)
+    arbitrary_metavar(Boolean)
 }
 
 /// Generate a random Setvar metavariable.
 fn arbitrary_setvar() -> impl Strategy<Value = MetaByte> {
-    arbitrary_metavar(SimpleType::Setvar)
+    arbitrary_metavar(Setvar)
 }
 
 /// Generate a random Class metavariable.
 fn arbitrary_class_var() -> impl Strategy<Value = MetaByte> {
-    arbitrary_metavar(SimpleType::Class)
+    arbitrary_metavar(Class)
 }
 
 /// Generate a simple Boolean term (variable, or binary operation on variables).
@@ -45,11 +46,14 @@ fn arbitrary_class_var() -> impl Strategy<Value = MetaByte> {
 fn arbitrary_boolean_term_simple() -> impl Strategy<Value = TestTerm> {
     prop_oneof![
         // Leaf: just a Boolean variable
-        arbitrary_boolean_var()
-            .prop_map(|var| { TestFactory::new().create_leaf(var).expect("leaf creation") }),
+        arbitrary_boolean_var().prop_map(|var| {
+            TestFactory::new(SimpleTypeFactory)
+                .create_leaf(var)
+                .expect("leaf creation")
+        }),
         // Binary operation: op(var1, var2)
         (arbitrary_boolean_var(), arbitrary_boolean_var()).prop_map(|(v1, v2)| {
-            let factory = TestFactory::new();
+            let factory = TestFactory::new(SimpleTypeFactory);
             let t1 = factory.create_leaf(v1).expect("leaf");
             let t2 = factory.create_leaf(v2).expect("leaf");
             factory
@@ -61,12 +65,15 @@ fn arbitrary_boolean_term_simple() -> impl Strategy<Value = TestTerm> {
 
 /// Generate a Boolean term with controlled depth (0-2).
 fn arbitrary_boolean_term(depth: u32) -> impl Strategy<Value = TestTerm> {
-    let leaf = arbitrary_boolean_var()
-        .prop_map(|var| TestFactory::new().create_leaf(var).expect("leaf creation"));
+    let leaf = arbitrary_boolean_var().prop_map(|var| {
+        TestFactory::new(SimpleTypeFactory)
+            .create_leaf(var)
+            .expect("leaf creation")
+    });
 
     leaf.prop_recursive(depth, 8, 3, |inner| {
         (inner.clone(), inner.clone()).prop_map(|(t1, t2)| {
-            TestFactory::new()
+            TestFactory::new(SimpleTypeFactory)
                 .create_node(NodeByte::Implies, vec![t1, t2])
                 .expect("node")
         })
@@ -76,7 +83,11 @@ fn arbitrary_boolean_term(depth: u32) -> impl Strategy<Value = TestTerm> {
 /// Generate a Setvar term (just variables for now).
 #[allow(dead_code)]
 fn arbitrary_setvar_term() -> impl Strategy<Value = TestTerm> {
-    arbitrary_setvar().prop_map(|var| TestFactory::new().create_leaf(var).expect("leaf creation"))
+    arbitrary_setvar().prop_map(|var| {
+        TestFactory::new(SimpleTypeFactory)
+            .create_leaf(var)
+            .expect("leaf creation")
+    })
 }
 
 /// Generate a Class term (Setvar or equality).
@@ -84,11 +95,14 @@ fn arbitrary_setvar_term() -> impl Strategy<Value = TestTerm> {
 fn arbitrary_class_term() -> impl Strategy<Value = TestTerm> {
     prop_oneof![
         // A setvar is a class
-        arbitrary_setvar()
-            .prop_map(|var| { TestFactory::new().create_leaf(var).expect("leaf creation") }),
+        arbitrary_setvar().prop_map(|var| {
+            TestFactory::new(SimpleTypeFactory)
+                .create_leaf(var)
+                .expect("leaf creation")
+        }),
         // Equality of two setvars
         (arbitrary_setvar(), arbitrary_setvar()).prop_map(|(v1, v2)| {
-            let factory = TestFactory::new();
+            let factory = TestFactory::new(SimpleTypeFactory);
             let t1 = factory.create_leaf(v1).expect("leaf");
             let t2 = factory.create_leaf(v2).expect("leaf");
             factory
@@ -102,11 +116,11 @@ fn arbitrary_class_term() -> impl Strategy<Value = TestTerm> {
 fn arbitrary_disjoint_boolean_terms() -> impl Strategy<Value = (TestTerm, TestTerm)> {
     // Get 4 different Boolean variables
     Just(()).prop_map(|_| {
-        let factory = TestFactory::new();
-        let var_factory = MetaByteFactory();
+        let factory = TestFactory::new(SimpleTypeFactory);
+        let var_factory = MetaByteFactory::new(SimpleTypeFactory);
 
         let (v1, v2, v3, v4) = var_factory
-            .list_metavariables_by_type(&SimpleType::Boolean)
+            .list_metavariables_by_type(&Boolean)
             .tuples()
             .next()
             .expect("at least 4 Boolean vars");
@@ -136,7 +150,7 @@ fn arbitrary_disjoint_boolean_terms() -> impl Strategy<Value = (TestTerm, TestTe
 proptest! {
     #[test]
     fn unify_is_commutative_on_disjoint_terms((t1, t2) in arbitrary_disjoint_boolean_terms()) {
-        let factory = TestFactory::new();
+        let factory = TestFactory::new(SimpleTypeFactory);
 
         let result1 = unify(&factory, &t1, &t2);
         let result2 = unify(&factory, &t2, &t1);
@@ -169,7 +183,7 @@ proptest! {
     #[test]
     fn unifying_unified_terms_succeeds(t1 in arbitrary_boolean_term(2),
                                         t2 in arbitrary_boolean_term(2)) {
-        let factory = TestFactory::new();
+        let factory = TestFactory::new(SimpleTypeFactory);
 
         // Try to unify t1 and t2
         if let Ok(sigma) = unify(&factory, &t1, &t2) {
@@ -203,7 +217,7 @@ proptest! {
 proptest! {
     #[test]
     fn term_unifies_with_itself(t in arbitrary_boolean_term(2)) {
-        let factory = TestFactory::new();
+        let factory = TestFactory::new(SimpleTypeFactory);
 
         let result = unify(&factory, &t, &t);
         prop_assert!(result.is_ok(), "Any term should unify with itself");
@@ -226,7 +240,7 @@ proptest! {
         t1 in arbitrary_boolean_term(2),
         t2 in arbitrary_boolean_term(2)
     ) {
-        let factory = TestFactory::new();
+        let factory = TestFactory::new(SimpleTypeFactory);
 
         if let Ok(sigma) = unify(&factory, &t1, &t2) {
             let t1_prime = apply_substitution(&factory, &sigma, &t1)?;
@@ -247,7 +261,7 @@ proptest! {
     #[test]
     fn substitution_is_idempotent(t1 in arbitrary_boolean_term(2),
                                    t2 in arbitrary_boolean_term(2)) {
-        let factory = TestFactory::new();
+        let factory = TestFactory::new(SimpleTypeFactory);
 
         if let Ok(sigma) = unify(&factory, &t1, &t2) {
             // Apply once
@@ -272,7 +286,7 @@ proptest! {
 proptest! {
     #[test]
     fn occurs_check_detects_cycles(var in arbitrary_boolean_var()) {
-        let factory = TestFactory::new();
+        let factory = TestFactory::new(SimpleTypeFactory);
 
         // Create term f(var) where f is some operator
         let var_term = factory.create_leaf(var).expect("leaf");
@@ -298,7 +312,7 @@ proptest! {
         class_var in arbitrary_class_var(),
         setvar in arbitrary_setvar()
     ) {
-        let factory = TestFactory::new();
+        let factory = TestFactory::new(SimpleTypeFactory);
 
         let class_term = factory.create_leaf(class_var).expect("leaf");
         let setvar_term = factory.create_leaf(setvar).expect("leaf");
@@ -321,7 +335,7 @@ proptest! {
         setvar in arbitrary_setvar(),
         class_var in arbitrary_class_var()
     ) {
-        let factory = TestFactory::new();
+        let factory = TestFactory::new(SimpleTypeFactory);
 
         let setvar_term = factory.create_leaf(setvar).expect("leaf");
         let class_term = factory.create_leaf(class_var).expect("leaf");
@@ -345,7 +359,7 @@ proptest! {
         bool_var in arbitrary_boolean_var(),
         setvar in arbitrary_setvar()
     ) {
-        let factory = TestFactory::new();
+        let factory = TestFactory::new(SimpleTypeFactory);
 
         let bool_term = factory.create_leaf(bool_var).expect("leaf");
         let setvar_term = factory.create_leaf(setvar).expect("leaf");
@@ -361,7 +375,7 @@ proptest! {
         bool_var in arbitrary_boolean_var(),
         class_var in arbitrary_class_var()
     ) {
-        let factory = TestFactory::new();
+        let factory = TestFactory::new(SimpleTypeFactory);
 
         let bool_term = factory.create_leaf(bool_var).expect("leaf");
         let class_term = factory.create_leaf(class_var).expect("leaf");
@@ -380,7 +394,7 @@ proptest! {
 proptest! {
     #[test]
     fn different_operators_fail(v1 in arbitrary_boolean_var(), v2 in arbitrary_boolean_var()) {
-        let factory = TestFactory::new();
+        let factory = TestFactory::new(SimpleTypeFactory);
 
         let t1 = factory.create_leaf(v1).expect("leaf");
         let t2 = factory.create_leaf(v2).expect("leaf");
@@ -397,7 +411,7 @@ proptest! {
 
     #[test]
     fn different_arities_fail(v1 in arbitrary_boolean_var(), v2 in arbitrary_boolean_var()) {
-        let factory = TestFactory::new();
+        let factory = TestFactory::new(SimpleTypeFactory);
 
         let t1 = factory.create_leaf(v1).expect("leaf");
         let t2 = factory.create_leaf(v2).expect("leaf");

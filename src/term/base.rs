@@ -1,6 +1,7 @@
 //! Introduce the [`Term`] trait which describes the tree used to
 //! form Sentences.
 
+use crate::formatter::OutputFormatter;
 use crate::{Metavariable, MguError, Node, Type};
 use std::collections::HashSet;
 use std::fmt::{Debug, Display};
@@ -215,11 +216,12 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// use symbolic_mgu::{Term, EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, get_formatter};
+    /// use symbolic_mgu::{Term, EnumTerm, MetaByte, MetaByteFactory, MetavariableFactory, NodeByte, SimpleType, SimpleTypeFactory, get_formatter};
+    /// use SimpleType::*;
     ///
-    /// let vars = MetaByteFactory();
+    /// let vars = MetaByteFactory::new(SimpleTypeFactory);
     /// let var = vars
-    ///     .list_metavariables_by_type(&SimpleType::Boolean)
+    ///     .list_metavariables_by_type(&Boolean)
     ///     .next()
     ///     .unwrap();
     /// let term: EnumTerm<SimpleType, MetaByte, NodeByte> = EnumTerm::Leaf(var);
@@ -228,7 +230,7 @@ where
     /// assert_eq!(output, "P");
     /// ```
     #[must_use]
-    fn format_with(&self, formatter: &dyn crate::formatter::OutputFormatter) -> String {
+    fn format_with(&self, formatter: &dyn OutputFormatter) -> String {
         let _ = formatter; // Suppress unused warning
         format!("{}", self) // Default: use Display
     }
@@ -247,7 +249,7 @@ mod tests {
         // This test documents that Term is NOT dyn-safe by design.
         // The following line would NOT compile (commented out to prevent error):
         //
-        // let _: &dyn Term = todo!();
+        // let _: &dyn Term = todo!(); // OK to ignore
         //
         // Error: Term is not dyn-safe because it requires Clone, Eq, Hash, PartialOrd, Ord
         // which use Self as a type parameter.

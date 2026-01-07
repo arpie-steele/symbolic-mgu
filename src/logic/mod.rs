@@ -8,7 +8,8 @@ pub mod polish;
 pub mod propositional;
 
 use crate::{
-    Metavariable, MetavariableFactory, MguError, Node, Statement, Term, TermFactory, Type, TypeCore,
+    Metavariable, MetavariableFactory, MguError, Node, Statement, Term, TermFactory, Type,
+    TypeCore, TypeFactory,
 };
 use itertools::Itertools;
 use polish::PolishNotationEngine;
@@ -19,10 +20,14 @@ use std::collections::HashMap;
 /// # Errors
 /// - if the variable isn't of type Boolean
 /// - if the variable's type doesn't support Booleans.
-pub fn require_var_is_boolean<V: Metavariable>(some_var: &V) -> Result<(), MguError> {
+pub fn require_var_is_boolean<V, TyF>(type_factory: &TyF, some_var: &V) -> Result<(), MguError>
+where
+    V: Metavariable,
+    TyF: TypeFactory<Type = V::Type>,
+{
     let some_type = some_var.get_type()?;
     if !some_type.is_boolean() {
-        let wanted = <V::Type>::try_boolean().ok();
+        let wanted = type_factory.try_boolean().ok();
         if let Some(bool_type) = wanted {
             return Err(MguError::from_found_and_expected_types(
                 false, &some_type, &bool_type,
@@ -54,7 +59,7 @@ pub fn require_var_is_boolean<V: Metavariable>(some_var: &V) -> Result<(), MguEr
 /// - Unknown characters appear in the notation
 /// - Stack underflow/overflow occurs during parsing
 /// - No terms are specified
-pub fn build_boolean_statement_from_polish<Ty, V, N, T, TF>(
+pub fn build_boolean_statement_from_polish<Ty, V, N, T, TF, TyF>(
     polish: &str,
     factory: &TF,
     vars: &[V],
@@ -65,7 +70,8 @@ where
     V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
-    TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+    TF: TermFactory<T, Ty, V, N, TyF, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+    TyF: TypeFactory<Type = Ty>,
 {
     let mut engine = PolishNotationEngine::default();
     build_boolean_statement_from_polish_with_engine(polish, factory, vars, nodes, &mut engine)
@@ -75,6 +81,8 @@ where
 ///
 /// This is the internal implementation that uses a [`PolishNotationEngine`] for parsing.
 /// For standard Łukasiewicz notation, use [`build_boolean_statement_from_polish`] instead.
+///
+/// Lowercase letters are reserved for variables, but if no uppercase letter is mapped to a Boolean operation then uppercase variables are also valid as variables.
 ///
 /// # Errors
 ///
@@ -86,25 +94,26 @@ where
 /// - No terms are specified
 ///
 /// [`PolishNotationEngine`]: `crate::logic::polish::PolishNotationEngine`
-pub fn build_boolean_statement_from_polish_with_engine<Ty, V, N, T, TF>(
+pub fn build_boolean_statement_from_polish_with_engine<Ty, V, N, T, TF, TyF>(
     polish: &str,
     factory: &TF,
     vars: &[V],
     nodes: &[N],
-    engine: &mut PolishNotationEngine<V, N, T, TF>,
+    engine: &mut PolishNotationEngine<V, N, T, TF, TyF>,
 ) -> Result<Statement<Ty, V, N, T>, MguError>
 where
     Ty: Type,
     V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
-    TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+    TF: TermFactory<T, Ty, V, N, TyF, TermType = Ty, Term = T, TermMetavariable = V, TermNode = N>,
+    TyF: TypeFactory<Type = Ty>,
 {
     // Clear any previous state
     engine.clear_state();
 
     engine.setup_nodes(nodes)?;
-    engine.setup_vars(vars, polish)?;
+    engine.setup_vars(factory.type_factory(), vars, polish)?;
     engine.build_statement(polish, factory)
 }
 
@@ -129,11 +138,11 @@ pub type Dictionary<Ty, V, N, T> = HashMap<String, Statement<Ty, V, N, T>>;
 ///
 /// ```
 /// use symbolic_mgu::logic::create_dict;
-/// use symbolic_mgu::{EnumTermFactory, MetaByteFactory, NodeByte, SimpleType};
+/// use symbolic_mgu::{EnumTermFactory, MetaByteFactory, NodeByte, SimpleType, SimpleTypeFactory};
 ///
 /// // Create factories
-/// let term_factory = EnumTermFactory::new();
-/// let metavar_factory = MetaByteFactory();
+/// let term_factory = EnumTermFactory::new(SimpleTypeFactory);
+/// let metavar_factory = MetaByteFactory::new(SimpleTypeFactory);
 ///
 /// let dict = create_dict(&term_factory, &metavar_factory, NodeByte::Implies, NodeByte::Not).unwrap();
 ///
@@ -147,15 +156,16 @@ pub type Dictionary<Ty, V, N, T> = HashMap<String, Statement<Ty, V, N, T>>;
 ///
 /// Returns an error if statement construction fails or if there are insufficient
 /// metavariables of Boolean type available.
-pub fn create_dict<TF, MF, Ty, V, N, T>(
+pub fn create_dict<Ty, V, N, T, MF, TF, TyF>(
     term_factory: &TF,
     metavar_factory: &MF,
     implies_node: N,
     not_node: N,
 ) -> Result<Dictionary<Ty, V, N, T>, MguError>
 where
-    TF: TermFactory<T, Ty, V, N, TermType = Ty, Term = T, TermNode = N, TermMetavariable = V>,
-    MF: MetavariableFactory<MetavariableType = Ty, Metavariable = V>,
+    TF: TermFactory<T, Ty, V, N, TyF, TermType = Ty, Term = T, TermNode = N, TermMetavariable = V>,
+    MF: MetavariableFactory<TyF, MetavariableType = Ty, Metavariable = V>,
+    TyF: TypeFactory<Type = Ty>,
     V: Metavariable<Type = Ty>,
     N: Node<Type = Ty>,
     T: Term<Ty, V, N>,
@@ -165,7 +175,7 @@ where
     use propositional::rules::cn_basis::modus_ponens;
 
     // Get three Boolean metavariables using factory
-    let our_bool = Ty::try_boolean()?;
+    let our_bool = metavar_factory.type_factory().try_boolean()?;
     let mut booleans = metavar_factory.list_metavariables_by_type(&our_bool);
     let (phi, psi, chi) = booleans
         .next_tuple()
@@ -210,7 +220,7 @@ where
 mod tests {
     use super::*;
     use crate::bool_eval::{BooleanSimpleNode, BooleanSimpleOp};
-    use crate::{EnumTermFactory, SimpleType, WideMetavariableFactory};
+    use crate::{EnumTermFactory, SimpleType, SimpleTypeFactory, WideMetavariableFactory};
     use strum::VariantArray;
 
     type TestNode = BooleanSimpleNode<SimpleType>;
@@ -218,16 +228,16 @@ mod tests {
     #[test]
     fn build_boolean_terms() {
         use BooleanSimpleOp::*;
-        let vars = WideMetavariableFactory()
-            .list_metavariables_by_type(&SimpleType::try_boolean().unwrap())
+        let vars = WideMetavariableFactory::new(SimpleTypeFactory)
+            .list_metavariables_by_type(&SimpleType::Boolean)
             .take(3)
             .collect::<Vec<_>>();
         let nodes = BooleanSimpleOp::VARIANTS
             .iter()
             .cloned()
-            .map(BooleanSimpleNode::from_op)
+            .map(|x| BooleanSimpleNode::from_op(x, SimpleType::Boolean))
             .collect::<Vec<TestNode>>();
-        let factory = EnumTermFactory::new();
+        let factory = EnumTermFactory::new(SimpleTypeFactory);
         // Create a statement with hypotheses of all possible nodes in ASCII order of Łukasiewicz notation
         let test_str =
             "&pqr;+pqr;0;1;?pqr;Apq;Bpq;Cpq;Dpq;Epq;Fpq;Gpq;Hpq;Ipq;Jpq;Kpq;Lpq;Mpq;Np;Opq;Vpq;Xpq;^pqr;|pqr;1";
@@ -236,7 +246,10 @@ mod tests {
         let stmt = s.unwrap();
         let a = stmt.get_assertion();
         assert_eq!(a.get_metavariable(), None);
-        assert_eq!(a.get_node(), Some(TestNode::from_op(True0)));
+        assert_eq!(
+            a.get_node(),
+            Some(TestNode::from_op(True0, SimpleType::Boolean))
+        );
         let ops = vec![
             And3ABC3,      // &
             Xor3ABC3,      // +
@@ -266,15 +279,24 @@ mod tests {
         let hyps = stmt.get_hypotheses();
         assert_eq!(hyps.len(), ops.len());
         for (i, op) in ops.into_iter().enumerate() {
-            assert_eq!(hyps[i].get_node(), Some(TestNode::from_op(op)));
+            assert_eq!(
+                hyps[i].get_node(),
+                Some(TestNode::from_op(op, SimpleType::Boolean))
+            );
         }
         let h = stmt.get_hypothesis(2).unwrap();
         assert_eq!(h.get_metavariable(), None);
-        assert_eq!(h.get_node(), Some(TestNode::from_op(False0)));
+        assert_eq!(
+            h.get_node(),
+            Some(TestNode::from_op(False0, SimpleType::Boolean))
+        );
 
         let h = stmt.get_hypothesis(0).unwrap();
         assert_eq!(h.get_metavariable(), None);
-        assert_eq!(h.get_node(), Some(TestNode::from_op(And3ABC3)));
+        assert_eq!(
+            h.get_node(),
+            Some(TestNode::from_op(And3ABC3, SimpleType::Boolean))
+        );
         assert_eq!(h.get_child(0).unwrap().get_metavariable().unwrap(), vars[0]);
         assert_eq!(h.get_child(1).unwrap().get_metavariable().unwrap(), vars[1]);
         assert_eq!(h.get_child(2).unwrap().get_metavariable().unwrap(), vars[2]);
@@ -282,12 +304,15 @@ mod tests {
 
     #[test]
     fn build_boolean_std() {
-        let vars = WideMetavariableFactory()
-            .list_metavariables_by_type(&SimpleType::try_boolean().unwrap())
+        let vars = WideMetavariableFactory::new(SimpleTypeFactory)
+            .list_metavariables_by_type(&SimpleType::Boolean)
             .take(3)
             .collect::<Vec<_>>();
-        let nodes = vec![TestNode::from_op(BooleanSimpleOp::ImpliesAB2)];
-        let factory = EnumTermFactory::new();
+        let nodes = vec![TestNode::from_op(
+            BooleanSimpleOp::ImpliesAB2,
+            SimpleType::Boolean,
+        )];
+        let factory = EnumTermFactory::new(SimpleTypeFactory);
         let test_str = "p;Cpq;q";
         let s = build_boolean_statement_from_polish(test_str, &factory, &vars, &nodes);
         assert!(s.is_ok());
@@ -297,12 +322,15 @@ mod tests {
 
     #[test]
     fn build_boolean_ws_and_cntrl() {
-        let vars = WideMetavariableFactory()
-            .list_metavariables_by_type(&SimpleType::try_boolean().unwrap())
+        let vars = WideMetavariableFactory::new(SimpleTypeFactory)
+            .list_metavariables_by_type(&SimpleType::Boolean)
             .take(3)
             .collect::<Vec<_>>();
-        let nodes = vec![TestNode::from_op(BooleanSimpleOp::ImpliesAB2)];
-        let factory = EnumTermFactory::new();
+        let nodes = vec![TestNode::from_op(
+            BooleanSimpleOp::ImpliesAB2,
+            SimpleType::Boolean,
+        )];
+        let factory = EnumTermFactory::new(SimpleTypeFactory);
         let test_str = "p\u{0003};\nCpq;\t\nq ";
         let s = build_boolean_statement_from_polish(test_str, &factory, &vars, &nodes);
         assert!(s.is_ok());
@@ -312,12 +340,15 @@ mod tests {
 
     #[test]
     fn build_boolean_stack_overflow() {
-        let vars = WideMetavariableFactory()
-            .list_metavariables_by_type(&SimpleType::try_boolean().unwrap())
+        let vars = WideMetavariableFactory::new(SimpleTypeFactory)
+            .list_metavariables_by_type(&SimpleType::Boolean)
             .take(3)
             .collect::<Vec<_>>();
-        let nodes = vec![TestNode::from_op(BooleanSimpleOp::ImpliesAB2)];
-        let factory = EnumTermFactory::new();
+        let nodes = vec![TestNode::from_op(
+            BooleanSimpleOp::ImpliesAB2,
+            SimpleType::Boolean,
+        )];
+        let factory = EnumTermFactory::new(SimpleTypeFactory);
         let test_str = "Cpqr";
         let s = build_boolean_statement_from_polish(test_str, &factory, &vars, &nodes);
         assert!(s.is_err());
@@ -325,12 +356,15 @@ mod tests {
 
     #[test]
     fn build_boolean_stack_underflow() {
-        let vars = WideMetavariableFactory()
-            .list_metavariables_by_type(&SimpleType::try_boolean().unwrap())
+        let vars = WideMetavariableFactory::new(SimpleTypeFactory)
+            .list_metavariables_by_type(&SimpleType::Boolean)
             .take(3)
             .collect::<Vec<_>>();
-        let nodes = vec![TestNode::from_op(BooleanSimpleOp::ImpliesAB2)];
-        let factory = EnumTermFactory::new();
+        let nodes = vec![TestNode::from_op(
+            BooleanSimpleOp::ImpliesAB2,
+            SimpleType::Boolean,
+        )];
+        let factory = EnumTermFactory::new(SimpleTypeFactory);
         let test_str = "Cp";
         let s = build_boolean_statement_from_polish(test_str, &factory, &vars, &nodes);
         assert!(s.is_err());
@@ -338,12 +372,15 @@ mod tests {
 
     #[test]
     fn build_boolean_empty_string() {
-        let vars = WideMetavariableFactory()
-            .list_metavariables_by_type(&SimpleType::try_boolean().unwrap())
+        let vars = WideMetavariableFactory::new(SimpleTypeFactory)
+            .list_metavariables_by_type(&SimpleType::Boolean)
             .take(3)
             .collect::<Vec<_>>();
-        let nodes = vec![TestNode::from_op(BooleanSimpleOp::ImpliesAB2)];
-        let factory = EnumTermFactory::new();
+        let nodes = vec![TestNode::from_op(
+            BooleanSimpleOp::ImpliesAB2,
+            SimpleType::Boolean,
+        )];
+        let factory = EnumTermFactory::new(SimpleTypeFactory);
         let test_str = "";
         let s = build_boolean_statement_from_polish(test_str, &factory, &vars, &nodes);
         assert!(s.is_err());

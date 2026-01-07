@@ -58,6 +58,7 @@ pub(crate) mod error;
 pub(crate) mod formatter;
 pub mod logic;
 pub(crate) mod macros;
+pub mod metamath;
 pub(crate) mod metavariable;
 pub(crate) mod mgutype;
 pub(crate) mod node;
@@ -73,7 +74,7 @@ pub use distinct::simple_graph::Decomposition;
 pub use distinct::simple_graph::SimpleGraph;
 pub use distinct::DistinctnessGraph;
 pub use error::base::MguError;
-pub use error::err_type::MguErrorType;
+pub use error::MguErrorType;
 pub use formatter::{
     get_formatter, get_type_color, get_type_color_from_trait, register_formatter,
     register_type_color, Color, OutputFormatter,
@@ -95,6 +96,8 @@ pub use metavariable::wide::WIDE_SETVARS_ASCII;
 pub use metavariable::wide_factory::WideMetavariableFactory;
 pub use metavariable::Metavariable;
 pub use mgutype::base::SimpleType;
+pub use mgutype::type_factory::SimpleTypeFactory;
+pub use mgutype::type_factory::TypeFactory;
 pub use mgutype::type_trait::Type;
 pub use mgutype::type_trait::TypeCore;
 pub use node::base::Node;

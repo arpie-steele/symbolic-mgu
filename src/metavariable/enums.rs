@@ -204,18 +204,18 @@ byte_try_from_unsigned!(AsciiMetaVar: char, u16, u32, u64, u128, usize,);
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
     use super::super::meta_byte::{OUR_BOOLEANS, OUR_CLASSES, OUR_SETVARS};
     use super::*;
+    use std::collections::HashSet;
+    use SimpleType::*;
 
     #[test]
     fn ascii_metavar() {
         let mut seen: HashSet<u8> = HashSet::new();
         for (my_type, my_string) in [
-            (SimpleType::Boolean, OUR_BOOLEANS),
-            (SimpleType::Setvar, OUR_SETVARS),
-            (SimpleType::Class, OUR_CLASSES),
+            (Boolean, OUR_BOOLEANS),
+            (Setvar, OUR_SETVARS),
+            (Class, OUR_CLASSES),
         ] {
             for (index, unsigned_byte) in my_string.bytes().enumerate() {
                 seen.insert(unsigned_byte);
