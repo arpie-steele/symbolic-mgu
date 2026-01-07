@@ -445,6 +445,11 @@ fn format_stack_tree_contents(stack: &[DbTerm]) -> String {
 }
 
 /// Check distinctness constraints using tree-based substitution.
+///
+/// `DbMetavariable` is marked as safe but some early versions of
+/// `mutable_key_type` will not be able to figure this out from the
+/// `Hash` and `Eq` implementations or the configuration in `clippy.toml`.
+#[allow(clippy::mutable_key_type)]
 fn check_distinctness_tree_based(
     assertion_distinctness: &DistinctnessGraph<DbMetavariable>,
     proof_distinctness: &DistinctnessGraph<DbMetavariable>,
@@ -644,7 +649,12 @@ fn apply_assertion(
 }
 
 /// Tree-based assertion application (the original implementation).
+///
+/// `DbMetavariable` is marked as safe but some early versions of
+/// `mutable_key_type` will not be able to figure this out from the
+/// `Hash` and `Eq` implementations or the configuration in `clippy.toml`.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::mutable_key_type)]
 fn apply_assertion_tree_based(
     stack: &mut Vec<DbTerm>,
     hypotheses: &(Vec<FloatingHyp>, Vec<EssentialHyp>),
