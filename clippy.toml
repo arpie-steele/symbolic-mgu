@@ -1,0 +1,14 @@
+# Clippy configuration for symbolic-mgu
+#
+# Documentation: https://rust-lang.github.io/rust-clippy/master/index.html
+
+# Types to ignore for interior mutability checks in HashMap/HashSet keys
+#
+# DbMetavariable contains Arc<MetamathDatabase> which has interior mutability
+# (RwLock fields), but the Hash/Eq implementations only use the immutable
+# DbMetavariableKey component, making it safe to use as a HashMap key.
+#
+# We use DbMetavariable as a key in:
+# - DistinctnessGraph<DbMetavariable> (contains HashMap<DbMetavariable, usize>)
+# - Substitution<DbMetavariable, DbTerm> (wraps HashMap<DbMetavariable, DbTerm>)
+ignore-interior-mutability = ["bytes::Bytes", "symbolic_mgu::metamath::MetamathDatabase"]

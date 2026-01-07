@@ -76,6 +76,7 @@ pub use proof_builder::ProofBuilder;
 pub use symbolic::DbMetavariable;
 pub use symbolic::DbMetavariableFactory;
 pub use symbolic::DbMetavariableIterator;
+pub use symbolic::DbMetavariableKey;
 pub use symbolic::DbNode;
 pub use symbolic::DbTerm;
 pub use symbolic::DbType;

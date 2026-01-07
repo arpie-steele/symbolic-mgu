@@ -17,8 +17,9 @@
 //! 3. Final stack should contain exactly one statement matching the theorem being proved
 
 use crate::metamath::{
-    parse_expression, parse_expression_with_cache, DbMetavariable, DbNode, DbTerm, DbTypeFactory,
-    EssentialHyp, FloatingHyp, Label, MetamathDatabase, ParseCache, Proof, Theorem,
+    parse_expression, parse_expression_with_cache, DbMetavariable, DbMetavariableFactory,
+    DbMetavariableKey, DbNode, DbTerm, DbTypeFactory, EssentialHyp, FloatingHyp, Label,
+    MetamathDatabase, ParseCache, Proof, Theorem,
 };
 use crate::term::factory::TermFactory;
 use crate::{apply_substitution, DistinctnessGraph, EnumTermFactory, Substitution, Term};
@@ -447,15 +448,15 @@ fn format_stack_tree_contents(stack: &[DbTerm]) -> String {
 fn check_distinctness_tree_based(
     assertion_distinctness: &DistinctnessGraph<DbMetavariable>,
     proof_distinctness: &DistinctnessGraph<DbMetavariable>,
-    substitution: &HashMap<DbMetavariable, DbTerm>,
+    substitution: &HashMap<DbMetavariableKey, DbTerm>,
     step_num: usize,
     assertion_label: &str,
 ) -> Result<(), VerificationError> {
     // For each distinctness constraint in the assertion (e.g., `$d x y $.` in ax-1)
     for (var1, var2) in assertion_distinctness.edges_iter() {
         // Get the substituted terms
-        let term1 = substitution.get(&var1);
-        let term2 = substitution.get(&var2);
+        let term1 = substitution.get(var1.key());
+        let term2 = substitution.get(var2.key());
 
         // If either variable isn't in the substitution, no violation possible
         if term1.is_none() || term2.is_none() {
@@ -517,21 +518,27 @@ fn check_distinctness_tree_based(
         }
 
         // At least one term is not a simple leaf - use full collection
-        let mut vars1 = HashSet::new();
+        // Note: We collect into temporary `HashSet`s here despite interior mutability warning.
+        // These are short-lived and only used for iteration, not as persistent hash keys.
+        let mut vars1_set = HashSet::new();
         term1
-            .collect_metavariables(&mut vars1)
+            .collect_metavariables(&mut vars1_set)
             .map_err(|e| VerificationError::ParseError {
                 step: step_num,
                 error: format!("collecting variables from term1: {}", e),
             })?;
+        // Convert to Vec to avoid keeping interior-mutable type in HashSet
+        let vars1: Vec<DbMetavariable> = vars1_set.into_iter().collect();
 
-        let mut vars2 = HashSet::new();
+        let mut vars2_set = HashSet::new();
         term2
-            .collect_metavariables(&mut vars2)
+            .collect_metavariables(&mut vars2_set)
             .map_err(|e| VerificationError::ParseError {
                 step: step_num,
                 error: format!("collecting variables from term2: {}", e),
             })?;
+        // Convert to Vec to avoid keeping interior-mutable type in HashSet
+        let vars2: Vec<DbMetavariable> = vars2_set.into_iter().collect();
 
         // For each pair of variables from the two terms, check if they're declared distinct in the proof
         for v1 in &vars1 {
@@ -673,7 +680,8 @@ fn apply_assertion_tree_based(
     let stack_items: Vec<DbTerm> = stack.drain(stack.len() - required..).collect();
 
     // Build substitution map from floating hypotheses
-    let mut substitution_map: HashMap<DbMetavariable, DbTerm> = HashMap::new();
+    // Use `DbMetavariableKey` to avoid interior mutability in hash keys
+    let mut substitution_map: HashMap<DbMetavariableKey, DbTerm> = HashMap::new();
 
     for (i, float_hyp) in floating_hyps.iter().enumerate() {
         let stack_term = &stack_items[i];
@@ -697,11 +705,19 @@ fn apply_assertion_tree_based(
             Arc::clone(database),
         );
 
-        substitution_map.insert(metavar, stack_term.clone());
+        substitution_map.insert(metavar.key().clone(), stack_term.clone());
     }
 
-    // Convert HashMap to Substitution for use with apply_substitution
-    let substitution: Substitution<DbMetavariable, DbTerm> = substitution_map.clone().into();
+    // Create a substitution with full `DbMetavariable` for apply_substitution
+    // (apply_substitution needs the full metavariable, not just the key)
+    let type_factory = DbTypeFactory::new(Arc::clone(database));
+    let metavar_factory = DbMetavariableFactory::new(type_factory, Arc::clone(database));
+    let mut substitution_with_metavars: HashMap<DbMetavariable, DbTerm> = HashMap::new();
+    for (key, term) in &substitution_map {
+        let metavar = metavar_factory.from_key(key);
+        substitution_with_metavars.insert(metavar, term.clone());
+    }
+    let substitution: Substitution<DbMetavariable, DbTerm> = substitution_with_metavars.into();
 
     // Verify essential hypotheses match (tree identity with substitution)
     for (i, ess_hyp) in essential_hyps.iter().enumerate() {
@@ -868,8 +884,9 @@ fn apply_assertion_symbol_based(
     // Build symbol-level substitution map: variable symbol -> symbol sequence
     let mut symbol_substitution: HashMap<Arc<str>, Vec<Arc<str>>> = HashMap::new();
 
-    // Also build `DbMetavariable` substitution for distinctness checking
-    let mut metavar_substitution: HashMap<DbMetavariable, DbTerm> = HashMap::new();
+    // Also build `DbMetavariableKey` substitution for distinctness checking
+    // (Use keys to avoid interior mutability in hash keys)
+    let mut metavar_substitution: HashMap<DbMetavariableKey, DbTerm> = HashMap::new();
 
     for (i, float_hyp) in floating_hyps.iter().enumerate() {
         let stack_term = &stack_items[i];
@@ -895,7 +912,7 @@ fn apply_assertion_symbol_based(
         // Store mapping from variable name to its content (without type prefix)
         symbol_substitution.insert(Arc::clone(&float_hyp.variable), content);
 
-        // Also create `metavar` for distinctness checking
+        // Also create `metavar` key for distinctness checking
         let var_symbols = database.variables_of_type(&float_hyp.type_code);
         let var_index = var_symbols
             .iter()
@@ -908,13 +925,9 @@ fn apply_assertion_symbol_based(
                 ),
             })?;
 
-        let metavar = DbMetavariable::new(
-            Arc::clone(&float_hyp.type_code),
-            var_index,
-            Arc::clone(database),
-        );
+        let metavar_key = DbMetavariableKey::new(Arc::clone(&float_hyp.type_code), var_index);
 
-        metavar_substitution.insert(metavar, stack_term.clone());
+        metavar_substitution.insert(metavar_key, stack_term.clone());
     }
 
     // Verify essential hypotheses match (symbol sequence equality with substitution)

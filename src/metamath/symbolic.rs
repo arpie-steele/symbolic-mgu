@@ -63,17 +63,17 @@ impl DbTerm {
         match self {
             EnumTerm::Leaf(var) => {
                 // Look up the variable's symbol from the database
-                let vars = var.database.variables_of_type(&var.type_code);
-                let symbol = vars.get(var.index).ok_or_else(|| {
+                let vars = var.database.variables_of_type(&var.key.type_code);
+                let symbol = vars.get(var.key.index).ok_or_else(|| {
                     MguError::ArgumentError(format!(
                         "Variable index {} out of bounds for type {} (has {} variables)",
-                        var.index,
-                        var.type_code,
+                        var.key.index,
+                        var.key.type_code,
                         vars.len()
                     ))
                 })?;
                 // Return with type code prefix
-                Ok(vec![Arc::clone(&var.type_code), Arc::clone(symbol)])
+                Ok(vec![Arc::clone(&var.key.type_code), Arc::clone(symbol)])
             }
             EnumTerm::NodeOrLeaf(node, children) => {
                 // Look up the syntax axiom
@@ -367,12 +367,48 @@ impl Type for DbType {
 ///
 /// Uses `Arc<str>` for the type code and `Arc<MetamathDatabase>` for database
 /// access, making cloning cheap (just reference count increments).
+///
+/// Immutable key for `DbMetavariable` that can safely be used in `HashMap` and `HashSet`.
+///
+/// This key contains only the immutable identity of a metavariable (`type_code` and `index`)
+/// without the database reference, making it suitable for use as a hash key.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct DbMetavariableKey {
+    /// The Metamath type code (e.g., `"wff"`, `"setvar"`, `"class"`)
+    pub type_code: Arc<str>,
+    /// Index within variables of this type (0-based, in declaration order)
+    pub index: usize,
+}
+
+impl DbMetavariableKey {
+    /// Create a new key from type code and index.
+    #[must_use]
+    pub fn new(type_code: Arc<str>, index: usize) -> Self {
+        Self { type_code, index }
+    }
+}
+
+/// A Metavariable implementation backed by a Metamath database.
+///
+/// `DbMetavariable` represents a variable with its type and index within that type.
+/// Variables are identified by a `(type_code, index)` pair, where the index corresponds
+/// to the declaration order of variables of that type.
+///
+/// # Memory Layout
+///
+/// Uses `Arc<str>` for the type code and `Arc<MetamathDatabase>` for database
+/// access, making cloning cheap (just reference count increments).
+///
+/// # `HashMap` and `HashSet` Usage
+///
+/// This type can be used directly in `HashMap` and `HashSet`, as its `Hash` and `Eq`
+/// implementations are based only on the immutable `DbMetavariableKey`. For better
+/// performance when frequently used as a key, consider using `key()` to get a reference
+/// to the lightweight `DbMetavariableKey` instead.
 #[derive(Debug, Clone)]
 pub struct DbMetavariable {
-    /// The Metamath type code (e.g., `"wff"`, `"setvar"`, `"class"`)
-    type_code: Arc<str>,
-    /// Index within variables of this type (0-based, in declaration order)
-    index: usize,
+    /// Immutable identity (type code and index)
+    key: DbMetavariableKey,
     /// Reference to the database for variable lookups
     database: Arc<MetamathDatabase>,
 }
@@ -393,20 +429,29 @@ impl DbMetavariable {
     /// ```
     pub fn new(type_code: Arc<str>, index: usize, database: Arc<MetamathDatabase>) -> Self {
         Self {
-            type_code,
-            index,
+            key: DbMetavariableKey::new(type_code, index),
             database,
         }
     }
 
+    /// Get the immutable key for use in `HashMap`/`HashSet`.
+    ///
+    /// This key contains only the identity (`type_code` and `index`) without the database
+    /// reference, making it safe to use as a hash key despite the interior mutability of
+    /// the database's `RwLock` fields.
+    #[must_use]
+    pub fn key(&self) -> &DbMetavariableKey {
+        &self.key
+    }
+
     /// Get the type code.
     pub fn type_code(&self) -> &str {
-        &self.type_code
+        &self.key.type_code
     }
 
     /// Get the index within variables of this type.
     pub fn index(&self) -> usize {
-        self.index
+        self.key.index
     }
 
     /// Get the database reference.
@@ -418,29 +463,28 @@ impl DbMetavariable {
     ///
     /// Returns `None` if the index is out of bounds.
     fn variable_name(&self) -> Option<Arc<str>> {
-        let vars = self.database.variables_of_type(&self.type_code);
-        vars.get(self.index).cloned()
+        let vars = self.database.variables_of_type(&self.key.type_code);
+        vars.get(self.key.index).cloned()
     }
 }
 
-// PartialEq compares `(type_code, index)` tuple only
+// PartialEq compares keys only
 impl PartialEq for DbMetavariable {
     fn eq(&self, other: &Self) -> bool {
-        self.type_code == other.type_code && self.index == other.index
+        self.key == other.key
     }
 }
 
 impl Eq for DbMetavariable {}
 
-// Hash uses `(type_code, index)` tuple only
+// Hash uses key only
 impl Hash for DbMetavariable {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.type_code.hash(state);
-        self.index.hash(state);
+        self.key.hash(state);
     }
 }
 
-// Ord for canonicalization (order by `type_code` first, then `index`)
+// Ord for canonicalization (delegates to key)
 impl PartialOrd for DbMetavariable {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
@@ -449,10 +493,7 @@ impl PartialOrd for DbMetavariable {
 
 impl Ord for DbMetavariable {
     fn cmp(&self, other: &Self) -> Ordering {
-        match self.type_code.cmp(&other.type_code) {
-            Ordering::Equal => self.index.cmp(&other.index),
-            other => other,
-        }
+        self.key.cmp(&other.key)
     }
 }
 
@@ -463,7 +504,7 @@ impl fmt::Display for DbMetavariable {
             write!(f, "{}", name)
         } else {
             // Fallback if index is out of bounds
-            write!(f, "{}#{}", self.type_code, self.index)
+            write!(f, "{}#{}", self.key.type_code, self.key.index)
         }
     }
 }
@@ -472,8 +513,8 @@ impl Metavariable for DbMetavariable {
     type Type = DbType;
 
     fn get_type_and_index(&self) -> Result<(Self::Type, usize), MguError> {
-        let db_type = DbType::new(self.type_code.clone(), self.database.clone());
-        Ok((db_type, self.index))
+        let db_type = DbType::new(self.key.type_code.clone(), self.database.clone());
+        Ok((db_type, self.key.index))
     }
 
     fn max_index_by_type(_typ: Self::Type) -> usize {
@@ -534,6 +575,36 @@ impl DbMetavariableFactory {
     /// Get the database reference.
     pub fn database(&self) -> &Arc<MetamathDatabase> {
         &self.database
+    }
+
+    /// Create a `DbMetavariable` from a `DbMetavariableKey`.
+    ///
+    /// This allows recovering the full `DbMetavariable` (with database reference) from
+    /// an immutable key that was used in a `HashMap` or `HashSet`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use symbolic_mgu::metamath::{DbMetavariableFactory, DbTypeFactory, MetamathDatabase, TypeMapping};
+    /// use std::sync::Arc;
+    ///
+    /// let db = Arc::new(MetamathDatabase::new(TypeMapping::set_mm()));
+    /// let type_factory = DbTypeFactory::new(Arc::clone(&db));
+    /// let var_factory = DbMetavariableFactory::new(type_factory, Arc::clone(&db));
+    ///
+    /// // Get a metavariable and its key
+    /// // let var = ...;
+    /// // let key = var.key().clone();
+    /// // Later, recover the full metavariable from the key
+    /// // let recovered = var_factory.from_key(&key);
+    /// ```
+    #[must_use]
+    pub fn from_key(&self, key: &DbMetavariableKey) -> DbMetavariable {
+        DbMetavariable::new(
+            Arc::clone(&key.type_code),
+            key.index,
+            Arc::clone(&self.database),
+        )
     }
 }
 

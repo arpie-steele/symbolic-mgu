@@ -63,17 +63,13 @@ fn parse_cd_and_polish(proof: &str, polish: &str) {
     assert!(proof_statement.is_ok(), "CD proof {} did not parse.", proof);
     let proof_statement = proof_statement.unwrap();
 
-    let assertion_statement = polish_to_statement(polish, &var_factory, &term_factory);
-    if assertion_statement.is_err() {
-        eprintln!("{:?}", assertion_statement.unwrap_err());
-        panic!("Game Over!");
-    }
-    assert!(
-        assertion_statement.is_ok(),
-        "Polish statement {} did not parse.",
-        polish
-    );
-    let assertion_statement = assertion_statement.unwrap();
+    let assertion_statement = match polish_to_statement(polish, &var_factory, &term_factory) {
+        Ok(stmt) => stmt,
+        Err(assertion_err) => {
+            eprintln!("{:?}", assertion_err);
+            panic!("Polish statement {} did not parse: Game Over!", polish);
+        }
+    };
 
     assert_eq!(
         proof_statement.get_n_hypotheses(),
