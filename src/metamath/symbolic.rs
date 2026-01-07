@@ -667,7 +667,7 @@ pub struct DbMetavariableIterator<'a> {
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl<'a> DbMetavariableIterator<'a> {
+impl DbMetavariableIterator<'_> {
     /// Create a new iterator for variables of a given type.
     fn new(db_type: DbType, database: Arc<MetamathDatabase>) -> Self {
         Self {
@@ -679,7 +679,7 @@ impl<'a> DbMetavariableIterator<'a> {
     }
 }
 
-impl<'a> Iterator for DbMetavariableIterator<'a> {
+impl Iterator for DbMetavariableIterator<'_> {
     type Item = DbMetavariable;
 
     fn next(&mut self) -> Option<Self::Item> {
