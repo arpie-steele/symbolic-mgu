@@ -65,7 +65,7 @@ path = "src/lib.rs"
 
 [dependencies]
 either = "1.15"
-indexmap = "1.9"
+indexmap = "2.13"
 itertools = "0.14"
 log = "0.4"
 num-bigint = { version = "0.4", optional = true }
