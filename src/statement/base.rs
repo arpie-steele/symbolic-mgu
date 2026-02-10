@@ -37,9 +37,22 @@ where
     /// to be true.
     pub(crate) hypotheses: Vec<T>,
 
-    /// The distinctness graph controls what variable substitutions
-    /// are illegal, typically because they threaten self-reference
-    /// in impermissible ways.
+    /// Distinctness constraints on metavariables.
+    ///
+    /// An edge between metavariables `x` and `y` means they cannot be substituted
+    /// with terms that share any common metavariables. This prevents invalid
+    /// substitutions that would conflate logically separate entities (e.g., bound
+    /// variable capture in quantified formulas).
+    ///
+    /// When a substitution is applied:
+    /// - **Validation**: If terms for `x` and `y` share metavariables, the
+    ///   substitution fails with [`MguError::DistinctnessViolation`]
+    /// - **Propagation**: Constraints are propagated to all metavariable pairs
+    ///   across the substituted terms
+    ///
+    /// See [`crate::distinct`] module documentation for the full scheme.
+    ///
+    /// [`MguError::DistinctnessViolation`]: crate::MguError::DistinctnessViolation
     pub(crate) distinctness_graph: DistinctnessGraph<V>,
 }
 

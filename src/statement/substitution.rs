@@ -1,7 +1,32 @@
 //! Substitution operations on Statements.
 //!
 //! This module provides methods for applying substitutions to statements
-//! and transforming distinctness graphs.
+//! while correctly transforming and validating distinctness constraints.
+//!
+//! # Distinctness Transformation
+//!
+//! When a substitution is applied to a statement, each distinctness constraint
+//! `(x, y)` is processed as follows:
+//!
+//! 1. **Lookup**: Get the terms `T_x` and `T_y` that `x` and `y` map to
+//!    (or the variables themselves if not in the substitution)
+//!
+//! 2. **Collect**: Gather all metavariables appearing in `T_x` and `T_y`
+//!
+//! 3. **Validate**: If any metavariable appears in both `T_x` and `T_y`,
+//!    the substitution violates distinctness and fails with
+//!    [`MguError::DistinctnessViolation`]
+//!
+//! 4. **Propagate**: Add edges between every metavariable in `T_x` and every
+//!    metavariable in `T_y` to the new distinctness graph
+//!
+//! # Merging Graphs
+//!
+//! When combining statements (e.g., in APPLY operations), distinctness graphs
+//! are merged by taking the union of all edges. This preserves all constraints
+//! from both participating statements.
+//!
+//! [`MguError::DistinctnessViolation`]: crate::MguError::DistinctnessViolation
 
 use super::base::Statement;
 use crate::{

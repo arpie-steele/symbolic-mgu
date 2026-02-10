@@ -1,4 +1,58 @@
-//! Distinctness graph with Metavariables as vertices.
+//! Distinctness graphs for tracking variable separation constraints.
+//!
+//! A distinctness graph records pairs of metavariables that must remain "distinct"—
+//! meaning they cannot be substituted with terms that share any common metavariables.
+//! This prevents certain invalid substitutions that would conflate logically separate
+//! entities.
+//!
+//! # Semantic Meaning
+//!
+//! An edge between metavariables `x` and `y` in a distinctness graph means:
+//! - `x` and `y` must not be substituted with the same term
+//! - More generally, the terms substituted for `x` and `y` must not share any
+//!   metavariables in common
+//!
+//! This is essential for preventing variable capture and maintaining the logical
+//! validity of substitutions in quantified formulas or other binding constructs.
+//!
+//! # Propagation Under Substitution
+//!
+//! When a substitution is applied to a statement with distinctness constraints:
+//!
+//! 1. For each edge `(x, y)` in the original graph:
+//!    - Let `T_x` be the term substituted for `x` (or `x` itself if unsubstituted)
+//!    - Let `T_y` be the term substituted for `y` (or `y` itself if unsubstituted)
+//!    - **Validation**: If `T_x` and `T_y` share any metavariables, the substitution
+//!      is invalid (distinctness violation)
+//!    - **Propagation**: Add edges between every metavariable in `T_x` and every
+//!      metavariable in `T_y`
+//!
+//! 2. When combining statements (e.g., APPLY operation), distinctness graphs are
+//!    merged by taking the union of all edges.
+//!
+//! # Usage
+//!
+//! Distinctness constraints arise from:
+//! - Logical systems with binding constructs (quantifiers, lambda abstractions)
+//! - Metamath `$d` statements (see the Metamath book or [`crate::metamath`] module)
+//! - Any context where variable separation must be enforced
+//!
+//! # Example
+//!
+//! ```
+//! use symbolic_mgu::{DistinctnessGraph, MetaByte, SimpleType};
+//!
+//! let mut graph = DistinctnessGraph::<MetaByte>::new();
+//!
+//! // Declare that Boolean variables P and Q must be distinct
+//! let p = MetaByte::try_from_type_and_index(SimpleType::Boolean, 0).unwrap(); // P
+//! let q = MetaByte::try_from_type_and_index(SimpleType::Boolean, 1).unwrap(); // Q
+//! graph.add_edge(&p, &q).unwrap();
+//!
+//! // Check the constraint exists
+//! assert!(graph.has_edge(&p, &q));
+//! assert!(graph.has_edge(&q, &p)); // Symmetric
+//! ```
 
 pub(crate) mod pair;
 pub(crate) mod simple_graph;
