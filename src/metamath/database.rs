@@ -16,6 +16,32 @@
 //! - Distinctness constraints (`$d`) are scoped
 //! - Axioms (`$a`) and theorems (`$p`) are global
 //!
+//! # Distinctness Constraint Handling
+//!
+//! Distinctness constraints (`$d`) follow a specific accumulation and storage pattern:
+//!
+//! 1. **Scope Save (`${`)**: A new child scope is created, inheriting access to parent
+//!    scope's constraints but with its own local constraint storage.
+//!
+//! 2. **Scope Restore (`$}`)**: The current scope is popped, discarding any constraints
+//!    declared within that scope.
+//!
+//! 3. **Constraint Accumulation (`$d ... $.`)**: Each `$d` statement adds pairwise
+//!    constraints to the current scope. These accumulate with constraints from parent
+//!    scopes when collected.
+//!
+//! 4. **Storage in Assertions**: When an axiom or theorem is parsed, only constraints
+//!    involving *interface variables* (those appearing in the statement or essential
+//!    hypotheses) are stored in the assertion's distinctness graph. Variables used
+//!    only within a proof are arbitrary choices and don't affect the assertion's
+//!    public interface.
+//!
+//! 5. **Verification**: When applying an assertion, the verifier checks that the
+//!    assertion's distinctness requirements are satisfied by the substitutions.
+//!    Only constraints for substituted variables (i.e., interface variables) are
+//!    enforced; constraints for non-interface variables are skipped since they
+//!    have no substitution.
+//!
 //! # Example
 //!
 //! ```no_run
@@ -1570,19 +1596,28 @@ impl MetamathDatabase {
             .cloned()
     }
 
-    /// Build a `DistinctnessGraph` for variables mentioned in a statement.
+    /// Build a `DistinctnessGraph` for an assertion's interface variables.
     ///
-    /// This collects all distinctness constraints from the current scope and filters
-    /// them to only include pairs where both variables are in the provided set.
+    /// This collects all distinctness constraints from the current scope chain and
+    /// filters them to only include pairs where both variables are in the provided set.
+    ///
+    /// # Interface Variables
+    ///
+    /// When building a distinctness graph for an axiom or theorem, the `variables`
+    /// parameter should contain only the *interface variables*: those appearing in
+    /// the assertion's statement or its essential hypotheses. Variables used only
+    /// within a proof (not in the statement or hypotheses) are arbitrary choices
+    /// and should not be included, as they don't affect the assertion's public
+    /// interface or its distinctness requirements when applied.
     ///
     /// # Arguments
     ///
-    /// * `variables` - Set of variable names mentioned in the statement
+    /// * `variables` - Set of interface variable names (from statement + essential hypotheses)
     /// * `db_arc` - Arc reference to this database (needed to create `DbMetavariable` instances)
     ///
     /// # Returns
     ///
-    /// A `DistinctnessGraph` containing only the variables from the input set.
+    /// A `DistinctnessGraph` containing only constraints between the provided variables.
     pub fn build_distinctness_graph(
         &self,
         variables: &HashSet<Arc<str>>,
