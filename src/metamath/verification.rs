@@ -15,6 +15,25 @@
 //!      - Check distinctness constraints are satisfied
 //!      - Push the substituted conclusion onto stack
 //! 3. Final stack should contain exactly one statement matching the theorem being proved
+//!
+//! ## Distinctness Checking
+//!
+//! When applying an axiom or theorem, distinctness constraints are checked as follows:
+//!
+//! 1. The *assertion's* distinctness graph contains constraints only for its interface
+//!    variables (those appearing in its statement or essential hypotheses).
+//!
+//! 2. For each constraint `(x, y)` in the assertion's distinctness graph:
+//!    - Look up the substitutions for `x` and `y`
+//!    - If either variable has no substitution (shouldn't happen for interface variables),
+//!      skip the constraint
+//!    - Extract all metavariables from each substituted term
+//!    - Verify that every pair of variables (one from each term) is declared distinct
+//!      in the *proof's* distinctness graph
+//!
+//! 3. This ensures that the assertion's distinctness requirements are propagated through
+//!    substitution: if the assertion requires `x` and `y` to be distinct, then whatever
+//!    we substitute for them must also maintain distinctness.
 
 use crate::metamath::{
     parse_expression, parse_expression_with_cache, DbMetavariable, DbMetavariableFactory,

@@ -603,10 +603,25 @@ impl<F: FilesystemProvider> Parser<F> {
             }
         }
 
-        // Build distinctness graph from ALL active variables in scope
+        // Compute interface variables: those appearing in statement or essential hypotheses.
+        // Only these variables are part of the axiom's public interface; distinctness
+        // constraints are stored only for interface variables.
+        let mut interface_vars = mentioned_vars;
+        for ess_hyp in &hypotheses.1 {
+            for sym in &ess_hyp.statement {
+                if active_vars.contains(sym) {
+                    interface_vars.insert(sym.clone());
+                }
+            }
+        }
+
+        // Build distinctness graph for interface variables only.
+        // Constraints involving other variables in scope are not stored because:
+        // - When this axiom is applied, only interface variables receive substitutions
+        // - The verification algorithm skips constraints for non-substituted variables
         let distinctness = self
             .database
-            .build_distinctness_graph(&active_vars, &self.database);
+            .build_distinctness_graph(&interface_vars, &self.database);
 
         let axiom = Axiom {
             core: AssertionCore {
@@ -757,13 +772,26 @@ impl<F: FilesystemProvider> Parser<F> {
         // Get associated comment from tokenizer and parse metadata
         let comment = self.tokenizer.last_comment().map(CommentMetadata::parse);
 
-        // Build distinctness graph from ALL active variables in scope
-        // This includes variables that appear only in the proof (not in statement/hypotheses)
-        // which is necessary for correct distinctness checking during verification
-        let active_vars = self.database.active_variables();
+        // Compute interface variables: those appearing in statement or essential hypotheses.
+        // Only these variables are part of the theorem's public interface; distinctness
+        // constraints are stored only for interface variables. Variables used internally
+        // in the proof are arbitrary choices and don't affect the theorem's interface.
+        let mut interface_vars = mentioned_vars;
+        for ess_hyp in &hypotheses.1 {
+            for sym in &ess_hyp.statement {
+                if active_vars.contains(sym) {
+                    interface_vars.insert(sym.clone());
+                }
+            }
+        }
+
+        // Build distinctness graph for interface variables only.
+        // Constraints involving proof-internal variables are not stored because:
+        // - When this theorem is applied, only interface variables receive substitutions
+        // - The verification algorithm skips constraints for non-substituted variables
         let distinctness = self
             .database
-            .build_distinctness_graph(&active_vars, &self.database);
+            .build_distinctness_graph(&interface_vars, &self.database);
 
         let theorem = Theorem {
             core: AssertionCore {
