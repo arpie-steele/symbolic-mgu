@@ -1022,6 +1022,7 @@ unordered
 unparsed
 UnsignedValueOutOfRange
 UnsignedValueUnsupported
+unsubstituted
 untokenizable
 untokenize
 untokenized
@@ -1042,6 +1043,7 @@ variadic
 varphi
 VarType
 Vec
+verifier
 versa
 veryfinite
 viewBox

@@ -14,7 +14,7 @@
 //! # Distinctness Constraints
 //!
 //! Each [`Statement`] carries a [`DistinctnessGraph`] that records which metavariables
-//! must remain "distinct"—they cannot be substituted with terms sharing common
+//! must remain "distinct" — they cannot be substituted with terms sharing common
 //! metavariables. This prevents invalid substitutions that would conflate logically
 //! separate entities.
 //!
